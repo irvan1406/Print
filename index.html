@@ -7,72 +7,36 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Roboto&family=Open+Sans&family=Lato&family=Montserrat&family=Oswald&family=Source+Sans+Pro&family=Slabo+27px&family=Raleway&family=PT+Sans&family=Merriweather&family=Ubuntu&family=Playfair+Display&family=Lora&family=Noto+Sans&family=Nunito&family=Roboto+Mono&family=Inconsolata&family=Quicksand&family=Arvo&family=Pacifico&display=swap" rel="stylesheet">
     
     <style>
-        /* Styling khusus untuk area struk yang akan di-print */
         .receipt-container {
             font-family: 'Courier New', Courier, monospace;
-            width: 57mm;
-            box-sizing: border-box;
-            background: white;
-            color: black;
-            font-size: 11px;
-            line-height: 1.2;
-            padding: 4.5mm;
-            margin: 0 auto;
-            position: relative;
+            width: 57mm; box-sizing: border-box; background: white; color: black;
+            font-size: 11px; line-height: 1.2; padding: 4.5mm; margin: 0 auto; position: relative;
         }
-
         .center { text-align: center; }
         .left { text-align: left; }
         .right { text-align: right; }
         .flex-between { display: flex; justify-content: space-between; }
         .flex-row { display: flex; }
         .col-label { width: 75px; flex-shrink: 0; }
-
         .dashed-line { border-top: 1px dashed black; margin: 5px 0; }
         .dotted-line { border-top: 1px dotted black; margin: 5px 0; }
         .solid-line { border-top: 1px solid black; margin: 5px 0; }
-
         .fw-bold { font-weight: bold; }
         .text-lg { font-size: 13px; }
         .text-xl { font-size: 15px; }
         .w-full { width: 100%; }
 
-        /* Font seragam untuk model bawaan */
         #model-1, #model-2, #model-3, #model-4, #model-5 {
             font-family: 'Arial Narrow', Arial, Helvetica, sans-serif;
-            letter-spacing: -0.2px;
-            font-size: 9.5px;
+            letter-spacing: -0.2px; font-size: 9.5px;
         }
+        #model-1 .text-xl, #model-2 .text-xl, #model-3 .text-xl, #model-4 .text-xl, #model-5 .text-xl { font-size: 13px; }
+        #model-custom { white-space: pre-wrap; word-wrap: break-word; }
+        .logo-display-container { width: 100%; margin-bottom: 10px; display: none; }
+        .logo-display-img { display: block; max-width: 100px; height: auto; }
 
-        #model-1 .text-xl, #model-2 .text-xl, #model-3 .text-xl, #model-4 .text-xl, #model-5 .text-xl {
-            font-size: 13px;
-        }
-
-        /* Styling khusus untuk Model Custom */
-        #model-custom {
-            white-space: pre-wrap;
-            word-wrap: break-word;
-        }
-
-        /* Container Dinamis untuk Logo */
-        .logo-display-container {
-            width: 100%;
-            margin-bottom: 10px;
-            display: none; /* Disembunyikan default, dimunculkan lewat JS */
-        }
-        .logo-display-img {
-            display: block;
-            max-width: 100px;
-            height: auto;
-        }
-
-        /* Styling untuk Tab Navigasi Menu Baru */
-        .tab-active { border-bottom: 3px solid #2563eb; color: #2563eb; font-weight: bold; }
-
-        /* Saat di-print (PDF/Browser) */
         @media print {
             body * { visibility: hidden; }
             #print-area, #print-area * { visibility: visible; }
@@ -82,9 +46,9 @@
         }
     </style>
 </head>
-<body class="bg-gray-100 min-h-screen p-4 md:p-8">
+<body class="bg-gray-100 min-h-screen p-4 md:p-8 pb-32">
 
-<div id="status-bar" class="max-w-6xl mx-auto bg-slate-900 text-white text-[10px] px-4 py-2 flex justify-between items-center rounded-lg shadow-md mb-4 no-print">
+<div id="status-bar" class="max-w-6xl mx-auto bg-slate-900 text-white text-[10px] px-4 py-2 flex justify-between items-center rounded-lg shadow-md mb-4 sticky top-2 z-50">
     <div class="flex items-center gap-2">
         <span id="status-dot" class="w-2 h-2 rounded-full bg-red-500"></span>
         <span id="txt-printer-name" class="font-bold">Printer: Terputus</span>
@@ -95,9 +59,9 @@
     </div>
 </div>
 
-<div class="max-w-6xl mx-auto bg-white flex shadow-sm rounded-lg overflow-hidden mb-6 no-print">
-    <button onclick="switchTab('spbu')" id="btn-spbu" class="flex-1 py-3 text-sm font-bold bg-blue-50 text-blue-600 border-b-2 border-blue-600 transition">Struk SPBU</button>
-    <button onclick="switchTab('wifi')" id="btn-wifi" class="flex-1 py-3 text-sm font-bold text-gray-500 hover:bg-gray-50 border-b-2 border-transparent transition">WiFi Barcode</button>
+<div class="max-w-6xl mx-auto bg-white flex shadow-sm rounded-lg overflow-hidden mb-6">
+    <button onclick="switchTab('spbu')" id="btn-spbu" class="flex-1 py-3 text-sm font-bold bg-blue-50 text-blue-600 border-b-2 border-blue-600">Struk SPBU</button>
+    <button onclick="switchTab('wifi')" id="btn-wifi" class="flex-1 py-3 text-sm font-bold text-gray-500 hover:bg-gray-50 border-b-2 border-transparent">WiFi Barcode</button>
 </div>
 
 <div class="max-w-6xl mx-auto flex flex-col md:flex-row gap-8">
@@ -106,7 +70,6 @@
         <h2 class="text-2xl font-bold mb-6 text-gray-800">Pengaturan Struk</h2>
 
         <form id="strukForm" class="space-y-4 text-sm">
-
             <div class="border p-4 rounded bg-green-50 border-green-200">
                 <label class="block font-bold text-green-800 mb-2">Pilih Template (Model Desain)</label>
                 <select id="in-desain" class="w-full border p-2 rounded bg-white text-gray-700 font-bold">
@@ -150,13 +113,12 @@
             <div class="border p-4 rounded bg-blue-50 border-blue-200">
                 <label class="block font-bold text-blue-800 mb-2">Scan Struk Asli (Fitur Tiru 100%)</label>
                 <input type="file" id="in-scan-nota" accept="image/*" class="w-full bg-white p-1 border rounded text-xs">
-                <p class="text-xs text-blue-600 mt-1">*Upload foto nota, sistem akan membaca teks dan memindahkannya ke Mode Custom.</p>
+                <p class="text-xs text-blue-600 mt-1">*Upload foto nota, sistem membaca otomatis ke Mode Custom.</p>
                 <div id="ocr-status" class="text-xs font-bold mt-2 text-orange-600 hidden animate-pulse">Memproses baca gambar... mohon tunggu...</div>
             </div>
 
             <div id="custom-controls" class="hidden border p-4 rounded bg-yellow-50 border-yellow-200 space-y-3">
                 <h3 class="font-bold text-yellow-800 border-b pb-1 text-sm">Pengaturan Font & Teks Custom</h3>
-                
                 <div class="grid grid-cols-2 gap-2">
                     <div>
                         <label class="block text-xs font-bold">Pilih Font (20 Macam)</label>
@@ -166,21 +128,6 @@
                             <option value="'Times New Roman'">Times New Roman</option>
                             <option value="Roboto">Roboto</option>
                             <option value="'Open Sans'">Open Sans</option>
-                            <option value="Lato">Lato</option>
-                            <option value="Montserrat">Montserrat</option>
-                            <option value="Oswald">Oswald</option>
-                            <option value="'Source Sans Pro'">Source Sans Pro</option>
-                            <option value="'Slabo 27px'">Slabo</option>
-                            <option value="Raleway">Raleway</option>
-                            <option value="'PT Sans'">PT Sans</option>
-                            <option value="Merriweather">Merriweather</option>
-                            <option value="Ubuntu">Ubuntu</option>
-                            <option value="'Playfair Display'">Playfair Display</option>
-                            <option value="Lora">Lora</option>
-                            <option value="'Noto Sans'">Noto Sans</option>
-                            <option value="Nunito">Nunito</option>
-                            <option value="'Roboto Mono'">Roboto Mono</option>
-                            <option value="Inconsolata">Inconsolata</option>
                         </select>
                     </div>
                     <div>
@@ -188,16 +135,9 @@
                         <input type="number" id="in-custom-size" value="11" class="w-full border p-1 rounded text-xs">
                     </div>
                 </div>
-
                 <div class="flex gap-4 items-center bg-white p-2 border rounded">
                     <label class="flex items-center space-x-1 cursor-pointer">
                         <input type="checkbox" id="in-custom-bold" class="form-checkbox w-4 h-4 text-gray-800"> <span class="text-xs font-bold">B (Bold)</span>
-                    </label>
-                    <label class="flex items-center space-x-1 cursor-pointer">
-                        <input type="checkbox" id="in-custom-italic" class="form-checkbox w-4 h-4 text-gray-800"> <span class="text-xs italic">I (Italic)</span>
-                    </label>
-                    <label class="flex items-center space-x-1 cursor-pointer">
-                        <input type="checkbox" id="in-custom-underline" class="form-checkbox w-4 h-4 text-gray-800"> <span class="text-xs underline">U (Underline)</span>
                     </label>
                     <div class="flex-1 text-right">
                         <label class="text-xs font-bold mr-1">Rata Teks:</label>
@@ -208,7 +148,6 @@
                         </select>
                     </div>
                 </div>
-
                 <div>
                     <label class="block text-xs font-bold mb-1">Ketikan Isi Nota Anda:</label>
                     <textarea id="in-custom-text" class="w-full h-64 border p-2 rounded text-xs font-mono leading-relaxed shadow-inner" placeholder="Silakan ketik atau tempel hasil scan di sini..."></textarea>
@@ -218,42 +157,18 @@
             <div id="standard-form-wrapper" class="space-y-4">
                 <div class="grid grid-cols-2 gap-4 border p-4 rounded bg-gray-50">
                     <h3 class="col-span-2 font-bold text-gray-700 border-b pb-1">Data SPBU</h3>
-                    <div>
-                        <label class="block text-gray-600">Kode SPBU</label>
-                        <input type="text" id="in-kode" value="" class="w-full border p-2 rounded">
-                    </div>
-                    <div>
-                        <label class="block text-gray-600">Nama SPBU (Opsional)</label>
-                        <input type="text" id="in-nama" value="" class="w-full border p-2 rounded">
-                    </div>
-                    <div class="col-span-2">
-                        <label class="block text-gray-600">Alamat/Jalan</label>
-                        <input type="text" id="in-jalan" value="" class="w-full border p-2 rounded">
-                    </div>
-                    <div>
-                        <label class="block text-gray-600">Telepon (Opsional)</label>
-                        <input type="text" id="in-telp" value="" class="w-full border p-2 rounded">
-                    </div>
-                    <div>
-                        <label class="block text-gray-600">Kota / Kabupaten (Opsional)</label>
-                        <input type="text" id="in-kota" value="" class="w-full border p-2 rounded">
-                    </div>
+                    <div><label class="block text-gray-600">Kode SPBU</label><input type="text" id="in-kode" value="" class="w-full border p-2 rounded"></div>
+                    <div><label class="block text-gray-600">Nama SPBU (Opsional)</label><input type="text" id="in-nama" value="" class="w-full border p-2 rounded"></div>
+                    <div class="col-span-2"><label class="block text-gray-600">Alamat/Jalan</label><input type="text" id="in-jalan" value="" class="w-full border p-2 rounded"></div>
+                    <div><label class="block text-gray-600">Telepon (Opsional)</label><input type="text" id="in-telp" value="" class="w-full border p-2 rounded"></div>
+                    <div><label class="block text-gray-600">Kota / Kabupaten (Opsional)</label><input type="text" id="in-kota" value="" class="w-full border p-2 rounded"></div>
                 </div>
 
                 <div class="grid grid-cols-2 gap-4 border p-4 rounded bg-gray-50">
                     <h3 class="col-span-2 font-bold text-gray-700 border-b pb-1">Transaksi & Waktu</h3>
-                    <div>
-                        <label class="block text-gray-600">Shift</label>
-                        <input type="text" id="in-shift" value="" class="w-full border p-2 rounded">
-                    </div>
-                    <div>
-                        <label class="block text-gray-600">No. Transaksi / Nota</label>
-                        <input type="text" id="in-notrans" value="" class="w-full border p-2 rounded">
-                    </div>
-                    <div>
-                        <label class="block text-gray-600">Tanggal</label>
-                        <input type="text" id="in-tgl" value="" class="w-full border p-2 rounded">
-                    </div>
+                    <div><label class="block text-gray-600">Shift</label><input type="text" id="in-shift" value="" class="w-full border p-2 rounded"></div>
+                    <div><label class="block text-gray-600">No. Transaksi / Nota</label><input type="text" id="in-notrans" value="" class="w-full border p-2 rounded"></div>
+                    <div><label class="block text-gray-600">Tanggal</label><input type="text" id="in-tgl" value="" class="w-full border p-2 rounded"></div>
                     <div>
                         <label class="block text-gray-600">Waktu (Jam:Menit:Detik)</label>
                         <div class="flex gap-1">
@@ -268,53 +183,15 @@
 
                 <div class="grid grid-cols-2 gap-4 border p-4 rounded bg-gray-50">
                     <h3 class="col-span-2 font-bold text-gray-700 border-b pb-1">Detail Pengisian</h3>
-                    <div>
-                        <label class="block text-gray-600">Pulau/Pompa/Selang</label>
-                        <input type="text" id="in-pompa" value="" class="w-full border p-2 rounded">
-                    </div>
-                    <div>
-                        <label class="block text-gray-600">Nama Operator (Opsional)</label>
-                        <input type="text" id="in-op" value="" class="w-full border p-2 rounded">
-                    </div>
-                    <div>
-                        <label class="block text-gray-600">Plat Nomor Kendaraan</label>
-                        <input type="text" id="in-plat" value="" class="w-full border p-2 rounded">
-                    </div>
-                    <div>
-                        <label class="block text-gray-600">Nama Pengemudi (Opsional)</label>
-                        <input type="text" id="in-pengemudi" value="" class="w-full border p-2 rounded">
-                    </div>
-                    <div>
-                        <label class="block text-gray-600">Jenis Produk / BBM</label>
-                        <input type="text" id="in-bbm" value="" class="w-full border p-2 rounded">
-                    </div>
-                    <div>
-                        <label class="block text-gray-600">Volume (Liter)</label>
-                        <input type="number" step="0.01" id="in-vol" value="" class="w-full border p-2 rounded">
-                    </div>
-                    <div>
-                        <label class="block text-gray-600">Harga Jual (Rp/Liter)</label>
-                        <input type="number" id="in-hj" value="" class="w-full border p-2 rounded">
-                    </div>
-                    <div class="hidden">
-                        <label class="block text-gray-600">Uang Bayar Cash (Rp)</label>
-                        <input type="number" id="in-bayar" value="" class="w-full border p-2 rounded">
-                    </div>
-                    <div class="hidden">
-                        <label class="block text-gray-600">Harga Non Subsidi</label>
-                        <input type="number" id="in-hn" value="" class="w-full border p-2 rounded">
-                    </div>
+                    <div><label class="block text-gray-600">Pulau/Pompa/Selang</label><input type="text" id="in-pompa" value="" class="w-full border p-2 rounded"></div>
+                    <div><label class="block text-gray-600">Nama Operator (Opsional)</label><input type="text" id="in-op" value="" class="w-full border p-2 rounded"></div>
+                    <div><label class="block text-gray-600">Plat Nomor Kendaraan</label><input type="text" id="in-plat" value="" class="w-full border p-2 rounded"></div>
+                    <div><label class="block text-gray-600">Nama Pengemudi (Opsional)</label><input type="text" id="in-pengemudi" value="" class="w-full border p-2 rounded"></div>
+                    <div><label class="block text-gray-600">Jenis Produk / BBM</label><input type="text" id="in-bbm" value="" class="w-full border p-2 rounded"></div>
+                    <div><label class="block text-gray-600">Volume (Liter)</label><input type="number" step="0.01" id="in-vol" value="" class="w-full border p-2 rounded"></div>
+                    <div><label class="block text-gray-600">Harga Jual (Rp/Liter)</label><input type="number" id="in-hj" value="" class="w-full border p-2 rounded"></div>
                 </div>
             </div> 
-            
-            <div class="flex flex-col sm:flex-row gap-3 mt-4">
-                <button type="button" onclick="printBluetooth()" class="flex-1 bg-blue-600 text-white font-bold py-3 rounded hover:bg-blue-700 transition shadow-lg">
-                    Cetak Struk (Print)
-                </button>
-                <button type="button" onclick="copyReceiptText()" class="flex-1 bg-green-600 text-white font-bold py-3 rounded hover:bg-green-700 transition shadow-lg">
-                    Salin Teks (Copy)
-                </button>
-            </div>
         </form>
     </div>
 
@@ -323,41 +200,27 @@
         <div class="space-y-5">
             <div class="bg-blue-50 p-4 border border-blue-200 rounded-lg">
                 <label class="block text-blue-800 text-sm font-bold mb-2">Nama WiFi (SSID)</label>
-                <input type="text" id="wifi-ssid" placeholder="Contoh: Kedai Kopi" class="w-full border p-3 rounded font-bold text-lg" oninput="buatWifiQR()">
+                <input type="text" id="wifi-ssid" placeholder="Contoh: RADHEN RIZAL" class="w-full border p-3 rounded font-bold text-lg" oninput="buatWifiQR()">
             </div>
             <div class="bg-gray-50 p-4 border border-gray-200 rounded-lg">
                 <label class="block text-gray-800 text-sm font-bold mb-2">Password WiFi</label>
                 <input type="text" id="wifi-pass" placeholder="Masukkan kata sandi..." class="w-full border p-3 rounded font-bold text-lg" oninput="buatWifiQR()">
             </div>
-            <button type="button" onclick="printBluetooth()" class="w-full bg-blue-600 text-white font-bold py-4 rounded-xl hover:bg-blue-700 transition shadow-lg text-lg">
-                Cetak Barcode (Print)
-            </button>
         </div>
     </div>
 
     <div class="w-full md:w-1/2 flex justify-center items-start pt-4">
         <div id="print-area">
-            
-            <div id="view-wifi-wrapper" class="hidden">
-                <div class="receipt-container shadow-xl border" style="padding-bottom: 30px;">
-                    <div class="center mb-4" style="font-family: 'Courier New'; font-size: 14px; font-weight: bold;">
-                        SCAN UNTUK KONEK WIFI
-                    </div>
-                    <div id="qrcode-box" class="flex justify-center p-2 mb-2 bg-white"></div>
-                    <div class="center mt-4 text-sm" style="font-family: 'Courier New'; font-weight: bold;">
-                        SSID: <span id="wifi-name-display">---</span>
-                    </div>
-                </div>
-            </div>
 
             <div id="view-spbu-wrapper">
                 <div id="model-1" class="receipt-container shadow-xl border model-view">
-                    <div class="logo-display-container">
-                        <img class="logo-display-img" src="">
+                    <div class="logo-display-container"><img class="logo-display-img" src=""></div>
+                    
+                    <div class="text-xl">
+                        <div class="center" style="transform: scaleY(1.6) scaleX(0.85); margin-bottom: 2px; white-space: nowrap; font-weight: bold; font-family: Arial;">PERTAMINA "PASTI PAS"</div>
+                        <div class="left" style="transform: scaleY(1.6) scaleX(0.85); margin-bottom: 5px; white-space: nowrap; transform-origin: left; font-weight: bold; font-family: Arial;">SPBU <span class="out-kode"></span></div>
                     </div>
-                    <div class="center text-xl" style="transform: scaleY(1.8) scaleX(0.85); margin-bottom: 10px; white-space: nowrap;">PERTAMINA "PASTI PAS"</div>
-                    <div class="left text-xl" style="transform: scaleY(1.8) scaleX(0.85); margin-bottom: 5px; white-space: nowrap; transform-origin: left;">SPBU <span class="out-kode"></span></div>
-                    <div class="left"><span class="out-nama"></span></div>
+                    
                     <div class="left"><span class="out-jalan"></span></div>
                     <div class="left"><span class="out-kota"></span></div>
                     <div class="left"><span class="out-telp"></span></div>
@@ -377,10 +240,10 @@
                 </div>
 
                 <div id="model-2" class="receipt-container shadow-xl border model-view hidden">
-                    <div class="logo-display-container">
-                        <img class="logo-display-img" src="">
+                    <div class="logo-display-container"><img class="logo-display-img" src=""></div>
+                    <div class="text-xl">
+                        <div class="left" style="transform: scaleY(1.6) scaleX(0.85); margin-bottom: 5px; white-space: nowrap; transform-origin: left; font-weight: bold; font-family: Arial;">SPBU.<span class="out-kode"></span></div>
                     </div>
-                    <div class="left text-xl" style="transform: scaleY(1.8) scaleX(0.85); margin-bottom: 5px; white-space: nowrap; transform-origin: left;">SPBU.<span class="out-kode"></span></div>
                     <div class="left"><span class="out-nama"></span></div>
                     <div class="left"><span class="out-jalan"></span></div>
                     <br>
@@ -402,10 +265,10 @@
                 </div>
 
                 <div id="model-3" class="receipt-container shadow-xl border model-view hidden">
-                    <div class="logo-display-container">
-                        <img class="logo-display-img" src="">
+                    <div class="logo-display-container"><img class="logo-display-img" src=""></div>
+                    <div class="text-xl">
+                        <div class="left" style="transform: scaleY(1.6) scaleX(0.85); margin-bottom: 5px; white-space: nowrap; transform-origin: left; font-weight: bold; font-family: Arial;">SPBU <span class="out-kode"></span></div>
                     </div>
-                    <div class="left text-xl" style="transform: scaleY(1.8) scaleX(0.85); margin-bottom: 5px; white-space: nowrap; transform-origin: left;">SPBU <span class="out-kode"></span></div>
                     <div class="left"><span class="out-nama"></span></div>
                     <div class="left"><span class="out-jalan"></span></div>
                     <div class="left"><span class="out-kota"></span></div>
@@ -426,11 +289,11 @@
                 </div>
 
                 <div id="model-4" class="receipt-container shadow-xl border model-view hidden">
-                    <div class="logo-display-container">
-                        <img class="logo-display-img" src="">
+                    <div class="logo-display-container"><img class="logo-display-img" src=""></div>
+                    <div class="text-xl">
+                        <div class="center" style="transform: scaleY(1.6) scaleX(0.85); margin-bottom: 2px; white-space: nowrap; font-weight: bold; font-family: Arial;">SPBU <span class="out-kode"></span></div>
+                        <div class="center" style="transform: scaleY(1.6) scaleX(0.85); margin-bottom: 8px; white-space: nowrap; font-weight: bold; font-family: Arial;"><span class="out-nama"></span></div>
                     </div>
-                    <div class="center text-xl" style="transform: scaleY(1.8) scaleX(0.85); margin-bottom: 2px; white-space: nowrap;">SPBU <span class="out-kode"></span></div>
-                    <div class="center text-xl" style="transform: scaleY(1.8) scaleX(0.85); margin-bottom: 8px;"><span class="out-nama"></span></div>
                     <div class="center"><span class="out-jalan"></span></div>
                     <div class="center"><span class="out-kota"></span></div>
                     <div class="center"><span class="out-telp"></span></div>
@@ -452,10 +315,10 @@
                 </div>
 
                 <div id="model-5" class="receipt-container shadow-xl border model-view hidden">
-                    <div class="logo-display-container">
-                        <img class="logo-display-img" src="">
+                    <div class="logo-display-container"><img class="logo-display-img" src=""></div>
+                    <div class="text-xl">
+                        <div class="center" style="transform: scaleY(1.6) scaleX(0.85); margin-bottom: 10px; white-space: nowrap; font-weight: bold; font-family: Arial;">SPBU <span class="out-kode"></span></div>
                     </div>
-                    <div class="center text-xl" style="transform: scaleY(1.8) scaleX(0.85); margin-bottom: 10px; white-space: nowrap;">SPBU <span class="out-kode"></span></div>
                     <div class="center"><span class="out-nama"></span></div>
                     <div class="center"><span class="out-jalan"></span></div>
                     <div class="center"><span class="out-kota"></span></div>
@@ -476,39 +339,41 @@
                 </div>
 
                 <div id="model-custom" class="receipt-container shadow-xl border model-view hidden">
-                    <div class="logo-display-container">
-                        <img class="logo-display-img" src="">
-                    </div>
+                    <div class="logo-display-container"><img class="logo-display-img" src=""></div>
                     <div id="custom-text-display"></div>
                 </div>
             </div>
+
+            <div id="view-wifi-wrapper" class="hidden">
+                <div class="receipt-container shadow-xl border" style="padding-bottom: 30px;">
+                    <div class="center mb-4" style="font-family: 'Courier New'; font-size: 14px; font-weight: bold;">
+                        SCAN UNTUK KONEK WIFI
+                    </div>
+                    <div id="qrcode-box" class="flex justify-center p-2 mb-2 bg-white"></div>
+                    <div class="center mt-4 text-sm" style="font-family: 'Courier New'; font-weight: bold;">
+                        SSID: <span id="wifi-name-display">---</span>
+                    </div>
+                </div>
+            </div>
+
         </div>
+    </div>
+</div>
+
+<div class="fixed bottom-0 left-0 right-0 bg-white p-4 border-t shadow-[0_-10px_20px_rgba(0,0,0,0.1)] z-50">
+    <div class="max-w-6xl mx-auto flex gap-4">
+        <button onclick="handleCetakPrint()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-xl shadow-lg transition-all text-lg active:scale-[0.98]">
+            CETAK KE PRINTER THERMAL (Bluetooth)
+        </button>
     </div>
 </div>
 
 <div id="toast-message" class="fixed bottom-4 right-4 bg-green-800 text-white px-6 py-3 rounded shadow-xl transition-opacity duration-300 opacity-0 pointer-events-none z-50"></div>
 
-<div id="simulasi-modal" class="fixed inset-0 bg-black bg-opacity-60 hidden flex justify-center items-center z-50">
-    <div class="bg-white p-6 rounded-lg w-11/12 max-w-md shadow-2xl">
-        <h3 class="text-xl font-bold mb-2 text-blue-700">✅ Simulasi Printer Bluetooth</h3>
-        <p class="text-sm text-gray-700 mb-4 leading-relaxed">
-            Teks di bawah adalah format yang telah disesuaikan agar tidak memotong kata di mesin thermal (Maks 32 karakter).
-        </p>
-        <div id="simulasi-text" class="w-full h-72 overflow-y-auto p-3 border rounded bg-gray-200 mb-5 flex justify-center items-start whitespace-pre font-mono text-sm"></div>
-
-        <div class="flex justify-end gap-3">
-            <button type="button" onclick="document.getElementById('simulasi-modal').classList.add('hidden')" class="px-4 py-2 bg-gray-500 text-white font-bold rounded">Tutup</button>
-            <button type="button" onclick="document.getElementById('simulasi-modal').classList.add('hidden'); window.print();" class="px-4 py-2 bg-blue-600 text-white font-bold rounded">Print Browser</button>
-        </div>
-    </div>
-</div>
-
 <script>
     let currentTab = 'spbu';
 
-    // =========================================================================
-    // BARU: FUNGSI SINKRONISASI STATUS ANDROID JEMBATAN
-    // =========================================================================
+    // 1. SINKRONISASI STATUS PRINTER DARI JAVA
     window.updatePrinterStatus = function(name, battery) {
         document.getElementById('txt-printer-name').innerText = "Printer: " + name;
         document.getElementById('txt-printer-battery').innerText = battery + "%";
@@ -520,9 +385,7 @@
         }
     };
 
-    // =========================================================================
-    // BARU: FUNGSI TAB NAVIGASI
-    // =========================================================================
+    // 2. FUNGSI GANTI MENU
     function switchTab(tab) {
         currentTab = tab;
         document.getElementById('panel-spbu').classList.toggle('hidden', tab !== 'spbu');
@@ -544,11 +407,9 @@
         }
     }
 
-    // =========================================================================
-    // BARU: FUNGSI GENERATOR WIFI QR
-    // =========================================================================
+    // 3. FUNGSI GENERATOR GAMBAR BARCODE WIFI (PREVIEW UI)
     function buatWifiQR() {
-        const ssid = document.getElementById('wifi-ssid').value || "Contoh WiFi";
+        const ssid = document.getElementById('wifi-ssid').value || "RADHEN RIZAL";
         const pass = document.getElementById('wifi-pass').value;
         const box = document.getElementById('qrcode-box');
         box.innerHTML = "";
@@ -557,17 +418,14 @@
         
         new QRCode(box, {
             text: wifiString,
-            width: 140,
-            height: 140,
+            width: 150,
+            height: 150,
             colorDark : "#000000",
             colorLight : "#ffffff"
         });
         document.getElementById('wifi-name-display').innerText = ssid;
     }
 
-    // =========================================================================
-    // 1. DATA TEMPLATE (Persis seperti aslinya)
-    // =========================================================================
     const templates = {
         '1': { kode: '54.684.09', nama: '', jalan: 'Jl.Raya Watudodol Km 10', kota: 'Ketapang - Banyuwangi', telp: 'Telp.(0333)7700099 , 0811350678', shift: '', notrans: '4223', tgl: '11/10/2018', jam: '08', menit: '46', detik: '27', pompa: '00', op: '', plat: 'Not Entered', pengemudi: '', bbm: 'Pertamax 92', vol: '2.11', hj: '10400', bayar: '21944' },
         '2': { kode: '54 684 07', nama: '', jalan: 'JL. Yos sudarso 29', kota: 'Sukowidi-Banyuwangi', telp: 'Tlp;(0333)424978', shift: '', notrans: '174243', tgl: '06/04/2026', jam: '11', menit: '20', detik: '00', pompa: '03', op: '', plat: 'Not Entered', pengemudi: '', bbm: 'PERTALITE', vol: '3.00', hj: '10000', bayar: '30000' },
@@ -576,9 +434,6 @@
         '5': { kode: '12.345.67', nama: 'SPBU TERSERAH', jalan: 'Jl. Bebas Merdeka No.1', kota: 'Kota Bebas', telp: '08123456789', shift: '', notrans: '0001', tgl: '01/01/2027', jam: '12', menit: '00', detik: '00', pompa: '01', op: '', plat: 'B 1234 CD', pengemudi: '', bbm: 'Pertalite', vol: '10.00', hj: '10000', bayar: '100000' }
     };
 
-    // =========================================================================
-    // 2. LOGIKA PERGANTIAN DROPDOWN (STANDARD VS CUSTOM)
-    // =========================================================================
     document.getElementById('in-desain').addEventListener('change', function() {
         document.querySelectorAll('.model-view').forEach(el => el.classList.add('hidden'));
         document.getElementById('model-' + this.value).classList.remove('hidden');
@@ -608,25 +463,17 @@
                 document.getElementById('in-bbm').value = tpl.bbm;
                 document.getElementById('in-vol').value = tpl.vol;
                 document.getElementById('in-hj').value = tpl.hj;
-                document.getElementById('in-bayar').value = tpl.bayar;
             }
         }
         updateReceipt();
-        updateLogo();
     });
 
-    // =========================================================================
-    // 3. FITUR LOGO (TAMPIL, UKURAN, POSISI)
-    // =========================================================================
     const chkLogo = document.getElementById('in-show-logo');
-    const logoControls = document.getElementById('logo-controls');
     const logoFile = document.getElementById('in-logo-file');
-    const logoSize = document.getElementById('in-logo-size');
-    const logoAlign = document.getElementById('in-logo-align');
     let currentLogoSrc = "";
 
     chkLogo.addEventListener('change', function() {
-        logoControls.classList.toggle('hidden', !this.checked);
+        document.getElementById('logo-controls').classList.toggle('hidden', !this.checked);
         updateLogo();
     });
 
@@ -634,18 +481,15 @@
         const file = e.target.files[0];
         if (file) {
             const reader = new FileReader();
-            reader.onload = function(event) {
-                currentLogoSrc = event.target.result;
-                updateLogo();
-            }
+            reader.onload = function(event) { currentLogoSrc = event.target.result; updateLogo(); }
             reader.readAsDataURL(file);
         }
     });
 
     function updateLogo() {
         const isShow = chkLogo.checked;
-        const size = logoSize.value;
-        const align = logoAlign.value;
+        const size = document.getElementById('in-logo-size').value;
+        const align = document.getElementById('in-logo-align').value;
         document.getElementById('lbl-logo-size').innerText = size + 'px';
 
         document.querySelectorAll('.logo-display-container').forEach(container => {
@@ -655,7 +499,6 @@
                 let img = container.querySelector('.logo-display-img');
                 img.src = currentLogoSrc;
                 img.style.width = size + 'px';
-                // Reset margin sesuai perataan agar flex/block tidak berantakan
                 img.style.margin = align === 'center' ? '0 auto' : (align === 'right' ? '0 0 0 auto' : '0');
             } else {
                 container.style.display = 'none';
@@ -663,36 +506,26 @@
         });
     }
 
-    // =========================================================================
-    // 4. FITUR SCAN NOTA (OCR TESSERACT)
-    // =========================================================================
     document.getElementById('in-scan-nota').addEventListener('change', function(e) {
         const file = e.target.files[0];
         if (!file) return;
-
         const status = document.getElementById('ocr-status');
         status.classList.remove('hidden');
-        
         Tesseract.recognize(file, 'ind', { logger: m => console.log(m) }).then(({ data: { text } }) => {
             document.getElementById('in-desain').value = 'custom';
             document.getElementById('in-desain').dispatchEvent(new Event('change'));
             document.getElementById('in-custom-text').value = text;
             updateReceipt();
             status.classList.add('hidden');
-            showToast('✅ Berhasil memindai teks nota! Silakan rapikan jika ada ejaan keliru.');
+            showToast('✅ Berhasil memindai teks nota!');
         });
     });
 
-    // =========================================================================
-    // 5. RENDER OTOMATIS (LIVE PREVIEW)
-    // =========================================================================
     function updateReceipt() {
         const type = document.getElementById('in-desain').value;
-        
         if (type === 'custom') {
             const display = document.getElementById('custom-text-display');
             display.innerText = document.getElementById('in-custom-text').value;
-            
             const customContainer = document.getElementById('model-custom');
             customContainer.style.fontFamily = document.getElementById('in-custom-font').value;
             customContainer.style.fontSize = document.getElementById('in-custom-size').value + 'px';
@@ -710,11 +543,9 @@
             const tgl = document.getElementById('in-tgl').value;
             const jam = document.getElementById('in-jam').value;
             const menit = document.getElementById('in-menit').value;
-
             const pompa = document.getElementById('in-pompa').value;
             const bbm = document.getElementById('in-bbm').value;
             const plat = document.getElementById('in-plat').value;
-
             const volStr = document.getElementById('in-vol').value;
             const vol = parseFloat(volStr) || 0;
             const hj = parseFloat(document.getElementById('in-hj').value) || 0;
@@ -745,15 +576,11 @@
         }
     }
 
-    // =========================================================================
-    // 6. FIX WORD WRAP & PEMISAHAN FONT TINGGI (TALL VS NORMAL)
-    // =========================================================================
     function getFormattedText(modelElement) {
         let tallText = "";
         let normalText = "";
         const maxLen = 32;
 
-        // Logika agar kata tidak dipaksa potong (misal GOLONGAN dipotong jadi GOLON dan G)
         const wrapWord = (str) => {
             let words = str.split(' ');
             let lines = [];
@@ -771,7 +598,6 @@
         };
 
         if (modelElement.id === 'model-custom') {
-            // Mode custom di-wrap per barisnya
             let rawLines = document.getElementById('in-custom-text').value.split('\n');
             rawLines.forEach(l => { normalText += wrapWord(l) + "\n"; });
             return { tall: tallText, normal: normalText };
@@ -780,11 +606,19 @@
         const children = modelElement.children;
         for (let i = 0; i < children.length; i++) {
             const child = children[i];
-            
-            // Abaikan jika disembunyikan atau img (Bluetooth txt tidak bisa cetak img lgsg)
             if (child.classList.contains('hidden') || child.classList.contains('logo-display-container') || child.style.display === 'none') continue;
-
+            
             let parsedLine = "";
+
+            // Jika elemen memiliki anak dengan tag div lagi (seperti grup class "text-xl")
+            if (child.classList.contains('text-xl')) {
+                const subChildren = child.children;
+                for (let j = 0; j < subChildren.length; j++) {
+                    let subLine = subChildren[j].innerText.trim();
+                    if(subLine) tallText += subLine + "\n";
+                }
+                continue; // Lanjut ke elemen berikutnya
+            }
 
             if (child.tagName === 'BR') {
                 parsedLine += "\n";
@@ -818,34 +652,29 @@
                 parsedLine += left.padEnd(14, ' ') + right + "\n";
             } else {
                 let wrappedLines = wrapWord(child.innerText.trim()).split('\n');
-                wrappedLines.forEach(wl => {
-                    parsedLine += wl + "\n";
-                });
+                wrappedLines.forEach(wl => { parsedLine += wl + "\n"; });
             }
 
-            // PISAHKAN: Jika elemen punya class 'text-xl', dia masuk ke bagian TALL (Tinggi)
-            if (child.classList.contains('text-xl')) {
-                tallText += parsedLine;
-            } else {
-                normalText += parsedLine;
-            }
+            normalText += parsedLine;
         }
         return { tall: tallText, normal: normalText };
     }
 
     // =========================================================================
-    // 7. AKSI TOMBOL UTAMA
+    // FUNGSI KOMANDO PRINT YANG SUDAH DISATUKAN (MEMANGGIL JAVA BARU)
     // =========================================================================
-    function printBluetooth() {
+    function handleCetakPrint() {
         if(currentTab === 'wifi') {
-            const ssid = document.getElementById('wifi-ssid').value || "WiFi";
+            const ssid = document.getElementById('wifi-ssid').value || "RADHEN RIZAL";
             const pass = document.getElementById('wifi-pass').value;
             const qrString = `WIFI:S:${ssid};T:WPA;P:${pass};;`;
 
+            // MENGIRIM KODE KE JAVA FUNGSI 'cetakWifi'
             if (typeof AndroidPrinter !== 'undefined' && AndroidPrinter.cetakWifi) {
                 AndroidPrinter.cetakWifi(ssid, qrString);
+                showToast('🖨️ Mencetak Barcode WiFi...');
             } else {
-                showToast('⚠️ Fitur Barcode WiFi memerlukan aplikasi Android.');
+                alert('⚠️ Anda harus mengupdate Aplikasi Android ke versi terbaru untuk mencetak Barcode.');
             }
             return;
         }
@@ -855,46 +684,32 @@
 
         if (typeof AndroidPrinter !== 'undefined' && AndroidPrinter.cetakKeBluetooth) {
             AndroidPrinter.cetakKeBluetooth(dataCetak.tall, dataCetak.normal);
-            showToast('🖨️ Mengirim data teks rapi ke Printer Bluetooth Android...');
+            showToast('🖨️ Mengirim data struk ke Printer Bluetooth Android...');
         } else {
-            document.getElementById('simulasi-text').innerText = dataCetak.tall + dataCetak.normal;
-            document.getElementById('simulasi-modal').classList.remove('hidden');
+            alert('Fitur print fisik hanya berfungsi di dalam aplikasi Android VanNota.');
         }
     }
 
-    function copyReceiptText() {
-        let activeModel = document.querySelector('.model-view:not(.hidden)');
-        let dataCetak = getFormattedText(activeModel);
-        
-        // Memakai textarea fallback jika navigator.clipboard terblokir (Sesuai gaya asli)
-        const tempTextArea = document.createElement('textarea');
-        tempTextArea.value = dataCetak.tall + dataCetak.normal;
-        document.body.appendChild(tempTextArea);
-        tempTextArea.select();
-        document.execCommand('copy');
-        document.body.removeChild(tempTextArea);
-
-        showToast('✅ Teks struk berhasil disalin dengan format rapi!');
+    function showToast(message) {
+        const toast = document.getElementById('toast-message');
+        toast.innerText = message;
+        toast.classList.remove('opacity-0');
+        setTimeout(() => toast.classList.add('opacity-0'), 3000);
     }
 
-    // Event listener saat form pertama kali diload agar terisi otomatis dengan Template Model 1
-    window.addEventListener('DOMContentLoaded', (event) => {
-        const dropdown = document.getElementById('in-desain');
-        // Menstimulasi "klik" pada dropdown pertama kali aplikasi dibuka
-        dropdown.dispatchEvent(new Event('change'));
+    window.addEventListener('DOMContentLoaded', () => {
+        document.getElementById('in-desain').dispatchEvent(new Event('change'));
     });
-
-    // Trigger update otomatis saat diketik
-    const inputs = document.querySelectorAll('input');
-    inputs.forEach(input => {
-        if(input.type !== 'file' && input.type !== 'checkbox') {
+    
+    document.querySelectorAll('input, textarea, select').forEach(input => {
+        if(input.id !== 'in-scan-nota' && input.id !== 'in-logo-file') {
             input.addEventListener('input', () => {
                 updateReceipt();
                 if(input.id.includes('logo')) updateLogo();
+                if(input.id.includes('wifi')) buatWifiQR(); 
             });
         }
     });
-
 </script>
 </body>
 </html>
