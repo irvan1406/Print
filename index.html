@@ -61,7 +61,7 @@
         .logo-display-container {
             width: 100%;
             margin-bottom: 10px;
-            display: none; 
+            display: none; /* Disembunyikan default, dimunculkan lewat JS */
         }
         .logo-display-img {
             display: block;
@@ -69,7 +69,7 @@
             height: auto;
         }
 
-        /* Utility tambahan untuk navigasi Tab */
+        /* Styling untuk Tab Navigasi Menu Baru */
         .tab-active { border-bottom: 3px solid #2563eb; color: #2563eb; font-weight: bold; }
 
         /* Saat di-print (PDF/Browser) */
@@ -82,26 +82,27 @@
         }
     </style>
 </head>
-<body class="bg-gray-100 min-h-screen">
+<body class="bg-gray-100 min-h-screen p-4 md:p-8">
 
-<div id="status-bar" class="bg-slate-900 text-white text-[10px] px-4 py-2 flex justify-between items-center sticky top-0 z-50 shadow-md">
+<div id="status-bar" class="max-w-6xl mx-auto bg-slate-900 text-white text-[10px] px-4 py-2 flex justify-between items-center rounded-lg shadow-md mb-4 no-print">
     <div class="flex items-center gap-2">
         <span id="status-dot" class="w-2 h-2 rounded-full bg-red-500"></span>
-        <span id="txt-printer-name">Printer: Terputus</span>
+        <span id="txt-printer-name" class="font-bold">Printer: Terputus</span>
     </div>
     <div class="flex items-center gap-2">
         <span class="opacity-70">Baterai:</span>
-        <span id="txt-printer-battery" class="font-bold">--%</span>
+        <span id="txt-printer-battery" class="font-bold text-green-400">--%</span>
     </div>
 </div>
 
-<div class="bg-white flex shadow-sm mb-6 sticky top-8 z-40">
-    <button onclick="switchTab('spbu')" id="btn-spbu" class="flex-1 py-3 text-sm tab-active">Cetak SPBU</button>
-    <button onclick="switchTab('wifi')" id="btn-wifi" class="flex-1 py-3 text-sm text-gray-500">WiFi Barcode</button>
+<div class="max-w-6xl mx-auto bg-white flex shadow-sm rounded-lg overflow-hidden mb-6 no-print">
+    <button onclick="switchTab('spbu')" id="btn-spbu" class="flex-1 py-3 text-sm font-bold bg-blue-50 text-blue-600 border-b-2 border-blue-600 transition">Struk SPBU</button>
+    <button onclick="switchTab('wifi')" id="btn-wifi" class="flex-1 py-3 text-sm font-bold text-gray-500 hover:bg-gray-50 border-b-2 border-transparent transition">WiFi Barcode</button>
 </div>
 
-<div id="panel-spbu" class="max-w-6xl mx-auto flex flex-col md:flex-row gap-8 p-4 md:p-8 pt-0">
-    <div class="w-full md:w-1/2 bg-white p-6 rounded-lg shadow-md no-print">
+<div class="max-w-6xl mx-auto flex flex-col md:flex-row gap-8">
+
+    <div id="panel-spbu" class="w-full md:w-1/2 bg-white p-6 rounded-lg shadow-md no-print">
         <h2 class="text-2xl font-bold mb-6 text-gray-800">Pengaturan Struk</h2>
 
         <form id="strukForm" class="space-y-4 text-sm">
@@ -317,170 +318,170 @@
         </form>
     </div>
 
-    <div class="w-full md:w-1/2 flex justify-center items-start pt-4">
-        <div id="print-area">
-
-            <div id="model-1" class="receipt-container shadow-xl border model-view">
-                <div class="logo-display-container">
-                    <img class="logo-display-img" src="">
-                </div>
-                <div class="center text-xl" style="transform: scaleY(1.8) scaleX(0.85); margin-bottom: 10px; white-space: nowrap;">PERTAMINA "PASTI PAS"</div>
-                <div class="left text-xl" style="transform: scaleY(1.8) scaleX(0.85); margin-bottom: 5px; white-space: nowrap; transform-origin: left;">SPBU <span class="out-kode"></span></div>
-                <div class="left"><span class="out-nama"></span></div>
-                <div class="left"><span class="out-jalan"></span></div>
-                <div class="left"><span class="out-kota"></span></div>
-                <div class="left"><span class="out-telp"></span></div>
-                <br>
-                <div class="flex-between"><div><span class="out-tgl"></span></div><div><span class="out-jam-menit"></span></div></div>
-                <div class="left">Receipt No. :<span class="out-notrans"></span></div>
-                <br>
-                <div class="flex-between"><div>Pump No.</div><div><span class="out-pompa"></span></div></div>
-                <div class="flex-between"><div>Grade</div><div><span class="out-bbm"></span></div></div>
-                <div class="flex-between"><div>Volume</div><div><span class="out-vol-koma"></span></div></div>
-                <div class="flex-between"><div>Unit Price</div><div><span class="out-hj-polos"></span></div></div>
-                <div class="flex-between fw-bold"><div>Amount</div><div><span class="out-tot-bayar-polos"></span></div></div>
-                <br>
-                <div class="flex-between"><div>Vehicle No.</div><div><span class="out-plat"></span></div></div>
-                <br>
-                <div class="left">Terima Kasih & Selamat Jalan</div>
+    <div id="panel-wifi" class="w-full md:w-1/2 bg-white p-6 rounded-lg shadow-md no-print hidden">
+        <h2 class="text-2xl font-bold mb-6 text-blue-700">Generator WiFi Barcode</h2>
+        <div class="space-y-5">
+            <div class="bg-blue-50 p-4 border border-blue-200 rounded-lg">
+                <label class="block text-blue-800 text-sm font-bold mb-2">Nama WiFi (SSID)</label>
+                <input type="text" id="wifi-ssid" placeholder="Contoh: Kedai Kopi" class="w-full border p-3 rounded font-bold text-lg" oninput="buatWifiQR()">
             </div>
-
-            <div id="model-2" class="receipt-container shadow-xl border model-view hidden">
-                <div class="logo-display-container">
-                    <img class="logo-display-img" src="">
-                </div>
-                <div class="left text-xl" style="transform: scaleY(1.8) scaleX(0.85); margin-bottom: 5px; white-space: nowrap; transform-origin: left;">SPBU.<span class="out-kode"></span></div>
-                <div class="left"><span class="out-nama"></span></div>
-                <div class="left"><span class="out-jalan"></span></div>
-                <br>
-                <div class="left"><span class="out-kota"></span></div>
-                <div class="left"><span class="out-telp"></span></div>
-                <br>
-                <div class="flex-between"><div><span class="out-tgl"></span></div><div><span class="out-jam-menit"></span></div></div>
-                <div class="left">Receipt No. : <span class="out-notrans"></span></div>
-                <br>
-                <div class="flex-between"><div>Pump No.</div><div><span class="out-pompa"></span></div></div>
-                <div class="flex-between"><div>Grade</div><div><span class="out-bbm"></span></div></div>
-                <div class="flex-between"><div>Volume</div><div><span class="out-vol-koma"></span></div></div>
-                <div class="flex-between"><div>Unit Price</div><div><span class="out-hj-polos"></span></div></div>
-                <div class="flex-between fw-bold"><div>Amount</div><div><span class="out-tot-bayar-polos"></span></div></div>
-                <br>
-                <div class="flex-between"><div>Vehicle No.</div><div><span class="out-plat"></span></div></div>
-                <br>
-                <div class="left">TERIMA KASIH & SELAMAT JALAN</div>
+            <div class="bg-gray-50 p-4 border border-gray-200 rounded-lg">
+                <label class="block text-gray-800 text-sm font-bold mb-2">Password WiFi</label>
+                <input type="text" id="wifi-pass" placeholder="Masukkan kata sandi..." class="w-full border p-3 rounded font-bold text-lg" oninput="buatWifiQR()">
             </div>
-
-            <div id="model-3" class="receipt-container shadow-xl border model-view hidden">
-                <div class="logo-display-container">
-                    <img class="logo-display-img" src="">
-                </div>
-                <div class="left text-xl" style="transform: scaleY(1.8) scaleX(0.85); margin-bottom: 5px; white-space: nowrap; transform-origin: left;">SPBU <span class="out-kode"></span></div>
-                <div class="left"><span class="out-nama"></span></div>
-                <div class="left"><span class="out-jalan"></span></div>
-                <div class="left"><span class="out-kota"></span></div>
-                <div class="left"><span class="out-telp"></span></div>
-                <br>
-                <div class="flex-between"><div><span class="out-tgl"></span></div><div><span class="out-jam-menit"></span></div></div>
-                <div class="left">Receipt No.:<span class="out-notrans"></span></div>
-                <br>
-                <div class="flex-between"><div>Pump No.</div><div><span class="out-pompa"></span></div></div>
-                <div class="flex-between"><div>Grade</div><div><span class="out-bbm"></span></div></div>
-                <div class="flex-between"><div>Volume</div><div><span class="out-vol-koma"></span></div></div>
-                <div class="flex-between"><div>Unit Price</div><div><span class="out-hj-polos"></span></div></div>
-                <div class="flex-between fw-bold"><div>Amount</div><div><span class="out-tot-bayar-polos"></span></div></div>
-                <br>
-                <div class="flex-between"><div>Vehicle No.</div><div><span class="out-plat"></span></div></div>
-                <br>
-                <div class="left">TERIMA KASIH & SELAMAT JALAN</div>
-            </div>
-
-            <div id="model-4" class="receipt-container shadow-xl border model-view hidden">
-                <div class="logo-display-container">
-                    <img class="logo-display-img" src="">
-                </div>
-                <div class="center text-xl" style="transform: scaleY(1.8) scaleX(0.85); margin-bottom: 2px; white-space: nowrap;">SPBU <span class="out-kode"></span></div>
-                <div class="center text-xl" style="transform: scaleY(1.8) scaleX(0.85); margin-bottom: 8px;"><span class="out-nama"></span></div>
-                <div class="center"><span class="out-jalan"></span></div>
-                <div class="center"><span class="out-kota"></span></div>
-                <div class="center"><span class="out-telp"></span></div>
-                <br>
-                <div class="flex-between"><div><span class="out-tgl"></span></div><div><span class="out-jam-menit"></span></div></div>
-                <div class="left">Receipt No.:<span class="out-notrans"></span></div>
-                <br>
-                <div class="flex-between"><div>Pump No.</div><div><span class="out-pompa"></span></div></div>
-                <div class="flex-between"><div>Grade</div><div><span class="out-bbm"></span></div></div>
-                <div class="flex-between"><div>Volume</div><div><span class="out-vol-koma"></span></div></div>
-                <div class="flex-between"><div>Unit Price</div><div><span class="out-hj-polos"></span></div></div>
-                <div class="flex-between fw-bold"><div>Amount</div><div><span class="out-tot-bayar-polos"></span></div></div>
-                <br>
-                <div class="flex-between"><div>Vehicle No.</div><div><span class="out-plat"></span></div></div>
-                <br>
-                <div class="left">BBM BERSUPSIDI HANYA UNTUK GOLON</div>
-                <div class="left">GAN TIDAK MAMPU, TERIMAKASIH </div>
-                <div class="left">ANDA TIDAK MENGGUNAKANNYA</div>
-            </div>
-
-            <div id="model-5" class="receipt-container shadow-xl border model-view hidden">
-                <div class="logo-display-container">
-                    <img class="logo-display-img" src="">
-                </div>
-                <div class="center text-xl" style="transform: scaleY(1.8) scaleX(0.85); margin-bottom: 10px; white-space: nowrap;">SPBU <span class="out-kode"></span></div>
-                <div class="center"><span class="out-nama"></span></div>
-                <div class="center"><span class="out-jalan"></span></div>
-                <div class="center"><span class="out-kota"></span></div>
-                <div class="center"><span class="out-telp"></span></div>
-                <br>
-                <div class="flex-between"><div><span class="out-tgl"></span></div><div><span class="out-jam-menit"></span></div></div>
-                <div class="left">Receipt No. :<span class="out-notrans"></span></div>
-                <br>
-                <div class="flex-between"><div>Pump No.</div><div><span class="out-pompa"></span></div></div>
-                <div class="flex-between"><div>Grade</div><div><span class="out-bbm"></span></div></div>
-                <div class="flex-between"><div>Volume</div><div><span class="out-vol-koma"></span></div></div>
-                <div class="flex-between"><div>Unit Price</div><div><span class="out-hj-polos"></span></div></div>
-                <div class="flex-between fw-bold"><div>Amount</div><div><span class="out-tot-bayar-polos"></span></div></div>
-                <br>
-                <div class="flex-between"><div>Vehicle No.</div><div><span class="out-plat"></span></div></div>
-                <br>
-                <div class="center">Terima Kasih & Selamat Jalan</div>
-            </div>
-
-            <div id="model-custom" class="receipt-container shadow-xl border model-view hidden">
-                <div class="logo-display-container">
-                    <img class="logo-display-img" src="">
-                </div>
-                <div id="custom-text-display"></div>
-            </div>
-
-        </div>
-    </div>
-</div>
-
-<div id="panel-wifi" class="max-w-6xl mx-auto flex flex-col md:flex-row gap-8 p-4 md:p-8 pt-0 hidden">
-    <div class="w-full md:w-1/2 bg-white p-6 rounded-lg shadow-md no-print">
-        <h2 class="text-2xl font-bold mb-6 text-gray-800">Generator WiFi Barcode</h2>
-        <div class="space-y-4">
-            <div>
-                <label class="block text-gray-600 text-sm font-bold mb-1">Nama WiFi (SSID)</label>
-                <input type="text" id="wifi-ssid" placeholder="Masukkan nama WiFi..." class="w-full border p-3 rounded">
-            </div>
-            <div>
-                <label class="block text-gray-600 text-sm font-bold mb-1">Password WiFi</label>
-                <input type="text" id="wifi-pass" placeholder="Masukkan sandi..." class="w-full border p-3 rounded">
-            </div>
-            <button type="button" onclick="buatWifiQR()" class="w-full bg-blue-600 text-white font-bold py-3 rounded hover:bg-blue-700 transition shadow-lg">
-                Generate Barcode
-            </button>
-            <button type="button" onclick="printBluetooth()" class="w-full bg-gray-800 text-white font-bold py-3 rounded hover:bg-gray-900 transition shadow-lg">
+            <button type="button" onclick="printBluetooth()" class="w-full bg-blue-600 text-white font-bold py-4 rounded-xl hover:bg-blue-700 transition shadow-lg text-lg">
                 Cetak Barcode (Print)
             </button>
         </div>
     </div>
+
     <div class="w-full md:w-1/2 flex justify-center items-start pt-4">
-        <div class="receipt-container flex flex-col items-center">
-            <div class="font-bold text-center mb-4 mt-2" style="font-size: 14px;">SCAN UNTUK CONNECT WIFI</div>
-            <div id="qrcode-box" class="bg-white p-2 border-4 border-black"></div>
-            <div class="font-bold text-center mt-4 text-xl" id="wifi-name-display">---</div>
-            <div class="text-center mt-2" style="font-size: 10px;">Gunakan Kamera HP Anda</div>
+        <div id="print-area">
+            
+            <div id="view-wifi-wrapper" class="hidden">
+                <div class="receipt-container shadow-xl border" style="padding-bottom: 30px;">
+                    <div class="center mb-4" style="font-family: 'Courier New'; font-size: 14px; font-weight: bold;">
+                        SCAN UNTUK KONEK WIFI
+                    </div>
+                    <div id="qrcode-box" class="flex justify-center p-2 mb-2 bg-white"></div>
+                    <div class="center mt-4 text-sm" style="font-family: 'Courier New'; font-weight: bold;">
+                        SSID: <span id="wifi-name-display">---</span>
+                    </div>
+                </div>
+            </div>
+
+            <div id="view-spbu-wrapper">
+                <div id="model-1" class="receipt-container shadow-xl border model-view">
+                    <div class="logo-display-container">
+                        <img class="logo-display-img" src="">
+                    </div>
+                    <div class="center text-xl" style="transform: scaleY(1.8) scaleX(0.85); margin-bottom: 10px; white-space: nowrap;">PERTAMINA "PASTI PAS"</div>
+                    <div class="left text-xl" style="transform: scaleY(1.8) scaleX(0.85); margin-bottom: 5px; white-space: nowrap; transform-origin: left;">SPBU <span class="out-kode"></span></div>
+                    <div class="left"><span class="out-nama"></span></div>
+                    <div class="left"><span class="out-jalan"></span></div>
+                    <div class="left"><span class="out-kota"></span></div>
+                    <div class="left"><span class="out-telp"></span></div>
+                    <br>
+                    <div class="flex-between"><div><span class="out-tgl"></span></div><div><span class="out-jam-menit"></span></div></div>
+                    <div class="left">Receipt No. :<span class="out-notrans"></span></div>
+                    <br>
+                    <div class="flex-between"><div>Pump No.</div><div><span class="out-pompa"></span></div></div>
+                    <div class="flex-between"><div>Grade</div><div><span class="out-bbm"></span></div></div>
+                    <div class="flex-between"><div>Volume</div><div><span class="out-vol-koma"></span></div></div>
+                    <div class="flex-between"><div>Unit Price</div><div><span class="out-hj-polos"></span></div></div>
+                    <div class="flex-between fw-bold"><div>Amount</div><div><span class="out-tot-bayar-polos"></span></div></div>
+                    <br>
+                    <div class="flex-between"><div>Vehicle No.</div><div><span class="out-plat"></span></div></div>
+                    <br>
+                    <div class="left">Terima Kasih & Selamat Jalan</div>
+                </div>
+
+                <div id="model-2" class="receipt-container shadow-xl border model-view hidden">
+                    <div class="logo-display-container">
+                        <img class="logo-display-img" src="">
+                    </div>
+                    <div class="left text-xl" style="transform: scaleY(1.8) scaleX(0.85); margin-bottom: 5px; white-space: nowrap; transform-origin: left;">SPBU.<span class="out-kode"></span></div>
+                    <div class="left"><span class="out-nama"></span></div>
+                    <div class="left"><span class="out-jalan"></span></div>
+                    <br>
+                    <div class="left"><span class="out-kota"></span></div>
+                    <div class="left"><span class="out-telp"></span></div>
+                    <br>
+                    <div class="flex-between"><div><span class="out-tgl"></span></div><div><span class="out-jam-menit"></span></div></div>
+                    <div class="left">Receipt No. : <span class="out-notrans"></span></div>
+                    <br>
+                    <div class="flex-between"><div>Pump No.</div><div><span class="out-pompa"></span></div></div>
+                    <div class="flex-between"><div>Grade</div><div><span class="out-bbm"></span></div></div>
+                    <div class="flex-between"><div>Volume</div><div><span class="out-vol-koma"></span></div></div>
+                    <div class="flex-between"><div>Unit Price</div><div><span class="out-hj-polos"></span></div></div>
+                    <div class="flex-between fw-bold"><div>Amount</div><div><span class="out-tot-bayar-polos"></span></div></div>
+                    <br>
+                    <div class="flex-between"><div>Vehicle No.</div><div><span class="out-plat"></span></div></div>
+                    <br>
+                    <div class="left">TERIMA KASIH & SELAMAT JALAN</div>
+                </div>
+
+                <div id="model-3" class="receipt-container shadow-xl border model-view hidden">
+                    <div class="logo-display-container">
+                        <img class="logo-display-img" src="">
+                    </div>
+                    <div class="left text-xl" style="transform: scaleY(1.8) scaleX(0.85); margin-bottom: 5px; white-space: nowrap; transform-origin: left;">SPBU <span class="out-kode"></span></div>
+                    <div class="left"><span class="out-nama"></span></div>
+                    <div class="left"><span class="out-jalan"></span></div>
+                    <div class="left"><span class="out-kota"></span></div>
+                    <div class="left"><span class="out-telp"></span></div>
+                    <br>
+                    <div class="flex-between"><div><span class="out-tgl"></span></div><div><span class="out-jam-menit"></span></div></div>
+                    <div class="left">Receipt No.:<span class="out-notrans"></span></div>
+                    <br>
+                    <div class="flex-between"><div>Pump No.</div><div><span class="out-pompa"></span></div></div>
+                    <div class="flex-between"><div>Grade</div><div><span class="out-bbm"></span></div></div>
+                    <div class="flex-between"><div>Volume</div><div><span class="out-vol-koma"></span></div></div>
+                    <div class="flex-between"><div>Unit Price</div><div><span class="out-hj-polos"></span></div></div>
+                    <div class="flex-between fw-bold"><div>Amount</div><div><span class="out-tot-bayar-polos"></span></div></div>
+                    <br>
+                    <div class="flex-between"><div>Vehicle No.</div><div><span class="out-plat"></span></div></div>
+                    <br>
+                    <div class="left">TERIMA KASIH & SELAMAT JALAN</div>
+                </div>
+
+                <div id="model-4" class="receipt-container shadow-xl border model-view hidden">
+                    <div class="logo-display-container">
+                        <img class="logo-display-img" src="">
+                    </div>
+                    <div class="center text-xl" style="transform: scaleY(1.8) scaleX(0.85); margin-bottom: 2px; white-space: nowrap;">SPBU <span class="out-kode"></span></div>
+                    <div class="center text-xl" style="transform: scaleY(1.8) scaleX(0.85); margin-bottom: 8px;"><span class="out-nama"></span></div>
+                    <div class="center"><span class="out-jalan"></span></div>
+                    <div class="center"><span class="out-kota"></span></div>
+                    <div class="center"><span class="out-telp"></span></div>
+                    <br>
+                    <div class="flex-between"><div><span class="out-tgl"></span></div><div><span class="out-jam-menit"></span></div></div>
+                    <div class="left">Receipt No.:<span class="out-notrans"></span></div>
+                    <br>
+                    <div class="flex-between"><div>Pump No.</div><div><span class="out-pompa"></span></div></div>
+                    <div class="flex-between"><div>Grade</div><div><span class="out-bbm"></span></div></div>
+                    <div class="flex-between"><div>Volume</div><div><span class="out-vol-koma"></span></div></div>
+                    <div class="flex-between"><div>Unit Price</div><div><span class="out-hj-polos"></span></div></div>
+                    <div class="flex-between fw-bold"><div>Amount</div><div><span class="out-tot-bayar-polos"></span></div></div>
+                    <br>
+                    <div class="flex-between"><div>Vehicle No.</div><div><span class="out-plat"></span></div></div>
+                    <br>
+                    <div class="left">BBM BERSUPSIDI HANYA UNTUK GOLON</div>
+                    <div class="left">GAN TIDAK MAMPU, TERIMAKASIH </div>
+                    <div class="left">ANDA TIDAK MENGGUNAKANNYA</div>
+                </div>
+
+                <div id="model-5" class="receipt-container shadow-xl border model-view hidden">
+                    <div class="logo-display-container">
+                        <img class="logo-display-img" src="">
+                    </div>
+                    <div class="center text-xl" style="transform: scaleY(1.8) scaleX(0.85); margin-bottom: 10px; white-space: nowrap;">SPBU <span class="out-kode"></span></div>
+                    <div class="center"><span class="out-nama"></span></div>
+                    <div class="center"><span class="out-jalan"></span></div>
+                    <div class="center"><span class="out-kota"></span></div>
+                    <div class="center"><span class="out-telp"></span></div>
+                    <br>
+                    <div class="flex-between"><div><span class="out-tgl"></span></div><div><span class="out-jam-menit"></span></div></div>
+                    <div class="left">Receipt No. :<span class="out-notrans"></span></div>
+                    <br>
+                    <div class="flex-between"><div>Pump No.</div><div><span class="out-pompa"></span></div></div>
+                    <div class="flex-between"><div>Grade</div><div><span class="out-bbm"></span></div></div>
+                    <div class="flex-between"><div>Volume</div><div><span class="out-vol-koma"></span></div></div>
+                    <div class="flex-between"><div>Unit Price</div><div><span class="out-hj-polos"></span></div></div>
+                    <div class="flex-between fw-bold"><div>Amount</div><div><span class="out-tot-bayar-polos"></span></div></div>
+                    <br>
+                    <div class="flex-between"><div>Vehicle No.</div><div><span class="out-plat"></span></div></div>
+                    <br>
+                    <div class="center">Terima Kasih & Selamat Jalan</div>
+                </div>
+
+                <div id="model-custom" class="receipt-container shadow-xl border model-view hidden">
+                    <div class="logo-display-container">
+                        <img class="logo-display-img" src="">
+                    </div>
+                    <div id="custom-text-display"></div>
+                </div>
+            </div>
         </div>
     </div>
 </div>
@@ -503,7 +504,7 @@
 </div>
 
 <script>
-    let currentTab = 'spbu'; // Flag untuk mengetahui menu yang aktif
+    let currentTab = 'spbu';
 
     // =========================================================================
     // BARU: FUNGSI SINKRONISASI STATUS ANDROID JEMBATAN
@@ -525,17 +526,21 @@
     function switchTab(tab) {
         currentTab = tab;
         document.getElementById('panel-spbu').classList.toggle('hidden', tab !== 'spbu');
+        document.getElementById('view-spbu-wrapper').classList.toggle('hidden', tab !== 'spbu');
+        
         document.getElementById('panel-wifi').classList.toggle('hidden', tab !== 'wifi');
+        document.getElementById('view-wifi-wrapper').classList.toggle('hidden', tab !== 'wifi');
         
         const btnSpbu = document.getElementById('btn-spbu');
         const btnWifi = document.getElementById('btn-wifi');
         
         if(tab === 'spbu') {
-            btnSpbu.className = "flex-1 py-3 text-sm tab-active text-blue-600";
-            btnWifi.className = "flex-1 py-3 text-sm text-gray-500";
+            btnSpbu.className = "flex-1 py-3 text-sm font-bold bg-blue-50 text-blue-600 border-b-2 border-blue-600 transition";
+            btnWifi.className = "flex-1 py-3 text-sm font-bold text-gray-500 hover:bg-gray-50 border-b-2 border-transparent transition";
         } else {
-            btnWifi.className = "flex-1 py-3 text-sm tab-active text-blue-600";
-            btnSpbu.className = "flex-1 py-3 text-sm text-gray-500";
+            btnWifi.className = "flex-1 py-3 text-sm font-bold bg-blue-50 text-blue-600 border-b-2 border-blue-600 transition";
+            btnSpbu.className = "flex-1 py-3 text-sm font-bold text-gray-500 hover:bg-gray-50 border-b-2 border-transparent transition";
+            buatWifiQR(); 
         }
     }
 
@@ -543,12 +548,11 @@
     // BARU: FUNGSI GENERATOR WIFI QR
     // =========================================================================
     function buatWifiQR() {
-        const ssid = document.getElementById('wifi-ssid').value;
+        const ssid = document.getElementById('wifi-ssid').value || "Contoh WiFi";
         const pass = document.getElementById('wifi-pass').value;
         const box = document.getElementById('qrcode-box');
         box.innerHTML = "";
         
-        // Format standar QR WiFi
         const wifiString = `WIFI:S:${ssid};T:WPA;P:${pass};;`;
         
         new QRCode(box, {
@@ -612,7 +616,7 @@
     });
 
     // =========================================================================
-    // 3. FITUR LOGO
+    // 3. FITUR LOGO (TAMPIL, UKURAN, POSISI)
     // =========================================================================
     const chkLogo = document.getElementById('in-show-logo');
     const logoControls = document.getElementById('logo-controls');
@@ -651,6 +655,7 @@
                 let img = container.querySelector('.logo-display-img');
                 img.src = currentLogoSrc;
                 img.style.width = size + 'px';
+                // Reset margin sesuai perataan agar flex/block tidak berantakan
                 img.style.margin = align === 'center' ? '0 auto' : (align === 'right' ? '0 0 0 auto' : '0');
             } else {
                 container.style.display = 'none';
@@ -743,12 +748,12 @@
     // =========================================================================
     // 6. FIX WORD WRAP & PEMISAHAN FONT TINGGI (TALL VS NORMAL)
     // =========================================================================
-    // Fungsi ini dimodifikasi untuk memisah teks mana yang dicetak TINGGI (Header) dan mana yang NORMAL
     function getFormattedText(modelElement) {
         let tallText = "";
         let normalText = "";
         const maxLen = 32;
 
+        // Logika agar kata tidak dipaksa potong (misal GOLONGAN dipotong jadi GOLON dan G)
         const wrapWord = (str) => {
             let words = str.split(' ');
             let lines = [];
@@ -766,6 +771,7 @@
         };
 
         if (modelElement.id === 'model-custom') {
+            // Mode custom di-wrap per barisnya
             let rawLines = document.getElementById('in-custom-text').value.split('\n');
             rawLines.forEach(l => { normalText += wrapWord(l) + "\n"; });
             return { tall: tallText, normal: normalText };
@@ -775,6 +781,7 @@
         for (let i = 0; i < children.length; i++) {
             const child = children[i];
             
+            // Abaikan jika disembunyikan atau img (Bluetooth txt tidak bisa cetak img lgsg)
             if (child.classList.contains('hidden') || child.classList.contains('logo-display-container') || child.style.display === 'none') continue;
 
             let parsedLine = "";
@@ -830,29 +837,26 @@
     // 7. AKSI TOMBOL UTAMA
     // =========================================================================
     function printBluetooth() {
-        // Jika Tab WiFi sedang aktif, cetak Barcode WiFi
         if(currentTab === 'wifi') {
-            const ssid = document.getElementById('wifi-ssid').value;
-            if (typeof AndroidPrinter !== 'undefined' && AndroidPrinter.cetakKeBluetooth) {
-                // Parameter 1: Tall text, Parameter 2: Normal Text (dengan format perintah Barcode)
-                AndroidPrinter.cetakKeBluetooth("\x1B\x61\x01SCAN UNTUK KONEK WIFI\n", "\n[BARCODE_WIFI]\n\nSSID: " + ssid + "\n\n");
-                showToast('🖨️ Mencetak Barcode WiFi ke Android...');
+            const ssid = document.getElementById('wifi-ssid').value || "WiFi";
+            const pass = document.getElementById('wifi-pass').value;
+            const qrString = `WIFI:S:${ssid};T:WPA;P:${pass};;`;
+
+            if (typeof AndroidPrinter !== 'undefined' && AndroidPrinter.cetakWifi) {
+                AndroidPrinter.cetakWifi(ssid, qrString);
             } else {
-                showToast('⚠️ Fitur Barcode WiFi hanya bekerja jika dibuka dari Aplikasi Android.');
+                showToast('⚠️ Fitur Barcode WiFi memerlukan aplikasi Android.');
             }
             return;
         }
 
-        // Jika Tab SPBU aktif, jalankan print normal
         let activeModelElement = document.querySelector('.model-view:not(.hidden)');
         let dataCetak = getFormattedText(activeModelElement);
 
         if (typeof AndroidPrinter !== 'undefined' && AndroidPrinter.cetakKeBluetooth) {
-            // Mengirim 2 String terpisah ke Android Java sesuai fungsi yang baru Anda buat
             AndroidPrinter.cetakKeBluetooth(dataCetak.tall, dataCetak.normal);
             showToast('🖨️ Mengirim data teks rapi ke Printer Bluetooth Android...');
         } else {
-            // Tampilkan modal simulasi khusus text yang sudah diformat Word Wrap
             document.getElementById('simulasi-text').innerText = dataCetak.tall + dataCetak.normal;
             document.getElementById('simulasi-modal').classList.remove('hidden');
         }
@@ -861,25 +865,29 @@
     function copyReceiptText() {
         let activeModel = document.querySelector('.model-view:not(.hidden)');
         let dataCetak = getFormattedText(activeModel);
-        // Gabungkan tall dan normal untuk di-copy ke clipboard biasa
-        navigator.clipboard.writeText(dataCetak.tall + dataCetak.normal);
-        showToast('✅ Teks struk berhasil disalin!');
+        
+        // Memakai textarea fallback jika navigator.clipboard terblokir (Sesuai gaya asli)
+        const tempTextArea = document.createElement('textarea');
+        tempTextArea.value = dataCetak.tall + dataCetak.normal;
+        document.body.appendChild(tempTextArea);
+        tempTextArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(tempTextArea);
+
+        showToast('✅ Teks struk berhasil disalin dengan format rapi!');
     }
 
-    function showToast(message) {
-        const toast = document.getElementById('toast-message');
-        toast.innerText = message;
-        toast.classList.remove('opacity-0');
-        setTimeout(() => toast.classList.add('opacity-0'), 3000);
-    }
-
-    // Listener Live Update
-    window.addEventListener('DOMContentLoaded', () => {
-        document.getElementById('in-desain').dispatchEvent(new Event('change'));
+    // Event listener saat form pertama kali diload agar terisi otomatis dengan Template Model 1
+    window.addEventListener('DOMContentLoaded', (event) => {
+        const dropdown = document.getElementById('in-desain');
+        // Menstimulasi "klik" pada dropdown pertama kali aplikasi dibuka
+        dropdown.dispatchEvent(new Event('change'));
     });
-    
-    document.querySelectorAll('input, textarea, select').forEach(input => {
-        if(input.id !== 'in-scan-nota' && input.id !== 'in-logo-file') {
+
+    // Trigger update otomatis saat diketik
+    const inputs = document.querySelectorAll('input');
+    inputs.forEach(input => {
+        if(input.type !== 'file' && input.type !== 'checkbox') {
             input.addEventListener('input', () => {
                 updateReceipt();
                 if(input.id.includes('logo')) updateLogo();
