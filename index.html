@@ -37,7 +37,7 @@
         .logo-display-container { width: 100%; margin-bottom: 10px; display: none; }
         .logo-display-img { display: block; max-width: 100px; height: auto; }
 
-        /* KUMPULAN CSS BARU KHUSUS UNTUK MODEL 4 (POM FARLY) */
+        /* KUMPULAN CSS KHUSUS UNTUK MODEL 4 (POM FARLY) */
         #model-4 {
             font-family: 'Consolas', 'Lucida Console', Monaco, monospace;
             font-size: 10px;
@@ -327,7 +327,10 @@
                     <div class="spacer no-print"></div>
                     <div class="spacer no-print"></div>
 
-                    <div class="center text-line"><span class="spbu-title">SPBU <span class="out-kode"></span></span></div>
+                    <div class="text-xl">
+                        <div class="center text-line spbu-title">SPBU <span class="out-kode"></span></div>
+                    </div>
+                    
                     <div class="center text-line"><span class="out-nama"></span></div>
                     
                     <div class="spacer"></div>
@@ -442,7 +445,6 @@
 <script>
     let currentTab = 'spbu';
 
-    // 1. SINKRONISASI STATUS PRINTER DARI JAVA
     window.updatePrinterStatus = function(name, battery) {
         document.getElementById('txt-printer-name').innerText = "Printer: " + name;
         document.getElementById('txt-printer-battery').innerText = battery + "%";
@@ -454,7 +456,6 @@
         }
     };
 
-    // 2. FUNGSI GANTI MENU
     function switchTab(tab) {
         currentTab = tab;
         document.getElementById('panel-spbu').classList.toggle('hidden', tab !== 'spbu');
@@ -476,7 +477,6 @@
         }
     }
 
-    // 3. FUNGSI GENERATOR GAMBAR BARCODE WIFI (PREVIEW UI)
     function buatWifiQR() {
         const ssid = document.getElementById('wifi-ssid').value || "RADHEN RIZAL";
         const pass = document.getElementById('wifi-pass').value;
@@ -688,7 +688,6 @@
                 continue; 
             }
 
-            // MODIFIKASI: Menambahkan pembacaan class "spacer" agar fungsi print java tetap bisa mencetak baris kosong
             if (child.tagName === 'BR' || child.classList.contains('spacer')) {
                 parsedLine += "\n";
             } else if (child.classList.contains('dashed-line')) {
