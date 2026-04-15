@@ -237,8 +237,6 @@
             80: { widthPx: 576, maxChars: 48 }
         };
 
-        // Memanfaatkan <b> dan teks murni untuk render agar 100% alami bisa di-blok per karakter
-        // Properti tambahan dimasukkan: marginLeft, marginRight, letterSpacing, textScaleX
         const SPBU_TEMPLATE = [
             { id: '1', text: '<b>SPBU 54.123.45</b>', x: 0, y: 20, align: 'center', width: 384, fontSize: 16, fontFamily: 'Courier New', marginLeft: 0, marginRight: 0, letterSpacing: 0, textScaleX: 1 },
             { id: '2', text: 'Jl. Raya Pertamina No. 1', x: 0, y: 45, align: 'center', width: 384, fontSize: 14, fontFamily: 'Courier New', marginLeft: 0, marginRight: 0, letterSpacing: 0, textScaleX: 1 },
@@ -266,7 +264,7 @@
         // --- STATE APP ---
         let state = {
             elements: JSON.parse(JSON.stringify(SPBU_TEMPLATE)),
-            selectedIds: [], // Menyimpan ID div yang sedang aktif/beririsan dengan blok kursor
+            selectedIds: [], 
             paperSize: 58,
             zoom: 100,
             history: [JSON.parse(JSON.stringify(SPBU_TEMPLATE))],
@@ -336,7 +334,6 @@
             const currentDOMIds = Array.from(canvas.children).map(n => n.id);
             const stateElementIds = state.elements.map(e => e.id);
 
-            // Buang yang udah dihapus
             currentDOMIds.forEach(id => {
                 if (!stateElementIds.includes(id)) {
                     const elToRemove = document.getElementById(id);
@@ -344,7 +341,6 @@
                 }
             });
 
-            // Update atau Create Node Teks
             state.elements.sort((a,b) => a.y - b.y).forEach(el => {
                 let div = document.getElementById(el.id);
                 if (!div || forceRebuild) {
@@ -368,7 +364,6 @@
                 div.style.outline = 'none'; 
                 div.style.backgroundColor = 'transparent'; 
                 
-                // Implementasi Margin & Ramping Teks
                 div.style.boxSizing = 'border-box';
                 div.style.paddingLeft = (el.marginLeft || 0) + 'px';
                 div.style.paddingRight = (el.marginRight || 0) + 'px';
@@ -383,21 +378,20 @@
                     div.style.transform = 'none';
                 }
 
-                // Hitung tinggi bersih tanpa tag HTML agar akurat
                 const plainTextForHeight = el.text.replace(/<[^>]*>/g, '');
                 const lineCount = plainTextForHeight.split('\n').length;
                 div.style.height = ((lineCount * el.fontSize * 1.2) + 15) + 'px';
 
-                // Update innerHTML HANYA JIKA BERBEDA 
                 if (div.innerHTML !== el.text) {
                     div.innerHTML = el.text;
                 }
             });
 
             updateToolbarUI();
+            updateSelectionUI();
         }
 
-        // FUNGSI BARU: Update Background seleksi tanpa merusak DOM
+        // Tampilkan Latar Biru Untuk Teks yang Terpilih Tanpa Merusak DOM
         function updateSelectionUI() {
             state.elements.forEach(el => {
                 const div = document.getElementById(el.id);
@@ -426,7 +420,6 @@
                     document.getElementById('inputX').value = Math.round(firstEl.x);
                     document.getElementById('inputY').value = Math.round(firstEl.y);
                     
-                    // Sync Margin dan Spasi ke UI
                     document.getElementById('inputMarginLeft').value = firstEl.marginLeft || 0;
                     document.getElementById('inputMarginRight').value = firstEl.marginRight || 0;
                     document.getElementById('inputLetterSpacing').value = firstEl.letterSpacing || 0;
@@ -437,7 +430,6 @@
                     toggleBtnStyle('btnAlignRight', firstEl.align === 'right');
                 }
 
-                // Cek status native formatting browser 
                 toggleBtnStyle('btnBold', document.queryCommandState('bold'));
                 toggleBtnStyle('btnItalic', document.queryCommandState('italic'));
                 toggleBtnStyle('btnUnderline', document.queryCommandState('underline'));
@@ -472,11 +464,11 @@
             renderCanvas();
         }
 
-        // --- NATIVE INLINE FORMATTING (MURNI PER KATA/KARAKTER YANG DIBLOK) ---
+        // --- NATIVE INLINE FORMATTING (EDIT PER KATA/KARAKTER) ---
         const formatBtns = ['btnBold', 'btnItalic', 'btnUnderline'];
         formatBtns.forEach(id => {
             const btn = document.getElementById(id);
-            // PENTING: Mencegah lepas blok di HP saat tombol ditekan
+            // Cegah hilangnya fokus/blok saat mengeklik tombol format
             btn.addEventListener('mousedown', e => e.preventDefault());
             btn.addEventListener('touchstart', e => e.preventDefault());
             btn.addEventListener('pointerdown', e => e.preventDefault());
@@ -484,7 +476,7 @@
             btn.addEventListener('click', (e) => {
                 e.preventDefault();
                 const command = id.replace('btn', '').toLowerCase(); 
-                document.execCommand(command, false, null);
+                document.execCommand(command, false, null); // Jalankan Edit Word Asli
                 syncInput(); 
                 updateToolbarUI(); 
             });
@@ -560,12 +552,10 @@
             renderCanvas();
         }
 
-        // --- EVENT LISTENER TOOLBAR UI BARIS BAWAH ---
-        
-        // BUG FIX: Mencegah hilangnya fokus kanvas saat tombol di toolbar diklik
+        // --- EVENT LISTENER TOOLBAR & INPUT ---
         document.getElementById('toolbarFormatting').addEventListener('pointerdown', (e) => {
             const tag = e.target.tagName;
-            // Jika target bukan input atau select, cegah browser memindahkan fokus dari teks Canvas
+            // Cegah blok hilang saat ganti nilai ukuran font / dropdown
             if (tag !== 'INPUT' && tag !== 'SELECT' && tag !== 'OPTION') {
                 e.preventDefault();
             }
@@ -589,7 +579,6 @@
         document.getElementById('fontFamilySelect').addEventListener('change', e => updateSelectedElements({ fontFamily: e.target.value }));
         document.getElementById('fontSizeInput').addEventListener('change', e => updateSelectedElements({ fontSize: parseInt(e.target.value) }));
         
-        // Listener Margin dan Lebar Teks
         document.getElementById('inputMarginLeft').addEventListener('input', e => updateSelectedElements({ marginLeft: parseInt(e.target.value) || 0 }));
         document.getElementById('inputMarginRight').addEventListener('input', e => updateSelectedElements({ marginRight: parseInt(e.target.value) || 0 }));
         document.getElementById('inputLetterSpacing').addEventListener('input', e => updateSelectedElements({ letterSpacing: parseFloat(e.target.value) || 0 }));
@@ -621,8 +610,6 @@
         document.addEventListener('selectionchange', () => {
             const sel = window.getSelection();
             
-            // BUG FIX: Jika fokus pindah ke input/dropdown di toolbar, 
-            // JANGAN hapus state seleksi agar blok teks tetap bisa diedit sizenya.
             const toolbar = document.getElementById('toolbarFormatting');
             if (toolbar && toolbar.contains(document.activeElement)) {
                 return;
@@ -631,6 +618,7 @@
             if (!sel || !canvas.contains(sel.anchorNode)) {
                 if(state.selectedIds.length > 0) {
                     state.selectedIds = [];
+                    updateSelectionUI();
                     updateToolbarUI();
                 }
                 return;
@@ -661,6 +649,7 @@
 
             if (JSON.stringify(state.selectedIds) !== JSON.stringify(selected)) {
                 state.selectedIds = selected;
+                updateSelectionUI();
             }
             updateToolbarUI();
         });
@@ -692,6 +681,7 @@
             const isChar = e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey;
             const isDelete = e.key === 'Backspace' || e.key === 'Delete';
 
+            // ALGORITMA CERDAS: Hapus Teks Lintas Baris Persis MS Word
             if (!sel.isCollapsed && (isChar || isDelete)) {
                 const getTopId = (node) => {
                     while (node && node.id !== 'paper-canvas') {
@@ -828,7 +818,6 @@
         });
 
         // --- THERMAL ALGORITHMS (PENERJEMAH KE KODE ESC/POS PRINTER) ---
-        // BUG FIX: PENYESUAIAN 100% AKURAT RATA KIRI-TENGAH-KANAN ANTARA LAYAR DAN KERTAS
         function stripHtml(html) {
             let tmp = document.createElement('DIV');
             tmp.innerHTML = html;
@@ -854,7 +843,10 @@
         function buildThermalData(mode = 'print') {
             const maxCharsNormal = PAPER_CONFIG[state.paperSize].maxChars;
             let lines = []; 
-            let data = "";  
+            
+            // KODE INIT BERSIH (Tanpa ada kode "P" atau print mode yang tak lazim)
+            // Ini akan memastikan printer ter-reset dengan sempurna dan terhindar dari tulisan aneh
+            let data = mode === 'print' ? "\x1B\x40\x1B\x4D\x00" : "";  
             
             let sortedElements = [...state.elements].sort((a, b) => a.y - b.y);
             let rows = [];
@@ -878,45 +870,40 @@
                     let el = row[0];
                     let plainText = stripHtml(el.text); 
                     
-                    // Terjemahkan Margin Kiri ke dalam bentuk Spasi
                     let spacesLeft = Math.max(0, Math.floor((el.marginLeft || 0) / 12));
                     if (spacesLeft > 0) plainText = " ".repeat(spacesLeft) + plainText;
 
+                    // MENGKALKULASI UKURAN HURUF PRINTER:
+                    // Di Thermal, hanya bisa membesar 2x lipat. Angka > 14 akan dicetak 2x lipat (Double Width)
+                    let isDouble = el.fontSize > 14; 
+                    
+                    // PENTING: Jika huruf 2x lipat besarnya, maka jatah kertas otomatis terbelah dua.
+                    // Dari 32 max chars menjadi 16 max chars. Agar posisinya tetap di tengah 100% persis seperti di layar.
+                    let currentMaxChars = isDouble ? Math.floor(maxCharsNormal / 2) : maxCharsNormal;
+
                     let formattedLine = "";
-                    if (el.align === 'center') formattedLine = alignCenterData(plainText, maxCharsNormal);
-                    else if (el.align === 'right' || el.x > (PAPER_CONFIG[state.paperSize].widthPx / 2)) formattedLine = alignRightData(plainText, maxCharsNormal);
-                    else formattedLine = alignLeftData(plainText, maxCharsNormal);
+                    if (el.align === 'center') formattedLine = alignCenterData(plainText, currentMaxChars);
+                    else if (el.align === 'right' || el.x > (PAPER_CONFIG[state.paperSize].widthPx / 2)) formattedLine = alignRightData(plainText, currentMaxChars);
+                    else formattedLine = alignLeftData(plainText, currentMaxChars);
 
                     if (mode === 'preview') {
                         lines.push(formattedLine);
                     } else {
-                        // PRINT MODE
+                        // SETELAH DI FORMAT SPASINYA, KITA PAKSA SELURUH PRINTER RATA KIRI
+                        // Hal ini mencegah printer melakukan komputasi center yang meleset
+                        data += "\x1B\x61\x00"; 
+                        
                         let isBold = el.text.includes('<b>') || el.text.includes('<strong>') || el.fontWeight === 'bold';
                         let isUnderline = el.text.includes('<u>') || el.textDecoration === 'underline';
                         
                         data += isBold ? "\x1B\x45\x01" : "\x1B\x45\x00";
                         data += isUnderline ? "\x1B\x2D\x01" : "\x1B\x2D\x00";
 
-                        // Threshold pembesaran font dinaikkan ke 24.
-                        // Ukuran normal (seperti 14, 16) akan menggunakan padding spasi di atas agar 100% persis penempatannya.
-                        let sizeHex = "\x00"; 
-                        if (el.fontSize >= 32) sizeHex = "\x22"; // 3x3 Raksasa
-                        else if (el.fontSize >= 24) sizeHex = "\x11"; // 2x2 Double Width & Height
-                        
-                        if (sizeHex !== "\x00") {
-                            // Jika ukuran besar (Double Width), maka tidak bisa pakai spasi, gunakan fitur rata tengah native ESC/POS
-                            data += "\x1D\x21" + sizeHex;
-                            if (el.align === 'center') data += "\x1B\x61\x01";
-                            else if (el.align === 'right' || el.x > (PAPER_CONFIG[state.paperSize].widthPx / 2)) data += "\x1B\x61\x02";
-                            else data += "\x1B\x61\x00";
-                            
-                            data += plainText + "\n";
-                        } else {
-                            // Jika ukuran standar, paksa rata kiri + print format spasi yang sudah disimulasikan
-                            data += "\x1D\x21\x00";
-                            data += "\x1B\x61\x00"; // Rata Kiri
-                            data += formattedLine + "\n";
-                        }
+                        // Eksekusi Ukuran Font Thermal Standar
+                        if (isDouble) data += "\x1D\x21\x11"; // 2x Ukuran Ganda
+                        else data += "\x1D\x21\x00"; // Ukuran Normal
+
+                        data += formattedLine + "\n";
                     }
                 } 
                 else if (row.length >= 2) {
@@ -926,7 +913,8 @@
                     let leftText = stripHtml(leftEl.text);
                     let rightText = stripHtml(rightEl.text);
 
-                    let isDouble = leftEl.fontSize >= 24 || rightEl.fontSize >= 24;
+                    // Pengecekan multi kolom jika huruf membesar
+                    let isDouble = leftEl.fontSize > 14 || rightEl.fontSize > 14;
                     let currentMaxChars = isDouble ? Math.floor(maxCharsNormal / 2) : maxCharsNormal;
 
                     let spaceCount = currentMaxChars - leftText.length - rightText.length;
@@ -936,7 +924,7 @@
                     if (mode === 'preview') {
                         lines.push(combinedText);
                     } else {
-                        data += "\x1B\x61\x00"; // Rata Kiri
+                        data += "\x1B\x61\x00"; // Paksa Rata Kiri
                         let isBold = leftEl.text.includes('<b>') || leftEl.text.includes('<strong>') || leftEl.fontWeight === 'bold';
                         data += isBold ? "\x1B\x45\x01" : "\x1B\x45\x00";
                         data += "\x1B\x2D\x00";
@@ -952,8 +940,8 @@
             if (mode === 'preview') {
                 return lines.join("\n");
             } else {
-                // Reset Printer
-                data += "\x1D\x21\x00\x1B\x45\x00\x1B\x61\x00\x1B\x2D\x00";
+                // Reset Printer Default (Keamanan Ekstra)
+                data += "\x1D\x21\x00\x1B\x45\x00\x1B\x2D\x00";
                 return data;
             }
         }
@@ -1042,11 +1030,8 @@
                 const char = await service.getCharacteristic('00002af1-0000-1000-8000-00805f9b34fb');
 
                 const encoder = new TextEncoder();
-                let data = "";
-                data += "\x1B\x40"; 
-                data += "\x1B\x21\x00"; 
-                data += textNormal + "\n\n\n\n"; 
-                data += "\x1D\x56\x41\x10"; 
+                // Khusus untuk Web Bluetooth, berikan Feed Enter yang banyak dan Auto Cut
+                let data = textNormal + "\n\n\n\n\x1D\x56\x41\x10"; 
 
                 await char.writeValue(encoder.encode(data));
                 alert("Print berhasil dikirim!");
