@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="id">
 <head>
@@ -33,7 +34,7 @@
             /* Padding agar margin tidak terlalu mepet ke ujung kertas */
             padding-left: 5px; 
             padding-right: 5px; 
-            padding-bottom: 10px;
+            padding-bottom: 60px; /* DIUBAH: Ditambah dari 10px menjadi 60px agar kertas terlihat lebih panjang ke bawah */
             padding-top: 5px; /* Sedikit jarak di atas agar aman saat mesin memotong */
             overflow: hidden; /* Mencegah elemen keluar dari batas kertas */
         }
@@ -67,9 +68,17 @@
             font-weight: bold;
         }
 
-        /* DITAMBAHKAN: Class khusus untuk merapatkan angka sesuai request Irvan */
+        /* Class khusus untuk merapatkan angka sesuai request sebelumnya */
         .tight-number {
             letter-spacing: -1px; /* Mengurangi jarak antar huruf/angka agar terlihat dempet seperti cetakan thermal asli */
+        }
+
+        /* Class khusus untuk area yang bisa diedit */
+        .editable {
+            outline: none; /* Menghilangkan garis biru standar browser saat teks diklik */
+            border-bottom: none; /* DIUBAH: Menghilangkan garis bawah putus-putus sesuai permintaan */
+            display: inline-block;
+            min-width: 15px; /* Lebar minimal agar area tetap bisa diklik jika dikosongkan */
         }
 
         /* Flexbox untuk baris yang bagian kiri dan kanannya terpisah ujung ke ujung */
@@ -85,7 +94,7 @@
             height: 10px;
         }
 
-        /* Styling khusus saat fungsi print dipanggil ke printer */
+        /* Styling khusus saat fungsi print dipanggil ke printer (Menyembunyikan tombol & garis panduan edit) */
         @media print {
             body {
                 padding: 0;
@@ -99,88 +108,91 @@
             .no-print {
                 display: none !important; /* Tombol disembunyikan saat kertas dicetak */
             }
+            .editable {
+                border-bottom: none; /* Garis panduan edit dihilangkan agar tidak ikut tercetak di kertas thermal */
+            }
         }
     </style>
 </head>
 <body>
-    <div class="receipt">
-        <!-- Spasi kosong di paling atas agar tulisan tidak mepet ujung atas nota (Ditambah menjadi 3 spacer) -->
+    <div class="receipt" id="area-cetak">
         <div class="spacer"></div>
         <div class="spacer"></div>
         <div class="spacer"></div>
 
-        <!-- HEADER NOTA -->
         <div class="center text-line"><span class="spbu-title">SPBU 54.684.23</span></div>
         <div class="center text-line">PASTI PAS (FARLY)</div>
         
-        <!-- 1x Enter / Spacer di bawah tulisan PASTI PAS (FARLY) sesuai instruksi -->
         <div class="spacer"></div>
         
         <div class="center text-line">JL. Jend. Gatot subroto km 07</div>
         <div class="center text-line">Bulusan - Banyuwangi</div>
         
-        <!-- Di foto referensi asli ternyata tertulis "Telep.", bukan "Telp." -->
         <div class="center text-line">Telep. 0333 416704</div>
         
         <div class="spacer"></div>
 
-        <!-- TANGGAL & JAM: Dipisah rata ujung kiri dan kanan -->
         <div class="row text-line">
-            <span>09/04/2026</span>
-            <span>10:32</span>
+            <span class="editable" contenteditable="true" id="tanggal">09/04/2026</span>
+            <span class="editable" contenteditable="true" id="jam">10:32</span>
         </div>
 
-        <!-- NOMOR RESI: Spasi sebelum angka dihilangkan karena di foto asli menempel ":099897" -->
-        <div class="left text-line">Receipt No. :099897</div>
+        <div class="left text-line">Receipt No. :<span class="editable" contenteditable="true" id="resi">099897</span></div>
 
-        <!-- Di foto referensi ada jarak lumayan jauh antara resi dan rincian bensin -->
         <div class="spacer"></div>
 
-        <!-- DETAIL TRANSAKSI -->
         <div class="row text-line">
             <span>Pump No.</span>
-            <span>08</span>
+            <span class="editable" contenteditable="true" id="pompa">08</span>
         </div>
         <div class="row text-line">
             <span>Grade</span>
-            <span>PERTALITE</span>
+            <span class="editable" contenteditable="true" id="grade">PERTALITE</span>
         </div>
         <div class="row text-line">
             <span>Volume</span>
-            <span>1.00</span>
+            <span class="editable" contenteditable="true" id="volume">1.00</span>
         </div>
         <div class="row text-line">
             <span>Unit Price</span>
-            <!-- DIUBAH: Menambahkan class tight-number agar angka merapat -->
-            <span class="tight-number">10000</span>
+            <span class="tight-number editable" contenteditable="true" id="harga">10000</span>
         </div>
         
-        <!-- AMOUNT: Tetap bold karena di foto cetakan "Amount" tintanya sangat tebal -->
         <div class="row text-line bold-text">
             <span>Amount</span>
-            <!-- DIUBAH: Menambahkan class tight-number agar angka merapat -->
-            <span class="tight-number">10000</span>
+            <span class="tight-number editable" contenteditable="true" id="total">10000</span>
         </div>
         
-        <!-- SPASI sebelum Vehicle No. -->
         <div class="spacer"></div>
         
         <div class="row text-line">
             <span>Vehicle No.</span>
-            <span>Not Entered</span>
+            <span class="editable" contenteditable="true" id="nopol">Not Entered</span>
         </div>
 
         <div class="spacer"></div>
 
-        <!-- FOOTER PESAN diteliti ulang 100% mengikuti instruksi teks yang Anda berikan -->
         <div class="left text-line">BBM BERSUPSIDI HANYA UNTUK GOLONG</div>
         <div class="left text-line">AN TIDAK MAMPU TERIMAKASIH ANDA</div>
         <div class="left text-line">TIDAK IKUT MENGGUNAKANNYA</div>
     </div>
     
-    <!-- Tombol untuk mempermudah print melalui browser -->
-    <button class="no-print" onclick="window.print()" style="margin-top: 30px; padding: 10px 20px; font-family: sans-serif; font-weight: bold; background-color: #28a745; color: white; border: none; border-radius: 5px; cursor: pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-        🖨️ Cetak Nota ke 58mm
+    <button class="no-print" onclick="cetakStruk()" style="margin-top: 30px; padding: 10px 20px; font-family: sans-serif; font-weight: bold; background-color: #28a745; color: white; border: none; border-radius: 5px; cursor: pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+        🖨️ Cetak Nota (Bluetooth)
     </button>
+
+    <script>
+        function cetakStruk() {
+            // Mengecek apakah aplikasi Android sudah menginjeksi object 'Android'
+            if (typeof Android !== "undefined" && typeof Android.printBluetooth === "function") {
+                // Memberikan perintah ke file Java/Kotlin di Android Studio Anda untuk mengeksekusi print
+                // Android akan merender tampilan webview ini menjadi gambar/bitmap lalu dicetak ke thermal
+                Android.printBluetooth();
+            } else {
+                // Fallback: Jika dibuka di browser komputer/HP biasa yang bukan aplikasi Anda, gunakan print standar
+                window.print();
+            }
+        }
+    </script>
 </body>
 </html>
