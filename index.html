@@ -133,9 +133,9 @@
                         </div>
                         <div class="w-px h-6 bg-orange-300 mx-1 shrink-0"></div>
                         <div class="flex flex-col gap-1">
-                            <div class="flex items-center gap-1 text-xs" title="Lebar Teks (1 = Normal, 0.8 = Kurus/Ramping)">
+                            <div class="flex items-center gap-1 text-xs" title="Lebar Teks (1 = Normal, 0.85 = Kurus/Ramping)">
                                 <span class="font-bold text-orange-800 w-10">Lebar:</span>
-                                <input type="number" id="inputTextScaleX" step="0.1" class="w-10 p-0.5 border border-orange-300 rounded outline-none text-center" />
+                                <input type="number" id="inputTextScaleX" step="0.05" class="w-10 p-0.5 border border-orange-300 rounded outline-none text-center" />
                             </div>
                             <div class="flex items-center gap-1 text-xs" title="Tinggi Teks (1 = Normal, 1.2 = Lebih Tinggi seperti Printer Thermal)">
                                 <span class="font-bold text-orange-800 w-10">Tinggi:</span>
@@ -245,30 +245,29 @@
         };
 
         // Memanfaatkan <b> dan teks murni untuk render agar 100% alami bisa di-blok per karakter
-        // Properti tambahan dimasukkan: marginLeft, marginRight, letterSpacing, textScaleX, textScaleY
-        // NOTE: textScaleY secara default diberi nilai 1.2 agar mensimulasikan Font Thermal yang memanjang/tinggi
+        // BUG FIX: textScaleX diubah ke 0.85 secara default agar tampilan layar sinkron (lebih ramping) dengan fisik printer
         const SPBU_TEMPLATE = [
-            { id: '1', text: '<b>SPBU 54.123.45</b>', x: 0, y: 20, align: 'center', width: 384, fontSize: 16, fontFamily: 'Courier New', marginLeft: 0, marginRight: 0, letterSpacing: 0, textScaleX: 1, textScaleY: 1.2 },
-            { id: '2', text: 'Jl. Raya Pertamina No. 1', x: 0, y: 45, align: 'center', width: 384, fontSize: 14, fontFamily: 'Courier New', marginLeft: 0, marginRight: 0, letterSpacing: 0, textScaleX: 1, textScaleY: 1.2 },
-            { id: '3', text: 'Jakarta - 021999888', x: 0, y: 65, align: 'center', width: 384, fontSize: 14, fontFamily: 'Courier New', marginLeft: 0, marginRight: 0, letterSpacing: 0, textScaleX: 1, textScaleY: 1.2 },
-            { id: '4', text: '--------------------------------', x: 0, y: 90, align: 'center', width: 384, fontSize: 14, fontFamily: 'Courier New', marginLeft: 0, marginRight: 0, letterSpacing: 0, textScaleX: 1, textScaleY: 1.2 },
-            { id: '5', text: 'Tanggal', x: 10, y: 110, align: 'left', width: 150, fontSize: 14, fontFamily: 'Courier New', marginLeft: 0, marginRight: 0, letterSpacing: 0, textScaleX: 1, textScaleY: 1.2 },
-            { id: '6', text: 'Jam', x: 224, y: 110, align: 'right', width: 150, fontSize: 14, fontFamily: 'Courier New', marginLeft: 0, marginRight: 0, letterSpacing: 0, textScaleX: 1, textScaleY: 1.2 },
-            { id: '7', text: 'Receipt No.', x: 10, y: 130, align: 'left', width: 150, fontSize: 14, fontFamily: 'Courier New', marginLeft: 0, marginRight: 0, letterSpacing: 0, textScaleX: 1, textScaleY: 1.2 },
-            { id: '8', text: '123456789', x: 224, y: 130, align: 'right', width: 150, fontSize: 14, fontFamily: 'Courier New', marginLeft: 0, marginRight: 0, letterSpacing: 0, textScaleX: 1, textScaleY: 1.2 },
-            { id: '9', text: '--------------------------------', x: 0, y: 150, align: 'center', width: 384, fontSize: 14, fontFamily: 'Courier New', marginLeft: 0, marginRight: 0, letterSpacing: 0, textScaleX: 1, textScaleY: 1.2 },
-            { id: '10', text: 'Pump No.', x: 10, y: 170, align: 'left', width: 150, fontSize: 14, fontFamily: 'Courier New', marginLeft: 0, marginRight: 0, letterSpacing: 0, textScaleX: 1, textScaleY: 1.2 },
-            { id: '11', text: '09', x: 224, y: 170, align: 'right', width: 150, fontSize: 14, fontFamily: 'Courier New', marginLeft: 0, marginRight: 0, letterSpacing: 0, textScaleX: 1, textScaleY: 1.2 },
-            { id: '12', text: 'Grade', x: 10, y: 190, align: 'left', width: 150, fontSize: 14, fontFamily: 'Courier New', marginLeft: 0, marginRight: 0, letterSpacing: 0, textScaleX: 1, textScaleY: 1.2 },
-            { id: '13', text: 'PERTALITE', x: 224, y: 190, align: 'right', width: 150, fontSize: 14, fontFamily: 'Courier New', marginLeft: 0, marginRight: 0, letterSpacing: 0, textScaleX: 1, textScaleY: 1.2 },
-            { id: '14', text: 'Volume(L)', x: 10, y: 210, align: 'left', width: 150, fontSize: 14, fontFamily: 'Courier New', marginLeft: 0, marginRight: 0, letterSpacing: 0, textScaleX: 1, textScaleY: 1.2 },
-            { id: '15', text: '3.00', x: 224, y: 210, align: 'right', width: 150, fontSize: 14, fontFamily: 'Courier New', marginLeft: 0, marginRight: 0, letterSpacing: 0, textScaleX: 1, textScaleY: 1.2 },
-            { id: '16', text: 'Unit Price', x: 10, y: 230, align: 'left', width: 150, fontSize: 14, fontFamily: 'Courier New', marginLeft: 0, marginRight: 0, letterSpacing: 0, textScaleX: 1, textScaleY: 1.2 },
-            { id: '17', text: '10000', x: 224, y: 230, align: 'right', width: 150, fontSize: 14, fontFamily: 'Courier New', marginLeft: 0, marginRight: 0, letterSpacing: 0, textScaleX: 1, textScaleY: 1.2 },
-            { id: '18', text: 'Amount', x: 10, y: 250, align: 'left', width: 150, fontSize: 14, fontFamily: 'Courier New', marginLeft: 0, marginRight: 0, letterSpacing: 0, textScaleX: 1, textScaleY: 1.2 },
-            { id: '19', text: '30000', x: 224, y: 250, align: 'right', width: 150, fontSize: 14, fontFamily: 'Courier New', marginLeft: 0, marginRight: 0, letterSpacing: 0, textScaleX: 1, textScaleY: 1.2 },
-            { id: '20', text: '--------------------------------', x: 0, y: 270, align: 'center', width: 384, fontSize: 14, fontFamily: 'Courier New', marginLeft: 0, marginRight: 0, letterSpacing: 0, textScaleX: 1, textScaleY: 1.2 },
-            { id: '21', text: 'TERIMA KASIH DAN SELAMAT JALAN', x: 0, y: 290, align: 'center', width: 384, fontSize: 14, fontFamily: 'Courier New', marginLeft: 0, marginRight: 0, letterSpacing: 0, textScaleX: 1, textScaleY: 1.2 }
+            { id: '1', text: '<b>SPBU 54.123.45</b>', x: 0, y: 20, align: 'center', width: 384, fontSize: 16, fontFamily: 'Courier New', marginLeft: 0, marginRight: 0, letterSpacing: 0, textScaleX: 0.85, textScaleY: 1.2 },
+            { id: '2', text: 'Jl. Raya Pertamina No. 1', x: 0, y: 45, align: 'center', width: 384, fontSize: 14, fontFamily: 'Courier New', marginLeft: 0, marginRight: 0, letterSpacing: 0, textScaleX: 0.85, textScaleY: 1.2 },
+            { id: '3', text: 'Jakarta - 021999888', x: 0, y: 65, align: 'center', width: 384, fontSize: 14, fontFamily: 'Courier New', marginLeft: 0, marginRight: 0, letterSpacing: 0, textScaleX: 0.85, textScaleY: 1.2 },
+            { id: '4', text: '--------------------------------', x: 0, y: 90, align: 'center', width: 384, fontSize: 14, fontFamily: 'Courier New', marginLeft: 0, marginRight: 0, letterSpacing: 0, textScaleX: 0.85, textScaleY: 1.2 },
+            { id: '5', text: 'Tanggal', x: 10, y: 110, align: 'left', width: 150, fontSize: 14, fontFamily: 'Courier New', marginLeft: 0, marginRight: 0, letterSpacing: 0, textScaleX: 0.85, textScaleY: 1.2 },
+            { id: '6', text: 'Jam', x: 224, y: 110, align: 'right', width: 150, fontSize: 14, fontFamily: 'Courier New', marginLeft: 0, marginRight: 0, letterSpacing: 0, textScaleX: 0.85, textScaleY: 1.2 },
+            { id: '7', text: 'Receipt No.', x: 10, y: 130, align: 'left', width: 150, fontSize: 14, fontFamily: 'Courier New', marginLeft: 0, marginRight: 0, letterSpacing: 0, textScaleX: 0.85, textScaleY: 1.2 },
+            { id: '8', text: '123456789', x: 224, y: 130, align: 'right', width: 150, fontSize: 14, fontFamily: 'Courier New', marginLeft: 0, marginRight: 0, letterSpacing: 0, textScaleX: 0.85, textScaleY: 1.2 },
+            { id: '9', text: '--------------------------------', x: 0, y: 150, align: 'center', width: 384, fontSize: 14, fontFamily: 'Courier New', marginLeft: 0, marginRight: 0, letterSpacing: 0, textScaleX: 0.85, textScaleY: 1.2 },
+            { id: '10', text: 'Pump No.', x: 10, y: 170, align: 'left', width: 150, fontSize: 14, fontFamily: 'Courier New', marginLeft: 0, marginRight: 0, letterSpacing: 0, textScaleX: 0.85, textScaleY: 1.2 },
+            { id: '11', text: '09', x: 224, y: 170, align: 'right', width: 150, fontSize: 14, fontFamily: 'Courier New', marginLeft: 0, marginRight: 0, letterSpacing: 0, textScaleX: 0.85, textScaleY: 1.2 },
+            { id: '12', text: 'Grade', x: 10, y: 190, align: 'left', width: 150, fontSize: 14, fontFamily: 'Courier New', marginLeft: 0, marginRight: 0, letterSpacing: 0, textScaleX: 0.85, textScaleY: 1.2 },
+            { id: '13', text: 'PERTALITE', x: 224, y: 190, align: 'right', width: 150, fontSize: 14, fontFamily: 'Courier New', marginLeft: 0, marginRight: 0, letterSpacing: 0, textScaleX: 0.85, textScaleY: 1.2 },
+            { id: '14', text: 'Volume(L)', x: 10, y: 210, align: 'left', width: 150, fontSize: 14, fontFamily: 'Courier New', marginLeft: 0, marginRight: 0, letterSpacing: 0, textScaleX: 0.85, textScaleY: 1.2 },
+            { id: '15', text: '3.00', x: 224, y: 210, align: 'right', width: 150, fontSize: 14, fontFamily: 'Courier New', marginLeft: 0, marginRight: 0, letterSpacing: 0, textScaleX: 0.85, textScaleY: 1.2 },
+            { id: '16', text: 'Unit Price', x: 10, y: 230, align: 'left', width: 150, fontSize: 14, fontFamily: 'Courier New', marginLeft: 0, marginRight: 0, letterSpacing: 0, textScaleX: 0.85, textScaleY: 1.2 },
+            { id: '17', text: '10000', x: 224, y: 230, align: 'right', width: 150, fontSize: 14, fontFamily: 'Courier New', marginLeft: 0, marginRight: 0, letterSpacing: 0, textScaleX: 0.85, textScaleY: 1.2 },
+            { id: '18', text: 'Amount', x: 10, y: 250, align: 'left', width: 150, fontSize: 14, fontFamily: 'Courier New', marginLeft: 0, marginRight: 0, letterSpacing: 0, textScaleX: 0.85, textScaleY: 1.2 },
+            { id: '19', text: '30000', x: 224, y: 250, align: 'right', width: 150, fontSize: 14, fontFamily: 'Courier New', marginLeft: 0, marginRight: 0, letterSpacing: 0, textScaleX: 0.85, textScaleY: 1.2 },
+            { id: '20', text: '--------------------------------', x: 0, y: 270, align: 'center', width: 384, fontSize: 14, fontFamily: 'Courier New', marginLeft: 0, marginRight: 0, letterSpacing: 0, textScaleX: 0.85, textScaleY: 1.2 },
+            { id: '21', text: 'TERIMA KASIH DAN SELAMAT JALAN', x: 0, y: 290, align: 'center', width: 384, fontSize: 14, fontFamily: 'Courier New', marginLeft: 0, marginRight: 0, letterSpacing: 0, textScaleX: 0.85, textScaleY: 1.2 }
         ];
 
         // --- STATE APP ---
@@ -514,7 +513,7 @@
                 marginLeft: 0,
                 marginRight: 0,
                 letterSpacing: 0,
-                textScaleX: 1,
+                textScaleX: 0.85,
                 textScaleY: 1.2 // Default untuk Teks Baru
             };
             state.elements.push(newElement);
@@ -865,7 +864,8 @@
             const maxCharsNormal = PAPER_CONFIG[state.paperSize].maxChars;
             let lines = []; 
             
-            // KODE INIT BERSIH (Hanya \x1B\x40) - Anti Bug "PP" atau karakter sampah
+            // BUG FIX: PENYEDERHANAAN KODE INISIASI
+            // Hanya menggunakan kode Reset Standard agar tidak muncul huruf "PP" atau karakter aneh
             let data = mode === 'print' ? "\x1B\x40" : "";  
             
             let sortedElements = [...state.elements].sort((a, b) => a.y - b.y);
@@ -893,9 +893,11 @@
                     let spacesLeft = Math.max(0, Math.floor((el.marginLeft || 0) / 12));
                     if (spacesLeft > 0) plainText = " ".repeat(spacesLeft) + plainText;
 
-                    let isDouble = el.fontSize >= 16; 
+                    // BUG FIX: THRESHOLD DOUBLE FONT DIUBAH KE 24
+                    // Agar teks font 16 (Seperti Judul SPBU) TIDAK tercetak besar ganda.
+                    let isDouble = el.fontSize >= 24; 
                     
-                    // Pembatasan Cerdas: Jika huruf ganda, batas margin ikut terbelah dua.
+                    // Jika teks membesar, batas kertas di printer thermal menyusut setengahnya
                     let currentMaxChars = isDouble ? Math.floor(maxCharsNormal / 2) : maxCharsNormal;
 
                     let formattedLine = "";
@@ -927,7 +929,7 @@
                     let leftText = stripHtml(leftEl.text);
                     let rightText = stripHtml(rightEl.text);
 
-                    let isDouble = leftEl.fontSize >= 16 || rightEl.fontSize >= 16;
+                    let isDouble = leftEl.fontSize >= 24 || rightEl.fontSize >= 24;
                     let currentMaxChars = isDouble ? Math.floor(maxCharsNormal / 2) : maxCharsNormal;
 
                     let spaceCount = currentMaxChars - leftText.length - rightText.length;
