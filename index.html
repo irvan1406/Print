@@ -1,698 +1,982 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { 
-  Type, Minus, Square, Download, Upload, Save, 
-  Printer, AlignLeft, AlignCenter, AlignRight,
-  Bold, Italic, Underline, Undo, Redo, Plus,
-  Trash2, Copy, Eye, ArrowUp, ArrowDown, ArrowLeft, ArrowRight
-} from 'lucide-react';
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Thermal Editor HTML</title>
+    <!-- Tailwind CSS untuk Styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons untuk Ikon -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        /* Menghilangkan scrollbar bawaan namun tetap bisa discroll */
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        /* Memastikan area kerja aman di mobile (Safe Area) */
+        .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
+    </style>
+</head>
+<body class="flex flex-col h-[100dvh] bg-gray-100 font-sans overflow-hidden">
 
-// --- KONFIGURASI KERTAS & THERMAL ---
-const PAPER_CONFIG = {
-  58: { widthPx: 384, maxChars: 32 },
-  80: { widthPx: 576, maxChars: 48 }
-};
-
-// --- FUNGSI ALIGNMENT TEKS (THERMAL) ---
-function alignLeft(text, maxChars) {
-  return text.substring(0, maxChars);
-}
-
-function alignRight(text, maxChars) {
-  if (text.length >= maxChars) return text.substring(0, maxChars);
-  let space = maxChars - text.length;
-  return " ".repeat(space) + text;
-}
-
-function alignCenter(text, maxChars) {
-  if (text.length >= maxChars) return text.substring(0, maxChars);
-  let space = Math.floor((maxChars - text.length) / 2);
-  return " ".repeat(space) + text + " ".repeat(maxChars - text.length - space);
-}
-
-function alignLeftRight(left, right, maxChars) {
-  let space = maxChars - left.length - right.length;
-  if (space <= 0) return left.substring(0, maxChars - right.length - 1) + " " + right; 
-  return left + " ".repeat(space) + right;
-}
-
-// --- TEMPLATE AWAL SPBU ---
-const SPBU_TEMPLATE = [
-  { id: '1', text: 'SPBU 54.123.45', x: 0, y: 20, align: 'center', width: 384, fontSize: 16, fontFamily: 'Courier New', fontWeight: 'bold', fontStyle: 'normal', textDecoration: 'none' },
-  { id: '2', text: 'Jl. Raya Pertamina No. 1', x: 0, y: 45, align: 'center', width: 384, fontSize: 14, fontFamily: 'Courier New', fontWeight: 'normal', fontStyle: 'normal', textDecoration: 'none' },
-  { id: '3', text: 'Jakarta - 021999888', x: 0, y: 65, align: 'center', width: 384, fontSize: 14, fontFamily: 'Courier New', fontWeight: 'normal', fontStyle: 'normal', textDecoration: 'none' },
-  { id: '4', text: '--------------------------------', x: 0, y: 90, align: 'center', width: 384, fontSize: 14, fontFamily: 'Courier New', fontWeight: 'normal', fontStyle: 'normal', textDecoration: 'none' },
-  { id: '5', text: 'Tanggal', x: 10, y: 110, align: 'left', width: 150, fontSize: 14, fontFamily: 'Courier New', fontWeight: 'normal', fontStyle: 'normal', textDecoration: 'none' },
-  { id: '6', text: 'Jam', x: 224, y: 110, align: 'right', width: 150, fontSize: 14, fontFamily: 'Courier New', fontWeight: 'normal', fontStyle: 'normal', textDecoration: 'none' },
-  { id: '7', text: 'Receipt No.', x: 10, y: 130, align: 'left', width: 150, fontSize: 14, fontFamily: 'Courier New', fontWeight: 'normal', fontStyle: 'normal', textDecoration: 'none' },
-  { id: '8', text: '123456789', x: 224, y: 130, align: 'right', width: 150, fontSize: 14, fontFamily: 'Courier New', fontWeight: 'normal', fontStyle: 'normal', textDecoration: 'none' },
-  { id: '9', text: '--------------------------------', x: 0, y: 150, align: 'center', width: 384, fontSize: 14, fontFamily: 'Courier New', fontWeight: 'normal', fontStyle: 'normal', textDecoration: 'none' },
-  { id: '10', text: 'Pump No.', x: 10, y: 170, align: 'left', width: 150, fontSize: 14, fontFamily: 'Courier New', fontWeight: 'normal', fontStyle: 'normal', textDecoration: 'none' },
-  { id: '11', text: '09', x: 224, y: 170, align: 'right', width: 150, fontSize: 14, fontFamily: 'Courier New', fontWeight: 'normal', fontStyle: 'normal', textDecoration: 'none' },
-  { id: '12', text: 'Grade', x: 10, y: 190, align: 'left', width: 150, fontSize: 14, fontFamily: 'Courier New', fontWeight: 'normal', fontStyle: 'normal', textDecoration: 'none' },
-  { id: '13', text: 'PERTALITE', x: 224, y: 190, align: 'right', width: 150, fontSize: 14, fontFamily: 'Courier New', fontWeight: 'normal', fontStyle: 'normal', textDecoration: 'none' },
-  { id: '14', text: 'Volume(L)', x: 10, y: 210, align: 'left', width: 150, fontSize: 14, fontFamily: 'Courier New', fontWeight: 'normal', fontStyle: 'normal', textDecoration: 'none' },
-  { id: '15', text: '3.00', x: 224, y: 210, align: 'right', width: 150, fontSize: 14, fontFamily: 'Courier New', fontWeight: 'normal', fontStyle: 'normal', textDecoration: 'none' },
-  { id: '16', text: 'Unit Price', x: 10, y: 230, align: 'left', width: 150, fontSize: 14, fontFamily: 'Courier New', fontWeight: 'normal', fontStyle: 'normal', textDecoration: 'none' },
-  { id: '17', text: '10000', x: 224, y: 230, align: 'right', width: 150, fontSize: 14, fontFamily: 'Courier New', fontWeight: 'normal', fontStyle: 'normal', textDecoration: 'none' },
-  { id: '18', text: 'Amount', x: 10, y: 250, align: 'left', width: 150, fontSize: 14, fontFamily: 'Courier New', fontWeight: 'normal', fontStyle: 'normal', textDecoration: 'none' },
-  { id: '19', text: '30000', x: 224, y: 250, align: 'right', width: 150, fontSize: 14, fontFamily: 'Courier New', fontWeight: 'normal', fontStyle: 'normal', textDecoration: 'none' },
-  { id: '20', text: '--------------------------------', x: 0, y: 270, align: 'center', width: 384, fontSize: 14, fontFamily: 'Courier New', fontWeight: 'normal', fontStyle: 'normal', textDecoration: 'none' },
-  { id: '21', text: 'TERIMA KASIH DAN SELAMAT JALAN', x: 0, y: 290, align: 'center', width: 384, fontSize: 14, fontFamily: 'Courier New', fontWeight: 'normal', fontStyle: 'normal', textDecoration: 'none' }
-];
-
-export default function App() {
-  // --- STATE MANAGEMENT ---
-  const [elements, setElements] = useState(SPBU_TEMPLATE);
-  const [selectedIds, setSelectedIds] = useState([]);
-  const [paperSize, setPaperSize] = useState(58);
-  const [zoom, setZoom] = useState(100);
-  const [previewText, setPreviewText] = useState(null);
-  
-  // History for Undo/Redo
-  const [history, setHistory] = useState([SPBU_TEMPLATE]);
-  const [historyIndex, setHistoryIndex] = useState(0);
-
-  const canvasRef = useRef(null);
-
-  // --- HISTORY HANDLERS ---
-  const saveHistory = (newElements) => {
-    const newHistory = history.slice(0, historyIndex + 1);
-    newHistory.push(newElements);
-    setHistory(newHistory);
-    setHistoryIndex(newHistory.length - 1);
-  };
-
-  const undo = () => {
-    if (historyIndex > 0) {
-      setHistoryIndex(historyIndex - 1);
-      setElements(history[historyIndex - 1]);
-      setSelectedIds([]); 
-    }
-  };
-
-  const redo = () => {
-    if (historyIndex < history.length - 1) {
-      setHistoryIndex(historyIndex + 1);
-      setElements(history[historyIndex + 1]);
-      setSelectedIds([]);
-    }
-  };
-
-  // --- ELEMENT MUTATION HANDLERS ---
-  const addElement = (type) => {
-    let newElement = {
-      id: Date.now().toString(),
-      text: type === 'line' ? '--------------------------------' : 'Ketik Teks Baru',
-      x: 50,
-      y: 50,
-      align: 'center',
-      width: PAPER_CONFIG[paperSize].widthPx,
-      fontSize: 14,
-      fontFamily: 'Courier New',
-      fontWeight: 'normal',
-      fontStyle: 'normal',
-      textDecoration: 'none'
-    };
-    const newElements = [...elements, newElement];
-    setElements(newElements);
-    saveHistory(newElements);
-    setSelectedIds([newElement.id]);
-  };
-
-  const deleteSelected = () => {
-    if (selectedIds.length === 0) return;
-    const newElements = elements.filter(el => !selectedIds.includes(el.id));
-    setElements(newElements);
-    saveHistory(newElements);
-    setSelectedIds([]);
-  };
-
-  const duplicateSelected = () => {
-    if (selectedIds.length === 0) return;
-    const newElements = [...elements];
-    const newSelection = [];
-    selectedIds.forEach(id => {
-      const el = elements.find(e => e.id === id);
-      if (el) {
-        const copy = { ...el, id: Date.now().toString() + Math.random(), y: el.y + 25 };
-        newElements.push(copy);
-        newSelection.push(copy.id);
-      }
-    });
-    setElements(newElements);
-    saveHistory(newElements);
-    setSelectedIds(newSelection);
-  };
-
-  const updateSelected = (updates) => {
-    const newElements = elements.map(el => 
-      selectedIds.includes(el.id) ? { ...el, ...updates } : el
-    );
-    setElements(newElements);
-    saveHistory(newElements);
-  };
-
-  const nudgeSelected = (dx, dy) => {
-    if (selectedIds.length === 0) return;
-    const newElements = elements.map(el => 
-      selectedIds.includes(el.id) ? { ...el, x: el.x + dx, y: el.y + dy } : el
-    );
-    setElements(newElements);
-    saveHistory(newElements);
-  };
-
-  // --- NATIVE SELECTION TRACKER ---
-  // Sistem canggih ini memantau sorotan blok (highlight biru native) yang dilakukan oleh pengguna di kanvas
-  useEffect(() => {
-    const handleSelection = () => {
-      const sel = window.getSelection();
-      if (!sel || !canvasRef.current) return;
-      
-      // Abaikan jika yang diblok berada di luar area kertas kita
-      if (!canvasRef.current.contains(sel.anchorNode)) return;
-
-      // Jika cuma klik 1x (tidak ada teks yang di-drag/blok)
-      if (sel.isCollapsed) {
-        let node = sel.anchorNode;
-        while (node && node.id !== 'paper-canvas') {
-          if (node.id) {
-            setSelectedIds([node.id]);
-            return;
-          }
-          node = node.parentNode;
-        }
-        setSelectedIds([]);
-        return;
-      }
-
-      // Jika pengguna melakukan drag blok (Highlight banyak teks)
-      const range = sel.getRangeAt(0);
-      const selected = [];
-      const childNodes = canvasRef.current.querySelectorAll('div[id]');
-
-      childNodes.forEach(child => {
-        const childRange = document.createRange();
-        childRange.selectNodeContents(child);
-        
-        // Cek apakah elemen ini tertabrak/masuk ke dalam blok sorotan
-        const isBefore = range.compareBoundaryPoints(Range.END_TO_START, childRange) >= 0;
-        const isAfter = range.compareBoundaryPoints(Range.START_TO_END, childRange) <= 0;
-        
-        if (!isBefore && !isAfter) {
-          selected.push(child.id);
-        }
-      });
-
-      setSelectedIds(selected);
-    };
-
-    document.addEventListener('selectionchange', handleSelection);
-    return () => document.removeEventListener('selectionchange', handleSelection);
-  }, []);
-
-  // --- EDITOR INPUT HANDLER (SINKRONISASI KETIKAN KE REACT) ---
-  // Membaca secara real-time apabila user mengetik/menghapus langsung di atas kanvas
-  const handleInput = () => {
-    if (!canvasRef.current) return;
-    const childNodes = Array.from(canvasRef.current.querySelectorAll('div[id]'));
-    const domIds = childNodes.map(n => n.id);
-
-    // Update state elemen atau hapus jika elemen telah dibackspace hingga musnah oleh browser
-    let newElements = elements.map(el => {
-      if (!domIds.includes(el.id)) {
-        return null; // Elemen terhapus
-      }
-      const node = document.getElementById(el.id);
-      let newText = node.innerText;
-      if (newText.endsWith('\n')) newText = newText.slice(0, -1);
-      return { ...el, text: newText };
-    }).filter(Boolean);
-
-    // Hapus teks ghaib (teks yang gak sengaja diketik di luar kotak teks yang ada)
-    Array.from(canvasRef.current.childNodes).forEach(node => {
-      if (node.nodeType === Node.TEXT_NODE) node.remove();
-    });
-
-    setElements(newElements);
-  };
-
-  // --- KEYBOARD SHORTCUTS & CUSTOM ENTER HANDLER ---
-  const handleCanvasKeyDown = (e) => {
-    // 1. Kustomisasi Tombol ENTER (Agar elemen di bawahnya ikut terdorong turun seperti MS Word)
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      const sel = window.getSelection();
-      if (!sel || sel.isCollapsed === false) return; // Abaikan jika sedang memblok banyak teks
-
-      let targetId = null;
-      let node = sel.anchorNode;
-      while (node && node.id !== 'paper-canvas') {
-        if (node.id) { targetId = node.id; break; }
-        node = node.parentNode;
-      }
-
-      if (targetId) {
-        const el = elements.find(x => x.id === targetId);
-        const pushAmount = el.fontSize + 10;
-        const cursorPosition = sel.anchorNode.nodeType === Node.TEXT_NODE ? sel.anchorOffset : 0;
-
-        const textBefore = el.text.substring(0, cursorPosition);
-        const textAfter = el.text.substring(cursorPosition);
-        const newElementId = Date.now().toString();
-
-        const newElements = elements.map(item => {
-          if (item.y > el.y) return { ...item, y: item.y + pushAmount }; // Dorong yang di bawahnya
-          if (item.id === el.id) return { ...item, text: textBefore };
-          return item;
-        });
-
-        newElements.push({
-          ...el,
-          id: newElementId,
-          text: textAfter,
-          y: el.y + pushAmount
-        });
-
-        setElements(newElements);
-        saveHistory(newElements);
-
-        // Pindahkan kursor berkedip ke baris baru yang terbentuk
-        setTimeout(() => {
-          const newNode = document.getElementById(newElementId);
-          if (newNode && newNode.firstChild) {
-            const newSel = window.getSelection();
-            const range = document.createRange();
-            range.setStart(newNode.firstChild, 0);
-            range.collapse(true);
-            newSel.removeAllRanges();
-            newSel.addRange(range);
-          }
-        }, 10);
-      }
-    }
-  };
-
-  // Shortcut Global Kanvas (Dilindungi agar tidak tabrakan saat ngetik)
-  useEffect(() => {
-    const handleKeyDownGlobal = (e) => {
-      const inCanvas = canvasRef.current?.contains(document.activeElement) || canvasRef.current?.contains(window.getSelection().anchorNode);
-
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); undo(); }
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') { e.preventDefault(); redo(); }
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'c') duplicateSelected();
-
-      // Pilih Semua (Ctrl + A)
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'a') {
-        if (inCanvas) {
-          e.preventDefault();
-          const range = document.createRange();
-          range.selectNodeContents(canvasRef.current);
-          const sel = window.getSelection();
-          sel.removeAllRanges();
-          sel.addRange(range);
-        }
-      }
-
-      // Nudge (Geser Posisi via Keyboard). Wajib tekan ALT + PANAH agar tidak mengganggu navigasi kursor teks saat mengetik
-      if (selectedIds.length > 0 && inCanvas && e.altKey) {
-        if (e.key === 'ArrowUp') { e.preventDefault(); nudgeSelected(0, -5); }
-        if (e.key === 'ArrowDown') { e.preventDefault(); nudgeSelected(0, 5); }
-        if (e.key === 'ArrowLeft') { e.preventDefault(); nudgeSelected(-5, 0); }
-        if (e.key === 'ArrowRight') { e.preventDefault(); nudgeSelected(5, 0); }
-      }
-    };
-    window.addEventListener('keydown', handleKeyDownGlobal);
-    return () => window.removeEventListener('keydown', handleKeyDownGlobal);
-  }, [selectedIds, elements, historyIndex]);
-
-  // --- ALGORITHM: CONVERT CANVAS TO THERMAL TEXT ---
-  const buildThermalData = () => {
-    const maxChars = PAPER_CONFIG[paperSize].maxChars;
-    let lines = [];
-    
-    let sortedElements = [...elements].sort((a, b) => a.y - b.y);
-    let rows = [];
-    let currentRow = [];
-    let lastY = -1000;
-
-    sortedElements.forEach(el => {
-      if (Math.abs(el.y - lastY) > 15) {
-        if (currentRow.length > 0) rows.push(currentRow);
-        currentRow = [el];
-        lastY = el.y;
-      } else {
-        currentRow.push(el);
-      }
-    });
-    if (currentRow.length > 0) rows.push(currentRow);
-
-    rows.forEach(row => {
-      row.sort((a, b) => a.x - b.x);
-
-      if (row.length === 1) {
-        let el = row[0];
-        let align = el.align;
-        if (align === 'center') lines.push(alignCenter(el.text, maxChars));
-        else if (align === 'right' || el.x > (PAPER_CONFIG[paperSize].widthPx / 2)) lines.push(alignRight(el.text, maxChars));
-        else lines.push(alignLeft(el.text, maxChars));
-      } 
-      else if (row.length >= 2) {
-        let leftEl = row[0];
-        let rightEl = row[row.length - 1];
-        lines.push(alignLeftRight(leftEl.text, rightEl.text, maxChars));
-      }
-    });
-
-    return lines.join("\n");
-  };
-
-  // --- FILE OPERATIONS ---
-  const saveLocal = () => {
-    localStorage.setItem('thermal_template', JSON.stringify(elements));
-    alert('Template disimpan ke LocalStorage!');
-  };
-
-  const loadLocal = () => {
-    const data = localStorage.getItem('thermal_template');
-    if (data) {
-      const parsed = JSON.parse(data);
-      setElements(parsed);
-      saveHistory(parsed);
-    } else {
-      alert('Tidak ada template tersimpan.');
-    }
-  };
-
-  const exportJSON = () => {
-    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(elements));
-    const downloadAnchorNode = document.createElement('a');
-    downloadAnchorNode.setAttribute("href", dataStr);
-    downloadAnchorNode.setAttribute("download", "template_struk.json");
-    document.body.appendChild(downloadAnchorNode);
-    downloadAnchorNode.click();
-    downloadAnchorNode.remove();
-  };
-
-  const importJSON = (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      try {
-        const parsed = JSON.parse(event.target.result);
-        setElements(parsed);
-        saveHistory(parsed);
-      } catch (err) {
-        alert("File JSON tidak valid!");
-      }
-    };
-    reader.readAsText(file);
-  };
-
-  // --- PRINT EXECUTION ---
-  const executePrint = async () => {
-    const textNormal = buildThermalData();
-    
-    if (typeof window.AndroidPrinter !== 'undefined') {
-      try {
-        window.AndroidPrinter.cetakKeBluetooth("", textNormal);
-        return;
-      } catch(e) {
-        console.error("Android Bridge Error", e);
-      }
-    }
-
-    try {
-      const device = await navigator.bluetooth.requestDevice({
-        acceptAllDevices: true,
-        optionalServices: ['000018f0-0000-1000-8000-00805f9b34fb']
-      });
-
-      const server = await device.gatt.connect();
-      const service = await server.getPrimaryService('000018f0-0000-1000-8000-00805f9b34fb');
-      const char = await service.getCharacteristic('00002af1-0000-1000-8000-00805f9b34fb');
-
-      const encoder = new TextEncoder();
-      let data = "";
-      data += "\x1B\x40"; 
-      data += "\x1B\x21\x00"; 
-      data += textNormal + "\n\n\n\n"; 
-      data += "\x1D\x56\x41\x10"; 
-
-      await char.writeValue(encoder.encode(data));
-      alert("Print berhasil dikirim!");
-    } catch(err) {
-      alert("Gagal print bluetooth: Pastikan perangkat mendukung Web Bluetooth API dan printer menyala.\n\nDetail: " + err.message);
-    }
-  };
-
-  return (
-    <div className="flex flex-col h-[100dvh] bg-gray-100 font-sans">
-      
-      {/* --- TOP NAVBAR --- */}
-      <header className="bg-blue-600 text-white p-2 md:p-3 flex justify-between items-center shadow-md z-30 shrink-0">
-        <div className="flex items-center gap-1 md:gap-2">
-          <Printer size={20} className="md:w-6 md:h-6" />
-          <h1 className="text-sm md:text-lg font-bold truncate">Thermal Editor</h1>
+    <!-- --- TOP NAVBAR --- -->
+    <header class="bg-blue-600 text-white p-2 md:p-3 flex justify-between items-center shadow-md z-30 shrink-0">
+        <div class="flex items-center gap-1 md:gap-2">
+            <i data-lucide="printer" class="w-5 h-5 md:w-6 md:h-6"></i>
+            <h1 class="text-sm md:text-lg font-bold truncate">Thermal Editor</h1>
         </div>
         
-        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pl-2">
-          <select 
-            value={paperSize} 
-            onChange={(e) => setPaperSize(Number(e.target.value))}
-            className="bg-blue-700 text-white border-none rounded px-2 py-1 outline-none text-xs md:text-sm shrink-0"
-          >
-            <option value={58}>58mm</option>
-            <option value={80}>80mm</option>
-          </select>
-          <button onClick={() => setPreviewText(buildThermalData())} className="hover:bg-blue-500 p-1.5 md:p-2 rounded flex gap-1 items-center shrink-0" title="Preview Teks Thermal">
-            <Eye size={18}/> <span className="hidden md:inline text-sm">Preview</span>
-          </button>
-          <div className="w-px h-6 bg-blue-400 mx-1 shrink-0"></div>
-          <button onClick={saveLocal} className="hover:bg-blue-500 p-1.5 md:p-2 rounded shrink-0" title="Save Local"><Save size={18}/></button>
-          <button onClick={loadLocal} className="hover:bg-blue-500 p-1.5 md:p-2 rounded shrink-0" title="Load Local"><Upload size={18}/></button>
-          <button onClick={exportJSON} className="hover:bg-blue-500 p-1.5 md:p-2 rounded shrink-0" title="Export JSON"><Download size={18}/></button>
-          <label className="hover:bg-blue-500 p-1.5 md:p-2 rounded cursor-pointer shrink-0" title="Import JSON">
-            <Upload size={18}/>
-            <input type="file" accept=".json" className="hidden" onChange={importJSON} />
-          </label>
-          <button 
-            onClick={executePrint}
-            className="bg-green-500 hover:bg-green-400 text-white px-3 py-1.5 md:px-4 md:py-2 rounded font-bold flex items-center gap-2 ml-1 shadow shrink-0 text-sm md:text-base"
-          >
-            <Printer size={18}/> <span className="hidden md:inline">CETAK</span>
-          </button>
+        <div class="flex items-center gap-2 overflow-x-auto no-scrollbar pl-2">
+            <select id="paperSizeSelect" class="bg-blue-700 text-white border-none rounded px-2 py-1 outline-none text-xs md:text-sm shrink-0">
+                <option value="58">58mm</option>
+                <option value="80">80mm</option>
+            </select>
+            <button id="btnPreview" class="hover:bg-blue-500 p-1.5 md:p-2 rounded flex gap-1 items-center shrink-0" title="Preview Teks Thermal">
+                <i data-lucide="eye" class="w-[18px] h-[18px]"></i> <span class="hidden md:inline text-sm">Preview</span>
+            </button>
+            <div class="w-px h-6 bg-blue-400 mx-1 shrink-0"></div>
+            <button id="btnSave" class="hover:bg-blue-500 p-1.5 md:p-2 rounded shrink-0" title="Save Local">
+                <i data-lucide="save" class="w-[18px] h-[18px]"></i>
+            </button>
+            <button id="btnLoad" class="hover:bg-blue-500 p-1.5 md:p-2 rounded shrink-0" title="Load Local">
+                <i data-lucide="upload" class="w-[18px] h-[18px]"></i>
+            </button>
+            <button id="btnExport" class="hover:bg-blue-500 p-1.5 md:p-2 rounded shrink-0" title="Export JSON">
+                <i data-lucide="download" class="w-[18px] h-[18px]"></i>
+            </button>
+            <label class="hover:bg-blue-500 p-1.5 md:p-2 rounded cursor-pointer shrink-0" title="Import JSON">
+                <i data-lucide="upload" class="w-[18px] h-[18px]"></i>
+                <input type="file" id="fileImport" accept=".json" class="hidden" />
+            </label>
+            <button id="btnPrint" class="bg-green-500 hover:bg-green-400 text-white px-3 py-1.5 md:px-4 md:py-2 rounded font-bold flex items-center gap-2 ml-1 shadow shrink-0 text-sm md:text-base">
+                <i data-lucide="printer" class="w-[18px] h-[18px]"></i> <span class="hidden md:inline">CETAK</span>
+            </button>
         </div>
-      </header>
+    </header>
 
-      {/* --- MAIN WORKSPACE --- */}
-      <div className="flex flex-col md:flex-row flex-1 overflow-hidden">
+    <!-- --- MAIN WORKSPACE --- -->
+    <div class="flex flex-col md:flex-row flex-1 overflow-hidden">
         
-        {/* --- KANVAS AREA --- */}
-        <main className="order-1 md:order-2 flex-1 flex flex-col relative bg-gray-200 overflow-hidden">
-          
-          {/* TOOLBAR FORMATTING */}
-          <div className="h-14 md:h-16 bg-white border-b border-gray-300 flex items-center px-2 md:px-4 gap-2 md:gap-4 overflow-x-auto shadow-sm shrink-0 no-scrollbar">
-            {selectedIds.length > 0 ? (
-              <>
-                {/* BLOK 1: FONT & SIZE */}
-                <div className="flex items-center gap-1 shrink-0">
-                  <select 
-                    className="border border-gray-300 rounded p-1.5 text-sm outline-none shrink-0"
-                    onChange={(e) => updateSelected({ fontFamily: e.target.value })}
-                    value={elements.find(e => e.id === selectedIds[0])?.fontFamily || 'Courier New'}
-                  >
-                    <option value="Courier New">Courier New</option>
-                    <option value="Arial">Arial</option>
-                    <option value="Roboto">Roboto</option>
-                  </select>
-
-                  <input 
-                    type="number" 
-                    className="border border-gray-300 rounded p-1.5 text-sm w-14 outline-none shrink-0 text-center"
-                    onChange={(e) => updateSelected({ fontSize: Number(e.target.value) })}
-                    value={elements.find(e => e.id === selectedIds[0])?.fontSize || 14}
-                    title="Ukuran Font"
-                  />
-                </div>
-
-                <div className="w-px h-8 bg-gray-300 mx-1 shrink-0"></div>
-
-                {/* BLOK 2: STYLE (B I U) & ALIGN */}
-                <div className="flex items-center gap-1 shrink-0 bg-gray-50 p-1 rounded border border-gray-200">
-                  <button onClick={() => updateSelected({ fontWeight: elements.find(e => e.id === selectedIds[0])?.fontWeight === 'bold' ? 'normal' : 'bold' })} className={`p-1.5 rounded shrink-0 ${elements.find(e => e.id === selectedIds[0])?.fontWeight === 'bold' ? 'bg-blue-200 text-blue-700' : 'hover:bg-gray-200'}`}><Bold size={16}/></button>
-                  <button onClick={() => updateSelected({ fontStyle: elements.find(e => e.id === selectedIds[0])?.fontStyle === 'italic' ? 'normal' : 'italic' })} className={`p-1.5 rounded shrink-0 ${elements.find(e => e.id === selectedIds[0])?.fontStyle === 'italic' ? 'bg-blue-200 text-blue-700' : 'hover:bg-gray-200'}`}><Italic size={16}/></button>
-                  <button onClick={() => updateSelected({ textDecoration: elements.find(e => e.id === selectedIds[0])?.textDecoration === 'underline' ? 'none' : 'underline' })} className={`p-1.5 rounded shrink-0 ${elements.find(e => e.id === selectedIds[0])?.textDecoration === 'underline' ? 'bg-blue-200 text-blue-700' : 'hover:bg-gray-200'}`}><Underline size={16}/></button>
-                  <div className="w-px h-5 bg-gray-300 mx-1"></div>
-                  <button onClick={() => updateSelected({ align: 'left', x: 0 })} className={`p-1.5 rounded shrink-0 ${elements.find(e => e.id === selectedIds[0])?.align === 'left' ? 'bg-blue-200 text-blue-700' : 'hover:bg-gray-200'}`} title="Align Kiri"><AlignLeft size={16}/></button>
-                  <button onClick={() => updateSelected({ align: 'center', x: 0, width: PAPER_CONFIG[paperSize].widthPx })} className={`p-1.5 rounded shrink-0 ${elements.find(e => e.id === selectedIds[0])?.align === 'center' ? 'bg-blue-200 text-blue-700' : 'hover:bg-gray-200'}`} title="Align Tengah"><AlignCenter size={16}/></button>
-                  <button onClick={() => updateSelected({ align: 'right', x: PAPER_CONFIG[paperSize].widthPx - (elements.find(e => e.id === selectedIds[0])?.width || 150) })} className={`p-1.5 rounded shrink-0 ${elements.find(e => e.id === selectedIds[0])?.align === 'right' ? 'bg-blue-200 text-blue-700' : 'hover:bg-gray-200'}`} title="Align Kanan"><AlignRight size={16}/></button>
-                </div>
-
-                <div className="w-px h-8 bg-gray-300 mx-1 shrink-0"></div>
-
-                {/* BLOK 3: NAVIGASI POSISI (X, Y dan Tombol Arah) */}
-                <div className="flex items-center gap-2 shrink-0 bg-blue-50 border border-blue-200 rounded p-1">
-                  <div className="flex flex-col gap-1">
-                    <div className="flex items-center gap-1 text-xs">
-                      <span className="font-bold text-blue-800 w-3">X:</span>
-                      <input type="number" className="w-14 p-0.5 border border-blue-300 rounded outline-none text-center" value={Math.round(elements.find(e => e.id === selectedIds[0])?.x || 0)} onChange={(e) => updateSelected({x: Number(e.target.value)})} />
-                    </div>
-                    <div className="flex items-center gap-1 text-xs">
-                      <span className="font-bold text-blue-800 w-3">Y:</span>
-                      <input type="number" className="w-14 p-0.5 border border-blue-300 rounded outline-none text-center" value={Math.round(elements.find(e => e.id === selectedIds[0])?.y || 0)} onChange={(e) => updateSelected({y: Number(e.target.value)})} />
-                    </div>
-                  </div>
-                  
-                  <div className="grid grid-cols-3 grid-rows-2 gap-0.5 ml-1">
-                    <div className="col-start-2"><button onClick={() => nudgeSelected(0, -5)} className="bg-blue-200 hover:bg-blue-300 p-1 rounded text-blue-800" title="Atas"><ArrowUp size={14}/></button></div>
-                    <div className="col-start-1 row-start-2"><button onClick={() => nudgeSelected(-5, 0)} className="bg-blue-200 hover:bg-blue-300 p-1 rounded text-blue-800" title="Kiri"><ArrowLeft size={14}/></button></div>
-                    <div className="col-start-2 row-start-2"><button onClick={() => nudgeSelected(0, 5)} className="bg-blue-200 hover:bg-blue-300 p-1 rounded text-blue-800" title="Bawah"><ArrowDown size={14}/></button></div>
-                    <div className="col-start-3 row-start-2"><button onClick={() => nudgeSelected(5, 0)} className="bg-blue-200 hover:bg-blue-300 p-1 rounded text-blue-800" title="Kanan"><ArrowRight size={14}/></button></div>
-                  </div>
-                </div>
-
-                <div className="w-px h-8 bg-gray-300 mx-1 shrink-0"></div>
-                
-                {/* BLOK 4: ACTION (Copy, Delete, Select All) */}
-                <div className="flex items-center gap-1 shrink-0">
-                  <button onClick={duplicateSelected} className="p-2 bg-gray-100 hover:bg-gray-200 rounded text-gray-700 shrink-0" title="Duplikat"><Copy size={16}/></button>
-                  <button onClick={deleteSelected} className="p-2 bg-red-50 hover:bg-red-100 border border-red-200 rounded text-red-600 shrink-0" title="Hapus"><Trash2 size={16}/></button>
-                  <button 
-                    onClick={() => {
-                      const range = document.createRange();
-                      range.selectNodeContents(canvasRef.current);
-                      const sel = window.getSelection();
-                      sel.removeAllRanges();
-                      sel.addRange(range);
-                    }} 
-                    className="px-3 py-2 bg-indigo-100 hover:bg-indigo-200 border border-indigo-300 rounded text-indigo-700 font-bold text-xs shrink-0" 
-                    title="Blok Semua Teks (Ctrl+A)"
-                  >
-                    PILIH SEMUA
-                  </button>
-                </div>
-              </>
-            ) : (
-              <span className="text-gray-400 text-sm md:text-base italic px-2">Klik teks atau seret untuk menyorot teks...</span>
-            )}
-          </div>
-
-          {/* CANVAS AREA - PURE NATIVE SELECTION DENGAN GLOBAL CONTENT-EDITABLE */}
-          <div className="flex-1 overflow-auto flex justify-center py-10 relative pb-32 cursor-text">
+        <!-- --- KANVAS AREA --- -->
+        <main class="order-1 md:order-2 flex-1 flex flex-col relative bg-gray-200 overflow-hidden">
             
-            {/* KERTAS THERMAL VIRTUAL (MASTER EDITABLE) */}
-            <div 
-              id="paper-canvas"
-              ref={canvasRef}
-              // INI KUNCI UTAMANYA: Membuat seluruh lembar kertas menjadi area ketik / blok asli browser
-              contentEditable={true}
-              suppressContentEditableWarning={true}
-              onInput={handleInput}
-              onKeyDown={handleCanvasKeyDown}
-              className="bg-white shadow-2xl relative border border-gray-200 outline-none"
-              style={{
-                width: `${PAPER_CONFIG[paperSize].widthPx}px`,
-                minHeight: '1200px', 
-                transform: `scale(${zoom / 100})`,
-                transformOrigin: 'top center',
-                transition: 'transform 0.2s',
-              }}
-            >
-              {/* RENDER TEKS SEBAGAI DIV BIASA YANG MEWARISI KEMAMPUAN EDIT DARI PARENT */}
-              {elements.sort((a, b) => a.y - b.y).map((el) => {
+            <!-- TOOLBAR FORMATTING -->
+            <div id="toolbarFormatting" class="h-14 md:h-16 bg-white border-b border-gray-300 flex items-center px-2 md:px-4 gap-2 md:gap-4 overflow-x-auto shadow-sm shrink-0 no-scrollbar">
                 
-                return (
-                  <div
-                    key={el.id}
-                    id={el.id}
-                    style={{
-                      position: 'absolute',
-                      left: `${el.x}px`,
-                      top: `${el.y}px`,
-                      width: el.align === 'center' ? '100%' : `${el.width}px`,
-                      textAlign: el.align,
-                      fontSize: `${el.fontSize}px`,
-                      fontFamily: el.fontFamily,
-                      fontWeight: el.fontWeight,
-                      fontStyle: el.fontStyle,
-                      textDecoration: el.textDecoration,
-                      lineHeight: '1.2',
-                      color: 'black',
-                      whiteSpace: 'pre-wrap', 
-                      wordBreak: 'break-all',
-                      outline: 'none' // Membuang garis biru saat diklik 1 per 1
-                    }}
-                  >
-                    {el.text}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
+                <!-- State Aktif: Teks Terpilih -->
+                <div id="toolbarActive" class="flex items-center w-full hidden">
+                    <!-- BLOK 1: FONT & SIZE -->
+                    <div class="flex items-center gap-1 shrink-0">
+                        <select id="fontFamilySelect" class="border border-gray-300 rounded p-1.5 text-sm outline-none shrink-0">
+                            <option value="Courier New">Courier New</option>
+                            <option value="Arial">Arial</option>
+                            <option value="Roboto">Roboto</option>
+                        </select>
+                        <input type="number" id="fontSizeInput" class="border border-gray-300 rounded p-1.5 text-sm w-14 outline-none shrink-0 text-center" title="Ukuran Font" />
+                    </div>
 
-          {/* ZOOM CONTROLS */}
-          <div className="absolute bottom-4 md:bottom-6 right-4 bg-white shadow-lg rounded-full flex items-center border border-gray-200 z-20">
-            <button onClick={() => setZoom(z => Math.max(20, z - 10))} className="p-2 md:p-3 hover:bg-gray-100 rounded-l-full text-gray-600" title="Zoom Out"><Minus size={18}/></button>
-            <span className="px-2 md:px-3 text-xs md:text-sm font-semibold w-12 md:w-16 text-center">{zoom}%</span>
-            <button onClick={() => setZoom(z => Math.min(200, z + 10))} className="p-2 md:p-3 hover:bg-gray-100 rounded-r-full text-gray-600" title="Zoom In"><Plus size={18}/></button>
-          </div>
+                    <div class="w-px h-8 bg-gray-300 mx-1 shrink-0"></div>
+
+                    <!-- BLOK 2: STYLE (B I U) & ALIGN -->
+                    <div class="flex items-center gap-1 shrink-0 bg-gray-50 p-1 rounded border border-gray-200">
+                        <button id="btnBold" class="p-1.5 rounded shrink-0 hover:bg-gray-200" title="Bold (Tebal)"><i data-lucide="bold" class="w-4 h-4"></i></button>
+                        <button id="btnItalic" class="p-1.5 rounded shrink-0 hover:bg-gray-200" title="Italic (Miring)"><i data-lucide="italic" class="w-4 h-4"></i></button>
+                        <button id="btnUnderline" class="p-1.5 rounded shrink-0 hover:bg-gray-200" title="Underline (Garis Bawah)"><i data-lucide="underline" class="w-4 h-4"></i></button>
+                        <div class="w-px h-5 bg-gray-300 mx-1"></div>
+                        <button id="btnAlignLeft" class="p-1.5 rounded shrink-0 hover:bg-gray-200" title="Align Kiri"><i data-lucide="align-left" class="w-4 h-4"></i></button>
+                        <button id="btnAlignCenter" class="p-1.5 rounded shrink-0 hover:bg-gray-200" title="Align Tengah"><i data-lucide="align-center" class="w-4 h-4"></i></button>
+                        <button id="btnAlignRight" class="p-1.5 rounded shrink-0 hover:bg-gray-200" title="Align Kanan"><i data-lucide="align-right" class="w-4 h-4"></i></button>
+                    </div>
+
+                    <div class="w-px h-8 bg-gray-300 mx-1 shrink-0"></div>
+
+                    <!-- BLOK 3: NAVIGASI POSISI (X, Y dan Tombol Arah) -->
+                    <div class="flex items-center gap-2 shrink-0 bg-blue-50 border border-blue-200 rounded p-1">
+                        <div class="flex flex-col gap-1">
+                            <div class="flex items-center gap-1 text-xs">
+                                <span class="font-bold text-blue-800 w-3">X:</span>
+                                <input type="number" id="inputX" class="w-14 p-0.5 border border-blue-300 rounded outline-none text-center" />
+                            </div>
+                            <div class="flex items-center gap-1 text-xs">
+                                <span class="font-bold text-blue-800 w-3">Y:</span>
+                                <input type="number" id="inputY" class="w-14 p-0.5 border border-blue-300 rounded outline-none text-center" />
+                            </div>
+                        </div>
+                        
+                        <div class="grid grid-cols-3 grid-rows-2 gap-0.5 ml-1">
+                            <div class="col-start-2"><button id="btnUp" class="bg-blue-200 hover:bg-blue-300 p-1 rounded text-blue-800" title="Atas"><i data-lucide="arrow-up" class="w-3.5 h-3.5"></i></button></div>
+                            <div class="col-start-1 row-start-2"><button id="btnLeft" class="bg-blue-200 hover:bg-blue-300 p-1 rounded text-blue-800" title="Kiri"><i data-lucide="arrow-left" class="w-3.5 h-3.5"></i></button></div>
+                            <div class="col-start-2 row-start-2"><button id="btnDown" class="bg-blue-200 hover:bg-blue-300 p-1 rounded text-blue-800" title="Bawah"><i data-lucide="arrow-down" class="w-3.5 h-3.5"></i></button></div>
+                            <div class="col-start-3 row-start-2"><button id="btnRight" class="bg-blue-200 hover:bg-blue-300 p-1 rounded text-blue-800" title="Kanan"><i data-lucide="arrow-right" class="w-3.5 h-3.5"></i></button></div>
+                        </div>
+                    </div>
+
+                    <div class="w-px h-8 bg-gray-300 mx-1 shrink-0"></div>
+
+                    <!-- BLOK 4: MARGIN & SPACING (KURUS/RAMPING) -->
+                    <div class="flex items-center gap-2 shrink-0 bg-orange-50 border border-orange-200 rounded p-1">
+                        <div class="flex flex-col gap-1">
+                            <div class="flex items-center gap-1 text-xs" title="Margin Kiri (Memberi jarak di kiri)">
+                                <span class="font-bold text-orange-800 w-12">M.Kiri:</span>
+                                <input type="number" id="inputMarginLeft" class="w-12 p-0.5 border border-orange-300 rounded outline-none text-center" />
+                            </div>
+                            <div class="flex items-center gap-1 text-xs" title="Margin Kanan (Memberi jarak di kanan)">
+                                <span class="font-bold text-orange-800 w-12">M.Kanan:</span>
+                                <input type="number" id="inputMarginRight" class="w-12 p-0.5 border border-orange-300 rounded outline-none text-center" />
+                            </div>
+                        </div>
+                        <div class="w-px h-6 bg-orange-300 mx-1 shrink-0"></div>
+                        <div class="flex flex-col gap-1">
+                            <div class="flex items-center gap-1 text-xs" title="Spasi antar huruf (Minus untuk merapatkan)">
+                                <span class="font-bold text-orange-800 w-9">Spasi:</span>
+                                <input type="number" id="inputLetterSpacing" step="0.5" class="w-12 p-0.5 border border-orange-300 rounded outline-none text-center" />
+                            </div>
+                            <div class="flex items-center gap-1 text-xs" title="Lebar Teks (1 = Normal, 0.8 = Kurus/Ramping)">
+                                <span class="font-bold text-orange-800 w-9">Lebar:</span>
+                                <input type="number" id="inputTextScaleX" step="0.1" class="w-12 p-0.5 border border-orange-300 rounded outline-none text-center" />
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="w-px h-8 bg-gray-300 mx-1 shrink-0"></div>
+                    
+                    <!-- BLOK 5: ACTION (Copy, Delete) -->
+                    <div class="flex items-center gap-1 shrink-0">
+                        <button id="btnDuplicate" class="p-2 bg-gray-100 hover:bg-gray-200 rounded text-gray-700 shrink-0" title="Duplikat Baris"><i data-lucide="copy" class="w-4 h-4"></i></button>
+                        <button id="btnDelete" class="p-2 bg-red-50 hover:bg-red-100 border border-red-200 rounded text-red-600 shrink-0" title="Hapus Baris"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                    </div>
+                </div>
+
+                <!-- State Kosong: Tidak ada teks terpilih -->
+                <div id="toolbarEmpty" class="w-full">
+                    <span class="text-gray-400 text-sm md:text-base italic px-2">Ketik atau blok teks di kertas untuk mulai memformat...</span>
+                </div>
+            </div>
+
+            <!-- CANVAS AREA - PURE NATIVE SELECTION DENGAN GLOBAL CONTENT-EDITABLE -->
+            <div id="canvas-wrapper" class="flex-1 overflow-auto flex justify-center py-10 relative pb-32 cursor-text">
+                
+                <!-- KERTAS THERMAL VIRTUAL (MASTER EDITABLE) -->
+                <!-- Ini adalah area bebas ketik dan blok layaknya satu lembar penuh MS Word -->
+                <div 
+                  id="paper-canvas"
+                  contenteditable="true"
+                  spellcheck="false"
+                  class="bg-white shadow-2xl relative border border-gray-200 outline-none"
+                  style="width: 384px; min-height: 1200px; transform: scale(1); transform-origin: top center; transition: transform 0.2s;"
+                >
+                    <!-- Div elemen teks akan di-inject ke sini secara otomatis -->
+                </div>
+            </div>
+
+            <!-- ZOOM CONTROLS -->
+            <div class="absolute bottom-4 md:bottom-6 right-4 bg-white shadow-lg rounded-full flex items-center border border-gray-200 z-20">
+                <button id="btnZoomOut" class="p-2 md:p-3 hover:bg-gray-100 rounded-l-full text-gray-600" title="Zoom Out"><i data-lucide="minus" class="w-[18px] h-[18px]"></i></button>
+                <span id="zoomLabel" class="px-2 md:px-3 text-xs md:text-sm font-semibold w-12 md:w-16 text-center">100%</span>
+                <button id="btnZoomIn" class="p-2 md:p-3 hover:bg-gray-100 rounded-r-full text-gray-600" title="Zoom In"><i data-lucide="plus" class="w-[18px] h-[18px]"></i></button>
+            </div>
 
         </main>
 
-        {/* --- SIDEBAR (TOOLS) / BOTTOM BAR DI MOBILE --- */}
-        <aside className="order-2 md:order-1 w-full md:w-48 bg-white shadow-[0_-4px_10px_rgba(0,0,0,0.1)] md:shadow-lg z-30 flex flex-row md:flex-col items-center justify-around md:justify-start py-2 md:py-4 gap-1 md:gap-4 border-t md:border-r border-gray-200 overflow-x-auto shrink-0 pb-safe">
-          <div className="px-4 w-full text-xs text-gray-500 font-semibold uppercase hidden md:block">Tambahkan</div>
-          
-          <button onClick={() => addElement('text')} className="flex flex-col md:flex-row items-center gap-1 md:gap-3 p-2 md:p-3 hover:bg-gray-100 w-auto md:w-full justify-center md:justify-start rounded md:rounded-none flex-1 md:flex-none">
-            <Type size={20} className="text-gray-700" />
-            <span className="text-[10px] md:text-base text-gray-700 font-medium">Teks Baru</span>
-          </button>
-          
-          <button onClick={() => addElement('line')} className="flex flex-col md:flex-row items-center gap-1 md:gap-3 p-2 md:p-3 hover:bg-gray-100 w-auto md:w-full justify-center md:justify-start rounded md:rounded-none flex-1 md:flex-none">
-            <Minus size={20} className="text-gray-700" />
-            <span className="text-[10px] md:text-base text-gray-700 font-medium whitespace-nowrap">Garis Putus</span>
-          </button>
+        <!-- --- SIDEBAR (TOOLS) / BOTTOM BAR DI MOBILE --- -->
+        <aside class="order-2 md:order-1 w-full md:w-48 bg-white shadow-[0_-4px_10px_rgba(0,0,0,0.1)] md:shadow-lg z-30 flex flex-row md:flex-col items-center justify-around md:justify-start py-2 md:py-4 gap-1 md:gap-4 border-t md:border-r border-gray-200 overflow-x-auto shrink-0 pb-safe">
+            <div class="px-4 w-full text-xs text-gray-500 font-semibold uppercase hidden md:block">Tambahkan</div>
+            
+            <button id="btnAddText" class="flex flex-col md:flex-row items-center gap-1 md:gap-3 p-2 md:p-3 hover:bg-gray-100 w-auto md:w-full justify-center md:justify-start rounded md:rounded-none flex-1 md:flex-none">
+                <i data-lucide="type" class="w-5 h-5 text-gray-700"></i>
+                <span class="text-[10px] md:text-base text-gray-700 font-medium">Teks Baru</span>
+            </button>
+            
+            <button id="btnAddLine" class="flex flex-col md:flex-row items-center gap-1 md:gap-3 p-2 md:p-3 hover:bg-gray-100 w-auto md:w-full justify-center md:justify-start rounded md:rounded-none flex-1 md:flex-none">
+                <i data-lucide="minus" class="w-5 h-5 text-gray-700"></i>
+                <span class="text-[10px] md:text-base text-gray-700 font-medium whitespace-nowrap">Garis Putus</span>
+            </button>
 
-          <div className="hidden md:block w-full h-px bg-gray-200 my-2"></div>
-          <div className="block md:hidden w-px h-8 bg-gray-200 mx-1"></div>
-          
-          <div className="px-4 w-full text-xs text-gray-500 font-semibold uppercase hidden md:block">Tindakan</div>
-          
-          <button onClick={undo} disabled={historyIndex === 0} className={`flex flex-col md:flex-row items-center gap-1 md:gap-3 p-2 md:p-3 w-auto md:w-full justify-center md:justify-start rounded md:rounded-none flex-1 md:flex-none ${historyIndex === 0 ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-100'}`}>
-            <Undo size={20} className="text-gray-700" />
-            <span className="text-[10px] md:text-base text-gray-700 font-medium">Undo</span>
-          </button>
-          
-          <button onClick={redo} disabled={historyIndex === history.length - 1} className={`flex flex-col md:flex-row items-center gap-1 md:gap-3 p-2 md:p-3 w-auto md:w-full justify-center md:justify-start rounded md:rounded-none flex-1 md:flex-none ${historyIndex === history.length - 1 ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-100'}`}>
-            <Redo size={20} className="text-gray-700" />
-            <span className="text-[10px] md:text-base text-gray-700 font-medium">Redo</span>
-          </button>
+            <div class="hidden md:block w-full h-px bg-gray-200 my-2"></div>
+            <div class="block md:hidden w-px h-8 bg-gray-200 mx-1"></div>
+            
+            <div class="px-4 w-full text-xs text-gray-500 font-semibold uppercase hidden md:block">Tindakan</div>
+            
+            <button id="btnUndo" class="flex flex-col md:flex-row items-center gap-1 md:gap-3 p-2 md:p-3 w-auto md:w-full justify-center md:justify-start rounded md:rounded-none flex-1 md:flex-none opacity-50 cursor-not-allowed">
+                <i data-lucide="undo" class="w-5 h-5 text-gray-700"></i>
+                <span class="text-[10px] md:text-base text-gray-700 font-medium">Undo</span>
+            </button>
+            
+            <button id="btnRedo" class="flex flex-col md:flex-row items-center gap-1 md:gap-3 p-2 md:p-3 w-auto md:w-full justify-center md:justify-start rounded md:rounded-none flex-1 md:flex-none opacity-50 cursor-not-allowed">
+                <i data-lucide="redo" class="w-5 h-5 text-gray-700"></i>
+                <span class="text-[10px] md:text-base text-gray-700 font-medium">Redo</span>
+            </button>
         </aside>
 
-      </div>
-
-      {/* MODAL PREVIEW TEXT THERMAL */}
-      {previewText !== null && (
-        <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4">
-          <div className="bg-white rounded-lg shadow-2xl w-full max-w-md overflow-hidden flex flex-col">
-            <div className="bg-gray-100 p-4 border-b flex justify-between items-center">
-              <h3 className="font-bold text-gray-800 flex items-center gap-2"><Square size={18}/> Preview Print (ESC/POS)</h3>
-              <button onClick={() => setPreviewText(null)} className="text-gray-500 hover:text-red-500 font-bold">X</button>
-            </div>
-            <div className="p-6 overflow-auto max-h-[60vh] bg-gray-50 flex justify-center">
-              <pre className="bg-white shadow p-4 rounded text-sm text-gray-800" style={{ fontFamily: 'Courier New', lineHeight: '1.2' }}>
-                {previewText}
-              </pre>
-            </div>
-            <div className="p-4 border-t bg-gray-100 flex justify-end gap-2">
-              <button onClick={() => setPreviewText(null)} className="px-4 py-2 bg-gray-300 hover:bg-gray-400 rounded text-gray-800 font-semibold">Tutup</button>
-              <button onClick={() => { setPreviewText(null); executePrint(); }} className="px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded font-bold flex items-center gap-2"><Printer size={16}/> Cetak</button>
-            </div>
-          </div>
-        </div>
-      )}
-
     </div>
-  );
-}
+
+    <!-- MODAL PREVIEW TEXT THERMAL -->
+    <div id="modalPreview" class="fixed inset-0 bg-black bg-opacity-60 z-50 justify-center items-center p-4 hidden">
+        <div class="bg-white rounded-lg shadow-2xl w-full max-w-md overflow-hidden flex flex-col">
+            <div class="bg-gray-100 p-4 border-b flex justify-between items-center">
+                <h3 class="font-bold text-gray-800 flex items-center gap-2"><i data-lucide="square" class="w-[18px] h-[18px]"></i> Preview Print (ESC/POS)</h3>
+                <button id="btnClosePreviewTop" class="text-gray-500 hover:text-red-500 font-bold">X</button>
+            </div>
+            <div class="p-6 overflow-auto max-h-[60vh] bg-gray-50 flex justify-center">
+                <pre id="previewContent" class="bg-white shadow p-4 rounded text-sm text-gray-800" style="font-family: 'Courier New', monospace; line-height: 1.2;"></pre>
+            </div>
+            <div class="p-4 border-t bg-gray-100 flex justify-end gap-2">
+                <button id="btnClosePreview" class="px-4 py-2 bg-gray-300 hover:bg-gray-400 rounded text-gray-800 font-semibold">Tutup</button>
+                <button id="btnConfirmPrint" class="px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded font-bold flex items-center gap-2"><i data-lucide="printer" class="w-4 h-4"></i> Cetak</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- JAVASCRIPT LOGIC -->
+    <script>
+        // Init Lucide Icons
+        lucide.createIcons();
+
+        // --- KONFIGURASI KERTAS & THERMAL ---
+        const PAPER_CONFIG = {
+            58: { widthPx: 384, maxChars: 32 },
+            80: { widthPx: 576, maxChars: 48 }
+        };
+
+        // Memanfaatkan <b> dan teks murni untuk render agar 100% alami bisa di-blok per karakter
+        // Properti tambahan dimasukkan: marginLeft, marginRight, letterSpacing, textScaleX
+        const SPBU_TEMPLATE = [
+            { id: '1', text: '<b>SPBU 54.123.45</b>', x: 0, y: 20, align: 'center', width: 384, fontSize: 16, fontFamily: 'Courier New', marginLeft: 0, marginRight: 0, letterSpacing: 0, textScaleX: 1 },
+            { id: '2', text: 'Jl. Raya Pertamina No. 1', x: 0, y: 45, align: 'center', width: 384, fontSize: 14, fontFamily: 'Courier New', marginLeft: 0, marginRight: 0, letterSpacing: 0, textScaleX: 1 },
+            { id: '3', text: 'Jakarta - 021999888', x: 0, y: 65, align: 'center', width: 384, fontSize: 14, fontFamily: 'Courier New', marginLeft: 0, marginRight: 0, letterSpacing: 0, textScaleX: 1 },
+            { id: '4', text: '--------------------------------', x: 0, y: 90, align: 'center', width: 384, fontSize: 14, fontFamily: 'Courier New', marginLeft: 0, marginRight: 0, letterSpacing: 0, textScaleX: 1 },
+            { id: '5', text: 'Tanggal', x: 10, y: 110, align: 'left', width: 150, fontSize: 14, fontFamily: 'Courier New', marginLeft: 0, marginRight: 0, letterSpacing: 0, textScaleX: 1 },
+            { id: '6', text: 'Jam', x: 224, y: 110, align: 'right', width: 150, fontSize: 14, fontFamily: 'Courier New', marginLeft: 0, marginRight: 0, letterSpacing: 0, textScaleX: 1 },
+            { id: '7', text: 'Receipt No.', x: 10, y: 130, align: 'left', width: 150, fontSize: 14, fontFamily: 'Courier New', marginLeft: 0, marginRight: 0, letterSpacing: 0, textScaleX: 1 },
+            { id: '8', text: '123456789', x: 224, y: 130, align: 'right', width: 150, fontSize: 14, fontFamily: 'Courier New', marginLeft: 0, marginRight: 0, letterSpacing: 0, textScaleX: 1 },
+            { id: '9', text: '--------------------------------', x: 0, y: 150, align: 'center', width: 384, fontSize: 14, fontFamily: 'Courier New', marginLeft: 0, marginRight: 0, letterSpacing: 0, textScaleX: 1 },
+            { id: '10', text: 'Pump No.', x: 10, y: 170, align: 'left', width: 150, fontSize: 14, fontFamily: 'Courier New', marginLeft: 0, marginRight: 0, letterSpacing: 0, textScaleX: 1 },
+            { id: '11', text: '09', x: 224, y: 170, align: 'right', width: 150, fontSize: 14, fontFamily: 'Courier New', marginLeft: 0, marginRight: 0, letterSpacing: 0, textScaleX: 1 },
+            { id: '12', text: 'Grade', x: 10, y: 190, align: 'left', width: 150, fontSize: 14, fontFamily: 'Courier New', marginLeft: 0, marginRight: 0, letterSpacing: 0, textScaleX: 1 },
+            { id: '13', text: 'PERTALITE', x: 224, y: 190, align: 'right', width: 150, fontSize: 14, fontFamily: 'Courier New', marginLeft: 0, marginRight: 0, letterSpacing: 0, textScaleX: 1 },
+            { id: '14', text: 'Volume(L)', x: 10, y: 210, align: 'left', width: 150, fontSize: 14, fontFamily: 'Courier New', marginLeft: 0, marginRight: 0, letterSpacing: 0, textScaleX: 1 },
+            { id: '15', text: '3.00', x: 224, y: 210, align: 'right', width: 150, fontSize: 14, fontFamily: 'Courier New', marginLeft: 0, marginRight: 0, letterSpacing: 0, textScaleX: 1 },
+            { id: '16', text: 'Unit Price', x: 10, y: 230, align: 'left', width: 150, fontSize: 14, fontFamily: 'Courier New', marginLeft: 0, marginRight: 0, letterSpacing: 0, textScaleX: 1 },
+            { id: '17', text: '10000', x: 224, y: 230, align: 'right', width: 150, fontSize: 14, fontFamily: 'Courier New', marginLeft: 0, marginRight: 0, letterSpacing: 0, textScaleX: 1 },
+            { id: '18', text: 'Amount', x: 10, y: 250, align: 'left', width: 150, fontSize: 14, fontFamily: 'Courier New', marginLeft: 0, marginRight: 0, letterSpacing: 0, textScaleX: 1 },
+            { id: '19', text: '30000', x: 224, y: 250, align: 'right', width: 150, fontSize: 14, fontFamily: 'Courier New', marginLeft: 0, marginRight: 0, letterSpacing: 0, textScaleX: 1 },
+            { id: '20', text: '--------------------------------', x: 0, y: 270, align: 'center', width: 384, fontSize: 14, fontFamily: 'Courier New', marginLeft: 0, marginRight: 0, letterSpacing: 0, textScaleX: 1 },
+            { id: '21', text: 'TERIMA KASIH DAN SELAMAT JALAN', x: 0, y: 290, align: 'center', width: 384, fontSize: 14, fontFamily: 'Courier New', marginLeft: 0, marginRight: 0, letterSpacing: 0, textScaleX: 1 }
+        ];
+
+        // --- STATE APP ---
+        let state = {
+            elements: JSON.parse(JSON.stringify(SPBU_TEMPLATE)),
+            selectedIds: [], // Menyimpan ID div yang sedang aktif/beririsan dengan blok kursor
+            paperSize: 58,
+            zoom: 100,
+            history: [JSON.parse(JSON.stringify(SPBU_TEMPLATE))],
+            historyIndex: 0
+        };
+
+        // --- DOM REFERENCES ---
+        const canvas = document.getElementById('paper-canvas');
+        const zoomLabel = document.getElementById('zoomLabel');
+        const toolbarActive = document.getElementById('toolbarActive');
+        const toolbarEmpty = document.getElementById('toolbarEmpty');
+        
+        // --- HISTORY MANAGEMENT ---
+        function saveHistory(newElements) {
+            state.history = state.history.slice(0, state.historyIndex + 1);
+            state.history.push(JSON.parse(JSON.stringify(newElements)));
+            state.historyIndex = state.history.length - 1;
+            updateHistoryButtons();
+        }
+
+        function undo() {
+            if (state.historyIndex > 0) {
+                state.historyIndex--;
+                state.elements = JSON.parse(JSON.stringify(state.history[state.historyIndex]));
+                state.selectedIds = [];
+                renderCanvas(true);
+                updateHistoryButtons();
+            }
+        }
+
+        function redo() {
+            if (state.historyIndex < state.history.length - 1) {
+                state.historyIndex++;
+                state.elements = JSON.parse(JSON.stringify(state.history[state.historyIndex]));
+                state.selectedIds = [];
+                renderCanvas(true);
+                updateHistoryButtons();
+            }
+        }
+
+        function updateHistoryButtons() {
+            const btnUndo = document.getElementById('btnUndo');
+            const btnRedo = document.getElementById('btnRedo');
+            
+            if(state.historyIndex === 0) {
+                btnUndo.classList.add('opacity-50', 'cursor-not-allowed');
+                btnUndo.classList.remove('hover:bg-gray-100');
+            } else {
+                btnUndo.classList.remove('opacity-50', 'cursor-not-allowed');
+                btnUndo.classList.add('hover:bg-gray-100');
+            }
+
+            if(state.historyIndex === state.history.length - 1) {
+                btnRedo.classList.add('opacity-50', 'cursor-not-allowed');
+                btnRedo.classList.remove('hover:bg-gray-100');
+            } else {
+                btnRedo.classList.remove('opacity-50', 'cursor-not-allowed');
+                btnRedo.classList.add('hover:bg-gray-100');
+            }
+        }
+
+        // --- CORE RENDERING ---
+        function renderCanvas(forceRebuild = false) {
+            canvas.style.width = PAPER_CONFIG[state.paperSize].widthPx + 'px';
+            canvas.style.transform = `scale(${state.zoom / 100})`;
+
+            const currentDOMIds = Array.from(canvas.children).map(n => n.id);
+            const stateElementIds = state.elements.map(e => e.id);
+
+            // Buang yang udah dihapus
+            currentDOMIds.forEach(id => {
+                if (!stateElementIds.includes(id)) {
+                    const elToRemove = document.getElementById(id);
+                    if(elToRemove) elToRemove.remove();
+                }
+            });
+
+            // Update atau Create Node Teks
+            state.elements.sort((a,b) => a.y - b.y).forEach(el => {
+                let div = document.getElementById(el.id);
+                if (!div || forceRebuild) {
+                    if(div && forceRebuild) div.remove();
+                    div = document.createElement('div');
+                    div.id = el.id;
+                    canvas.appendChild(div);
+                }
+
+                div.style.position = 'absolute';
+                div.style.left = el.x + 'px';
+                div.style.top = el.y + 'px';
+                div.style.width = el.align === 'center' ? '100%' : (el.width + 'px');
+                div.style.textAlign = el.align;
+                div.style.fontSize = el.fontSize + 'px';
+                div.style.fontFamily = el.fontFamily;
+                div.style.lineHeight = '1.2';
+                div.style.color = 'black';
+                div.style.whiteSpace = 'pre-wrap';
+                div.style.wordBreak = 'break-all';
+                div.style.outline = 'none'; 
+                div.style.backgroundColor = 'transparent'; 
+                
+                // Implementasi Margin & Ramping Teks
+                div.style.boxSizing = 'border-box';
+                div.style.paddingLeft = (el.marginLeft || 0) + 'px';
+                div.style.paddingRight = (el.marginRight || 0) + 'px';
+                div.style.letterSpacing = (el.letterSpacing || 0) + 'px';
+                
+                if (el.textScaleX && el.textScaleX !== 1) {
+                    div.style.transform = `scaleX(${el.textScaleX})`;
+                    if (el.align === 'left') div.style.transformOrigin = 'left center';
+                    else if (el.align === 'right') div.style.transformOrigin = 'right center';
+                    else div.style.transformOrigin = 'center center';
+                } else {
+                    div.style.transform = 'none';
+                }
+
+                // Hitung tinggi bersih tanpa tag HTML agar akurat
+                const plainTextForHeight = el.text.replace(/<[^>]*>/g, '');
+                const lineCount = plainTextForHeight.split('\n').length;
+                div.style.height = ((lineCount * el.fontSize * 1.2) + 15) + 'px';
+
+                // Update innerHTML HANYA JIKA BERBEDA 
+                if (div.innerHTML !== el.text) {
+                    div.innerHTML = el.text;
+                }
+            });
+
+            updateToolbarUI();
+        }
+
+        // FUNGSI BARU: Update Background seleksi tanpa merusak DOM
+        function updateSelectionUI() {
+            state.elements.forEach(el => {
+                const div = document.getElementById(el.id);
+                if (div) {
+                    if (state.selectedIds.includes(el.id)) {
+                        div.classList.add('bg-blue-200/50', 'z-20');
+                        div.classList.remove('bg-transparent', 'z-10');
+                    } else {
+                        div.classList.add('bg-transparent', 'z-10');
+                        div.classList.remove('bg-blue-200/50', 'z-20');
+                    }
+                }
+            });
+        }
+
+        // --- TOOLBAR & UI SYNC ---
+        function updateToolbarUI() {
+            if (state.selectedIds.length > 0) {
+                toolbarActive.classList.remove('hidden');
+                toolbarEmpty.classList.add('hidden');
+
+                const firstEl = state.elements.find(e => e.id === state.selectedIds[0]);
+                if (firstEl) {
+                    document.getElementById('fontFamilySelect').value = firstEl.fontFamily;
+                    document.getElementById('fontSizeInput').value = firstEl.fontSize;
+                    document.getElementById('inputX').value = Math.round(firstEl.x);
+                    document.getElementById('inputY').value = Math.round(firstEl.y);
+                    
+                    // Sync Margin dan Spasi ke UI
+                    document.getElementById('inputMarginLeft').value = firstEl.marginLeft || 0;
+                    document.getElementById('inputMarginRight').value = firstEl.marginRight || 0;
+                    document.getElementById('inputLetterSpacing').value = firstEl.letterSpacing || 0;
+                    document.getElementById('inputTextScaleX').value = firstEl.textScaleX || 1;
+                    
+                    toggleBtnStyle('btnAlignLeft', firstEl.align === 'left');
+                    toggleBtnStyle('btnAlignCenter', firstEl.align === 'center');
+                    toggleBtnStyle('btnAlignRight', firstEl.align === 'right');
+                }
+
+                // Cek status native formatting browser 
+                toggleBtnStyle('btnBold', document.queryCommandState('bold'));
+                toggleBtnStyle('btnItalic', document.queryCommandState('italic'));
+                toggleBtnStyle('btnUnderline', document.queryCommandState('underline'));
+
+            } else {
+                toolbarActive.classList.add('hidden');
+                toolbarEmpty.classList.remove('hidden');
+            }
+            zoomLabel.innerText = state.zoom + '%';
+        }
+
+        function toggleBtnStyle(btnId, isActive) {
+            const btn = document.getElementById(btnId);
+            if (isActive) {
+                btn.classList.add('bg-blue-200', 'text-blue-700');
+                btn.classList.remove('hover:bg-gray-200');
+            } else {
+                btn.classList.remove('bg-blue-200', 'text-blue-700');
+                btn.classList.add('hover:bg-gray-200');
+            }
+        }
+
+        function updateSelectedElements(updates) {
+            if (state.selectedIds.length === 0) return;
+            state.elements = state.elements.map(el => {
+                if (state.selectedIds.includes(el.id)) {
+                    return { ...el, ...updates };
+                }
+                return el;
+            });
+            saveHistory(state.elements);
+            renderCanvas();
+        }
+
+        // --- NATIVE INLINE FORMATTING (MURNI PER KATA/KARAKTER YANG DIBLOK) ---
+        const formatBtns = ['btnBold', 'btnItalic', 'btnUnderline'];
+        formatBtns.forEach(id => {
+            const btn = document.getElementById(id);
+            // PENTING: Mencegah lepas blok di HP saat tombol ditekan
+            btn.addEventListener('mousedown', e => e.preventDefault());
+            btn.addEventListener('touchstart', e => e.preventDefault());
+            btn.addEventListener('pointerdown', e => e.preventDefault());
+            
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                const command = id.replace('btn', '').toLowerCase(); 
+                document.execCommand(command, false, null);
+                syncInput(); 
+                updateToolbarUI(); 
+            });
+        });
+
+        // --- EDITOR ACTIONS ---
+        function addElement(type) {
+            const newElement = {
+                id: Date.now().toString(),
+                text: type === 'line' ? '--------------------------------' : 'Ketik Teks Baru',
+                x: 50,
+                y: 50,
+                align: 'center',
+                width: PAPER_CONFIG[state.paperSize].widthPx,
+                fontSize: 14,
+                fontFamily: 'Courier New',
+                marginLeft: 0,
+                marginRight: 0,
+                letterSpacing: 0,
+                textScaleX: 1
+            };
+            state.elements.push(newElement);
+            state.selectedIds = [newElement.id];
+            saveHistory(state.elements);
+            renderCanvas(true);
+            
+            setTimeout(() => {
+                const node = document.getElementById(newElement.id);
+                if(node) {
+                    const sel = window.getSelection();
+                    const range = document.createRange();
+                    range.selectNodeContents(node);
+                    range.collapse(false);
+                    sel.removeAllRanges();
+                    sel.addRange(range);
+                }
+            }, 50);
+        }
+
+        function deleteSelected() {
+            if(state.selectedIds.length === 0) return;
+            state.elements = state.elements.filter(el => !state.selectedIds.includes(el.id));
+            state.selectedIds = [];
+            saveHistory(state.elements);
+            renderCanvas(true);
+        }
+
+        function duplicateSelected() {
+            if(state.selectedIds.length === 0) return;
+            const newSelection = [];
+            state.selectedIds.forEach(id => {
+                const el = state.elements.find(e => e.id === id);
+                if(el) {
+                    const copy = { ...el, id: Date.now().toString() + Math.random(), y: el.y + 25 };
+                    state.elements.push(copy);
+                    newSelection.push(copy.id);
+                }
+            });
+            state.selectedIds = newSelection;
+            saveHistory(state.elements);
+            renderCanvas(true);
+        }
+
+        function nudgeSelected(dx, dy) {
+            if (state.selectedIds.length === 0) return;
+            state.elements = state.elements.map(el => {
+                if (state.selectedIds.includes(el.id)) {
+                    return { ...el, x: el.x + dx, y: el.y + dy };
+                }
+                return el;
+            });
+            saveHistory(state.elements);
+            renderCanvas();
+        }
+
+        // --- SYNCRONIZATION (Native Selection -> State Tracker) ---
+        document.addEventListener('selectionchange', () => {
+            const sel = window.getSelection();
+            if (!sel || !canvas.contains(sel.anchorNode)) {
+                if(state.selectedIds.length > 0) {
+                    state.selectedIds = [];
+                    updateToolbarUI();
+                }
+                return;
+            }
+
+            const range = sel.getRangeAt(0);
+            const selected = [];
+            const childNodes = canvas.querySelectorAll('div[id]');
+
+            childNodes.forEach(child => {
+                const childRange = document.createRange();
+                childRange.selectNodeContents(child);
+                const isBefore = range.compareBoundaryPoints(Range.END_TO_START, childRange) >= 0;
+                const isAfter = range.compareBoundaryPoints(Range.START_TO_END, childRange) <= 0;
+                if (!isBefore && !isAfter) selected.push(child.id);
+            });
+
+            if(selected.length === 0 && sel.anchorNode) {
+                let node = sel.anchorNode;
+                while (node && node.id !== 'paper-canvas') {
+                    if (node.id && state.elements.find(e => e.id === node.id)) {
+                        selected.push(node.id);
+                        break;
+                    }
+                    node = node.parentNode;
+                }
+            }
+
+            if (JSON.stringify(state.selectedIds) !== JSON.stringify(selected)) {
+                state.selectedIds = selected;
+            }
+            updateToolbarUI();
+        });
+
+        // --- CONTENT EDITABLE INPUT SYNC ---
+        function syncInput() {
+            const domIds = Array.from(canvas.querySelectorAll('div[id]')).map(n => n.id);
+            
+            state.elements = state.elements.map(el => {
+                if (!domIds.includes(el.id)) return null; 
+                const node = document.getElementById(el.id);
+                return { ...el, text: node.innerHTML };
+            }).filter(Boolean);
+        }
+
+        canvas.addEventListener('input', () => {
+            syncInput();
+        });
+
+        canvas.addEventListener('blur', () => {
+             saveHistory(state.elements);
+        }, true); 
+
+        // --- KEYBOARD & ENTER HANDLERS ---
+        canvas.addEventListener('keydown', (e) => {
+            const sel = window.getSelection();
+            if (!sel) return;
+
+            const isChar = e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey;
+            const isDelete = e.key === 'Backspace' || e.key === 'Delete';
+
+            if (!sel.isCollapsed && (isChar || isDelete)) {
+                const getTopId = (node) => {
+                    while (node && node.id !== 'paper-canvas') {
+                        if (node.id && state.elements.find(el => el.id === node.id)) return node.id;
+                        node = node.parentNode;
+                    }
+                    return null;
+                };
+
+                const startId = getTopId(sel.anchorNode);
+                const endId = getTopId(sel.focusNode);
+
+                if (startId && endId && startId !== endId) {
+                    e.preventDefault(); 
+                    if (state.selectedIds.length === 0) return;
+
+                    const sortedSelected = state.elements.filter(el => state.selectedIds.includes(el.id)).sort((a,b) => a.y - b.y);
+                    const topId = sortedSelected[0].id;
+
+                    state.elements = state.elements.filter(el => !state.selectedIds.includes(el.id) || el.id === topId);
+                    state.elements = state.elements.map(el => {
+                        if (el.id === topId) {
+                            return { ...el, text: isChar ? e.key : '' };
+                        }
+                        return el;
+                    });
+
+                    saveHistory(state.elements);
+                    renderCanvas(true);
+
+                    setTimeout(() => {
+                        const node = document.getElementById(topId);
+                        if (node) {
+                            const newSel = window.getSelection();
+                            const newRange = document.createRange();
+                            newRange.selectNodeContents(node);
+                            newRange.collapse(false);
+                            newSel.removeAllRanges();
+                            newSel.addRange(newRange);
+                        }
+                    }, 10);
+                    return;
+                }
+            }
+
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                if (!sel.isCollapsed) return;
+
+                let targetId = null;
+                let node = sel.anchorNode;
+                while (node && node.id !== 'paper-canvas') {
+                    if (node.id && state.elements.find(el => el.id === node.id)) { targetId = node.id; break; }
+                    node = node.parentNode;
+                }
+
+                if (targetId) {
+                    const el = state.elements.find(x => x.id === targetId);
+                    const pushAmount = el.fontSize + 10;
+                    
+                    const domNode = document.getElementById(targetId);
+                    const range = sel.getRangeAt(0);
+
+                    const preCaretRange = range.cloneRange();
+                    preCaretRange.selectNodeContents(domNode);
+                    preCaretRange.setEnd(range.startContainer, range.startOffset);
+                    const divBefore = document.createElement('div');
+                    divBefore.appendChild(preCaretRange.cloneContents());
+                    const htmlBefore = divBefore.innerHTML;
+
+                    const postCaretRange = range.cloneRange();
+                    postCaretRange.selectNodeContents(domNode);
+                    postCaretRange.setStart(range.endContainer, range.endOffset);
+                    const divAfter = document.createElement('div');
+                    divAfter.appendChild(postCaretRange.cloneContents());
+                    const htmlAfter = divAfter.innerHTML;
+
+                    const newElementId = Date.now().toString();
+
+                    state.elements = state.elements.map(item => {
+                        if (item.y > el.y) return { ...item, y: item.y + pushAmount };
+                        if (item.id === el.id) return { ...item, text: htmlBefore };
+                        return item;
+                    });
+
+                    state.elements.push({
+                        ...el,
+                        id: newElementId,
+                        text: htmlAfter,
+                        y: el.y + pushAmount,
+                        marginLeft: el.marginLeft || 0,
+                        marginRight: el.marginRight || 0,
+                        letterSpacing: el.letterSpacing || 0,
+                        textScaleX: el.textScaleX || 1
+                    });
+
+                    saveHistory(state.elements);
+                    renderCanvas(true);
+
+                    setTimeout(() => {
+                        const newNode = document.getElementById(newElementId);
+                        if (newNode) {
+                            const newSel = window.getSelection();
+                            const newRange = document.createRange();
+                            newRange.selectNodeContents(newNode);
+                            newRange.collapse(true);
+                            newSel.removeAllRanges();
+                            newSel.addRange(newRange);
+                        }
+                    }, 10);
+                }
+            }
+        });
+
+        // --- GLOBAL SHORTCUTS ---
+        window.addEventListener('keydown', (e) => {
+            const inCanvas = canvas.contains(document.activeElement) || canvas.contains(window.getSelection().anchorNode);
+            const isTyping = e.target.isContentEditable || e.target.tagName === 'INPUT';
+
+            if (!isTyping) {
+                if (e.key === 'Delete' || e.key === 'Backspace') deleteSelected();
+            }
+
+            if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); undo(); }
+            if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') { e.preventDefault(); redo(); }
+            if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'c') { if(!isTyping) duplicateSelected(); }
+
+            if (state.selectedIds.length > 0 && inCanvas && e.altKey) {
+                if (e.key === 'ArrowUp') { e.preventDefault(); nudgeSelected(0, -5); }
+                if (e.key === 'ArrowDown') { e.preventDefault(); nudgeSelected(0, 5); }
+                if (e.key === 'ArrowLeft') { e.preventDefault(); nudgeSelected(-5, 0); }
+                if (e.key === 'ArrowRight') { e.preventDefault(); nudgeSelected(5, 0); }
+            }
+        });
+
+        // --- THERMAL ALGORITHMS ---
+        function stripHtml(html) {
+            let tmp = document.createElement('DIV');
+            tmp.innerHTML = html;
+            return tmp.textContent || tmp.innerText || "";
+        }
+
+        function alignLeftData(text, maxChars) { return text.substring(0, maxChars); }
+        function alignRightData(text, maxChars) {
+            if (text.length >= maxChars) return text.substring(0, maxChars);
+            return " ".repeat(maxChars - text.length) + text;
+        }
+        function alignCenterData(text, maxChars) {
+            if (text.length >= maxChars) return text.substring(0, maxChars);
+            let space = Math.floor((maxChars - text.length) / 2);
+            return " ".repeat(space) + text + " ".repeat(maxChars - text.length - space);
+        }
+        function alignLeftRightData(left, right, maxChars) {
+            let space = maxChars - left.length - right.length;
+            if (space <= 0) return left.substring(0, maxChars - right.length - 1) + " " + right; 
+            return left + " ".repeat(space) + right;
+        }
+
+        function buildThermalData() {
+            const maxChars = PAPER_CONFIG[state.paperSize].maxChars;
+            let lines = [];
+            
+            let sortedElements = [...state.elements].sort((a, b) => a.y - b.y);
+            let rows = [];
+            let currentRow = [];
+            let lastY = -1000;
+
+            sortedElements.forEach(el => {
+                if (Math.abs(el.y - lastY) > 15) {
+                    if (currentRow.length > 0) rows.push(currentRow);
+                    currentRow = [el];
+                    lastY = el.y;
+                } else {
+                    currentRow.push(el);
+                }
+            });
+            if (currentRow.length > 0) rows.push(currentRow);
+
+            rows.forEach(row => {
+                row.sort((a, b) => a.x - b.x);
+                if (row.length === 1) {
+                    let el = row[0];
+                    let plainText = stripHtml(el.text); 
+                    
+                    if (el.align === 'center') lines.push(alignCenterData(plainText, maxChars));
+                    else if (el.align === 'right' || el.x > (PAPER_CONFIG[state.paperSize].widthPx / 2)) lines.push(alignRightData(plainText, maxChars));
+                    else lines.push(alignLeftData(plainText, maxChars));
+                } 
+                else if (row.length >= 2) {
+                    let leftEl = row[0];
+                    let rightEl = row[row.length - 1];
+                    lines.push(alignLeftRightData(stripHtml(leftEl.text), stripHtml(rightEl.text), maxChars));
+                }
+            });
+            return lines.join("\n");
+        }
+
+        // --- EVENT LISTENERS UI BARIS BAWAH ---
+        document.getElementById('paperSizeSelect').addEventListener('change', (e) => {
+            state.paperSize = parseInt(e.target.value);
+            renderCanvas(true);
+        });
+
+        document.getElementById('btnZoomOut').addEventListener('click', () => {
+            state.zoom = Math.max(20, state.zoom - 10);
+            renderCanvas();
+        });
+
+        document.getElementById('btnZoomIn').addEventListener('click', () => {
+            state.zoom = Math.min(200, state.zoom + 10);
+            renderCanvas();
+        });
+
+        document.getElementById('fontFamilySelect').addEventListener('change', e => updateSelectedElements({ fontFamily: e.target.value }));
+        document.getElementById('fontSizeInput').addEventListener('change', e => updateSelectedElements({ fontSize: parseInt(e.target.value) }));
+        
+        // Listener Margin dan Lebar Teks
+        document.getElementById('inputMarginLeft').addEventListener('input', e => updateSelectedElements({ marginLeft: parseInt(e.target.value) || 0 }));
+        document.getElementById('inputMarginRight').addEventListener('input', e => updateSelectedElements({ marginRight: parseInt(e.target.value) || 0 }));
+        document.getElementById('inputLetterSpacing').addEventListener('input', e => updateSelectedElements({ letterSpacing: parseFloat(e.target.value) || 0 }));
+        document.getElementById('inputTextScaleX').addEventListener('input', e => updateSelectedElements({ textScaleX: parseFloat(e.target.value) || 1 }));
+
+        document.getElementById('btnAlignLeft').addEventListener('click', () => updateSelectedElements({ align: 'left', x: 0 }));
+        document.getElementById('btnAlignCenter').addEventListener('click', () => updateSelectedElements({ align: 'center', x: 0, width: PAPER_CONFIG[state.paperSize].widthPx }));
+        document.getElementById('btnAlignRight').addEventListener('click', () => {
+            const el = state.elements.find(e => e.id === state.selectedIds[0]);
+            if(el) updateSelectedElements({ align: 'right', x: PAPER_CONFIG[state.paperSize].widthPx - (el.width || 150) });
+        });
+
+        document.getElementById('inputX').addEventListener('change', e => updateSelectedElements({ x: parseInt(e.target.value) }));
+        document.getElementById('inputY').addEventListener('change', e => updateSelectedElements({ y: parseInt(e.target.value) }));
+        document.getElementById('btnUp').addEventListener('click', () => nudgeSelected(0, -5));
+        document.getElementById('btnDown').addEventListener('click', () => nudgeSelected(0, 5));
+        document.getElementById('btnLeft').addEventListener('click', () => nudgeSelected(-5, 0));
+        document.getElementById('btnRight').addEventListener('click', () => nudgeSelected(5, 0));
+
+        document.getElementById('btnDuplicate').addEventListener('click', duplicateSelected);
+        document.getElementById('btnDelete').addEventListener('click', deleteSelected);
+
+        document.getElementById('btnAddText').addEventListener('click', () => addElement('text'));
+        document.getElementById('btnAddLine').addEventListener('click', () => addElement('line'));
+        document.getElementById('btnUndo').addEventListener('click', undo);
+        document.getElementById('btnRedo').addEventListener('click', redo);
+
+        // Preview & Print Logic
+        const modalPreview = document.getElementById('modalPreview');
+        
+        function openPreview() {
+            document.getElementById('previewContent').innerText = buildThermalData();
+            modalPreview.classList.remove('hidden');
+            modalPreview.classList.add('flex');
+            lucide.createIcons(); 
+        }
+
+        function closePreview() {
+            modalPreview.classList.add('hidden');
+            modalPreview.classList.remove('flex');
+        }
+
+        document.getElementById('btnPreview').addEventListener('click', openPreview);
+        document.getElementById('btnClosePreview').addEventListener('click', closePreview);
+        document.getElementById('btnClosePreviewTop').addEventListener('click', closePreview);
+
+        document.getElementById('btnSave').addEventListener('click', () => {
+            localStorage.setItem('thermal_template', JSON.stringify(state.elements));
+            alert('Template disimpan ke LocalStorage!');
+        });
+
+        document.getElementById('btnLoad').addEventListener('click', () => {
+            const data = localStorage.getItem('thermal_template');
+            if (data) {
+                state.elements = JSON.parse(data);
+                saveHistory(state.elements);
+                renderCanvas(true);
+            } else {
+                alert('Tidak ada template tersimpan.');
+            }
+        });
+
+        document.getElementById('btnExport').addEventListener('click', () => {
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(state.elements));
+            const a = document.createElement('a');
+            a.setAttribute("href", dataStr);
+            a.setAttribute("download", "template_struk.json");
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+        });
+
+        document.getElementById('fileImport').addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                try {
+                    state.elements = JSON.parse(event.target.result);
+                    saveHistory(state.elements);
+                    renderCanvas(true);
+                } catch (err) {
+                    alert("File JSON tidak valid!");
+                }
+            };
+            reader.readAsText(file);
+        });
+
+        async function executePrintData() {
+            const textNormal = buildThermalData();
+            
+            if (typeof AndroidPrinter !== 'undefined') {
+                try {
+                    AndroidPrinter.cetakKeBluetooth("", textNormal);
+                    return;
+                } catch(e) {
+                    console.error("Android Bridge Error", e);
+                }
+            }
+
+            try {
+                const device = await navigator.bluetooth.requestDevice({
+                    acceptAllDevices: true,
+                    optionalServices: ['000018f0-0000-1000-8000-00805f9b34fb']
+                });
+
+                const server = await device.gatt.connect();
+                const service = await server.getPrimaryService('000018f0-0000-1000-8000-00805f9b34fb');
+                const char = await service.getCharacteristic('00002af1-0000-1000-8000-00805f9b34fb');
+
+                const encoder = new TextEncoder();
+                let data = "";
+                data += "\x1B\x40"; 
+                data += "\x1B\x21\x00"; 
+                data += textNormal + "\n\n\n\n"; 
+                data += "\x1D\x56\x41\x10"; 
+
+                await char.writeValue(encoder.encode(data));
+                alert("Print berhasil dikirim!");
+            } catch(err) {
+                alert("Gagal print bluetooth: Pastikan perangkat mendukung Web Bluetooth API dan printer menyala.\n\nDetail: " + err.message);
+            }
+        }
+
+        document.getElementById('btnPrint').addEventListener('click', executePrintData);
+        document.getElementById('btnConfirmPrint').addEventListener('click', () => {
+            closePreview();
+            executePrintData();
+        });
+
+        // INIT FIRST RENDER
+        renderCanvas(true);
+
+    </script>
+</body>
+</html>
