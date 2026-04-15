@@ -828,7 +828,7 @@
         });
 
         // --- THERMAL ALGORITHMS (PENERJEMAH KE KODE ESC/POS PRINTER) ---
-        // FUNGSI INI AKAN MENJADIKAN TEKS BOLD / FONT SIZE MENJADI PERINTAH MURNI KE PRINTER
+        // BUG FIX: PENYESUAIAN 100% AKURAT RATA KIRI-TENGAH-KANAN ANTARA LAYAR DAN KERTAS
         function stripHtml(html) {
             let tmp = document.createElement('DIV');
             tmp.innerHTML = html;
@@ -851,11 +851,10 @@
             return left + " ".repeat(space) + right;
         }
 
-        // FUNGSI UTAMA PENYESUAIAN FORMAT KE PRINTER
         function buildThermalData(mode = 'print') {
             const maxCharsNormal = PAPER_CONFIG[state.paperSize].maxChars;
-            let lines = []; // Untuk Output Preview (Visual Spasi)
-            let data = "";  // Untuk Output Print (Hex ESC/POS)
+            let lines = []; 
+            let data = "";  
             
             let sortedElements = [...state.elements].sort((a, b) => a.y - b.y);
             let rows = [];
@@ -883,33 +882,41 @@
                     let spacesLeft = Math.max(0, Math.floor((el.marginLeft || 0) / 12));
                     if (spacesLeft > 0) plainText = " ".repeat(spacesLeft) + plainText;
 
-                    if (mode === 'preview') {
-                        if (el.align === 'center') lines.push(alignCenterData(plainText, maxCharsNormal));
-                        else if (el.align === 'right' || el.x > (PAPER_CONFIG[state.paperSize].widthPx / 2)) lines.push(alignRightData(plainText, maxCharsNormal));
-                        else lines.push(alignLeftData(plainText, maxCharsNormal));
-                    } else {
-                        // MODE PRINT: Masukkan kode heksadesimal asli dari ESC/POS
-                        
-                        // Align
-                        if (el.align === 'center') data += "\x1B\x61\x01";
-                        else if (el.align === 'right' || el.x > (PAPER_CONFIG[state.paperSize].widthPx / 2)) data += "\x1B\x61\x02";
-                        else data += "\x1B\x61\x00";
+                    let formattedLine = "";
+                    if (el.align === 'center') formattedLine = alignCenterData(plainText, maxCharsNormal);
+                    else if (el.align === 'right' || el.x > (PAPER_CONFIG[state.paperSize].widthPx / 2)) formattedLine = alignRightData(plainText, maxCharsNormal);
+                    else formattedLine = alignLeftData(plainText, maxCharsNormal);
 
-                        // Deteksi Bold & Underline (Dari tag HTML <b> atau <u>)
+                    if (mode === 'preview') {
+                        lines.push(formattedLine);
+                    } else {
+                        // PRINT MODE
                         let isBold = el.text.includes('<b>') || el.text.includes('<strong>') || el.fontWeight === 'bold';
                         let isUnderline = el.text.includes('<u>') || el.textDecoration === 'underline';
                         
                         data += isBold ? "\x1B\x45\x01" : "\x1B\x45\x00";
                         data += isUnderline ? "\x1B\x2D\x01" : "\x1B\x2D\x00";
 
-                        // Deteksi Ukuran Font
-                        let sizeHex = "\x00"; // Normal
-                        if (el.fontSize >= 24) sizeHex = "\x22"; // 3x3 Ukuran Raksasa
-                        else if (el.fontSize >= 16) sizeHex = "\x11"; // 2x2 Ukuran Ganda
-                        else if (el.fontSize > 14) sizeHex = "\x01"; // Hanya Double Height
+                        // Threshold pembesaran font dinaikkan ke 24.
+                        // Ukuran normal (seperti 14, 16) akan menggunakan padding spasi di atas agar 100% persis penempatannya.
+                        let sizeHex = "\x00"; 
+                        if (el.fontSize >= 32) sizeHex = "\x22"; // 3x3 Raksasa
+                        else if (el.fontSize >= 24) sizeHex = "\x11"; // 2x2 Double Width & Height
                         
-                        data += "\x1D\x21" + sizeHex;
-                        data += plainText + "\n";
+                        if (sizeHex !== "\x00") {
+                            // Jika ukuran besar (Double Width), maka tidak bisa pakai spasi, gunakan fitur rata tengah native ESC/POS
+                            data += "\x1D\x21" + sizeHex;
+                            if (el.align === 'center') data += "\x1B\x61\x01";
+                            else if (el.align === 'right' || el.x > (PAPER_CONFIG[state.paperSize].widthPx / 2)) data += "\x1B\x61\x02";
+                            else data += "\x1B\x61\x00";
+                            
+                            data += plainText + "\n";
+                        } else {
+                            // Jika ukuran standar, paksa rata kiri + print format spasi yang sudah disimulasikan
+                            data += "\x1D\x21\x00";
+                            data += "\x1B\x61\x00"; // Rata Kiri
+                            data += formattedLine + "\n";
+                        }
                     }
                 } 
                 else if (row.length >= 2) {
@@ -919,8 +926,7 @@
                     let leftText = stripHtml(leftEl.text);
                     let rightText = stripHtml(rightEl.text);
 
-                    // Pengecekan otomatis jika hurufnya kebesaran, maka maksimal karakternya dipangkas setengah (16 chars)
-                    let isDouble = leftEl.fontSize >= 16 || rightEl.fontSize >= 16;
+                    let isDouble = leftEl.fontSize >= 24 || rightEl.fontSize >= 24;
                     let currentMaxChars = isDouble ? Math.floor(maxCharsNormal / 2) : maxCharsNormal;
 
                     let spaceCount = currentMaxChars - leftText.length - rightText.length;
@@ -928,12 +934,9 @@
                     let combinedText = leftText + " ".repeat(spaceCount) + rightText;
 
                     if (mode === 'preview') {
-                        let spaceCountPrev = maxCharsNormal - leftText.length - rightText.length;
-                        if (spaceCountPrev < 0) spaceCountPrev = 1;
-                        lines.push(leftText + " ".repeat(spaceCountPrev) + rightText);
+                        lines.push(combinedText);
                     } else {
-                        data += "\x1B\x61\x00"; // Paksa rata kiri untuk dua kolom
-                        
+                        data += "\x1B\x61\x00"; // Rata Kiri
                         let isBold = leftEl.text.includes('<b>') || leftEl.text.includes('<strong>') || leftEl.fontWeight === 'bold';
                         data += isBold ? "\x1B\x45\x01" : "\x1B\x45\x00";
                         data += "\x1B\x2D\x00";
@@ -949,7 +952,7 @@
             if (mode === 'preview') {
                 return lines.join("\n");
             } else {
-                // Reset/kembalikan printer ke setelan awal pabrik di akhir baris
+                // Reset Printer
                 data += "\x1D\x21\x00\x1B\x45\x00\x1B\x61\x00\x1B\x2D\x00";
                 return data;
             }
@@ -1016,7 +1019,6 @@
             reader.readAsText(file);
         });
 
-        // FUNGSI PRINT FINAL (KINI MEMBAWA KODE FORMAT ESC/POS)
         async function executePrintData() {
             const textNormal = buildThermalData('print');
             
@@ -1041,10 +1043,10 @@
 
                 const encoder = new TextEncoder();
                 let data = "";
-                data += "\x1B\x40"; // Inisiasi Printer
+                data += "\x1B\x40"; 
                 data += "\x1B\x21\x00"; 
                 data += textNormal + "\n\n\n\n"; 
-                data += "\x1D\x56\x41\x10"; // Auto-Cut
+                data += "\x1D\x56\x41\x10"; 
 
                 await char.writeValue(encoder.encode(data));
                 alert("Print berhasil dikirim!");
