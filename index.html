@@ -37,32 +37,12 @@
         .logo-display-container { width: 100%; margin-bottom: 10px; display: none; }
         .logo-display-img { display: block; max-width: 100px; height: auto; }
 
-        /* KUMPULAN CSS KHUSUS UNTUK MODEL 4 (POM FARLY) */
+        /* Penyesuaian khusus font Consolas untuk Model 4 agar identik dengan Gambar 3 */
         #model-4 {
-            font-family: 'Consolas', 'Lucida Console', Monaco, monospace;
-            font-size: 10px;
-            padding-left: 5px; 
-            padding-right: 5px; 
-            padding-bottom: 10px;
-            padding-top: 5px;
-            width: 210px;
-            max-width: 210px;
+            font-family: 'Consolas', 'Courier New', monospace;
+            font-size: 10.5px;
+            letter-spacing: -0.2px;
         }
-        #model-4 .text-line {
-            line-height: 1.15;
-            margin-bottom: 0px;
-            white-space: nowrap;
-        }
-        #model-4 .spbu-title {
-            font-weight: normal;
-            transform: scaleY(1.8);
-            display: inline-block;
-            margin-bottom: 6px;
-            margin-top: 6px;
-        }
-        #model-4 .bold-text { font-weight: bold; }
-        #model-4 .tight-number { letter-spacing: -1px; }
-        #model-4 .spacer { height: 10px; }
 
         @media print {
             body * { visibility: hidden; }
@@ -70,11 +50,6 @@
             #print-area { position: absolute; left: 0; top: 0; width: 100%; margin: 0; padding: 0; }
             .receipt-container { box-shadow: none !important; border: none !important; padding: 0; }
             .no-print { display: none !important; }
-            
-            #model-4 {
-                width: 100%; 
-                max-width: 100%;
-            }
         }
     </style>
 </head>
@@ -323,67 +298,62 @@
                 <div id="model-4" class="receipt-container shadow-xl border model-view hidden">
                     <div class="logo-display-container"><img class="logo-display-img" src=""></div>
                     
-                    <div class="spacer no-print"></div>
-                    <div class="spacer no-print"></div>
-                    <div class="spacer no-print"></div>
+                    <br>
+                    
+                    <div class="center">SPBU <span class="out-kode"></span></div>
+                    <div class="center"><span class="out-nama"></span></div>
+                    
+                    <br>
+                    
+                    <div class="center"><span class="out-jalan"></span></div>
+                    <div class="center"><span class="out-kota"></span></div>
+                    <div class="center"><span class="out-telp"></span></div>
+                    
+                    <br>
 
-                    <div class="text-xl">
-                        <div class="center text-line spbu-title">SPBU <span class="out-kode"></span></div>
-                    </div>
-                    
-                    <div class="center text-line"><span class="out-nama"></span></div>
-                    
-                    <div class="spacer"></div>
-                    
-                    <div class="center text-line"><span class="out-jalan"></span></div>
-                    <div class="center text-line"><span class="out-kota"></span></div>
-                    <div class="center text-line"><span class="out-telp"></span></div>
-                    
-                    <div class="spacer"></div>
-
-                    <div class="flex-between text-line">
+                    <div class="flex-between">
                         <div><span class="out-tgl"></span></div>
                         <div><span class="out-jam-menit"></span></div>
                     </div>
 
-                    <div class="left text-line">Receipt No. :<span class="out-notrans"></span></div>
+                    <div class="left">Receipt No. :<span class="out-notrans"></span></div>
 
-                    <div class="spacer"></div>
+                    <br>
 
-                    <div class="flex-between text-line">
+                    <div class="flex-between">
                         <div>Pump No.</div>
-                        <div><span class="out-pompa"></span></div>
+                        <div class="right"><span class="out-pompa"></span></div>
                     </div>
-                    <div class="flex-between text-line">
+                    <div class="flex-between">
                         <div>Grade</div>
-                        <div><span class="out-bbm"></span></div>
+                        <div class="right"><span class="out-bbm"></span></div>
                     </div>
-                    <div class="flex-between text-line">
+                    <div class="flex-between">
                         <div>Volume</div>
-                        <div><span class="out-vol-koma"></span></div>
+                        <div class="right"><span class="out-vol-koma"></span></div>
                     </div>
-                    <div class="flex-between text-line">
+                    <div class="flex-between">
                         <div>Unit Price</div>
-                        <div><span class="tight-number out-hj-polos"></span></div>
+                        <div class="right"><span class="out-hj-polos"></span></div>
                     </div>
                     
-                    <div class="flex-between text-line bold-text">
+                    <div class="flex-between fw-bold">
                         <div>Amount</div>
-                        <div><span class="tight-number out-tot-bayar-polos"></span></div>
+                        <div class="right"><span class="out-tot-bayar-polos"></span></div>
                     </div>
                     
-                    <div class="spacer"></div>
+                    <br>
                     
-                    <div class="flex-between text-line">
+                    <div class="flex-between">
                         <div>Vehicle No.</div>
-                        <div><span class="out-plat"></span></div>
+                        <div class="right"><span class="out-plat"></span></div>
                     </div>
 
-                    <div class="spacer"></div>
+                    <br>
 
-                    <div class="left text-line">BBM BERSUPSIDI HANYA UNTUK GOLONG</div>
-                    <div class="left text-line">AN TIDAK MAMPU TERIMAKASIH ANDA</div>
-                    <div class="left text-line">TIDAK IKUT MENGGUNAKANNYA</div>
+                    <div class="left">BBM BERSUPSIDI HANYA UNTUK GOLON</div>
+                    <div class="left">GAN TIDAK MAMPU TERIMAKASIH ANDA</div>
+                    <div class="left">TIDAK IKUT MENGGUNAKANNYA</div>
                 </div>
 
                 <div id="model-5" class="receipt-container shadow-xl border model-view hidden">
