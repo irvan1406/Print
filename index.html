@@ -560,9 +560,74 @@
             renderCanvas();
         }
 
+        // --- EVENT LISTENER TOOLBAR UI BARIS BAWAH ---
+        
+        // BUG FIX: Mencegah hilangnya fokus kanvas saat tombol di toolbar diklik
+        document.getElementById('toolbarFormatting').addEventListener('pointerdown', (e) => {
+            const tag = e.target.tagName;
+            // Jika target bukan input atau select, cegah browser memindahkan fokus dari teks Canvas
+            if (tag !== 'INPUT' && tag !== 'SELECT' && tag !== 'OPTION') {
+                e.preventDefault();
+            }
+        });
+
+        document.getElementById('paperSizeSelect').addEventListener('change', (e) => {
+            state.paperSize = parseInt(e.target.value);
+            renderCanvas(true);
+        });
+
+        document.getElementById('btnZoomOut').addEventListener('click', () => {
+            state.zoom = Math.max(20, state.zoom - 10);
+            renderCanvas();
+        });
+
+        document.getElementById('btnZoomIn').addEventListener('click', () => {
+            state.zoom = Math.min(200, state.zoom + 10);
+            renderCanvas();
+        });
+
+        document.getElementById('fontFamilySelect').addEventListener('change', e => updateSelectedElements({ fontFamily: e.target.value }));
+        document.getElementById('fontSizeInput').addEventListener('change', e => updateSelectedElements({ fontSize: parseInt(e.target.value) }));
+        
+        // Listener Margin dan Lebar Teks
+        document.getElementById('inputMarginLeft').addEventListener('input', e => updateSelectedElements({ marginLeft: parseInt(e.target.value) || 0 }));
+        document.getElementById('inputMarginRight').addEventListener('input', e => updateSelectedElements({ marginRight: parseInt(e.target.value) || 0 }));
+        document.getElementById('inputLetterSpacing').addEventListener('input', e => updateSelectedElements({ letterSpacing: parseFloat(e.target.value) || 0 }));
+        document.getElementById('inputTextScaleX').addEventListener('input', e => updateSelectedElements({ textScaleX: parseFloat(e.target.value) || 1 }));
+
+        document.getElementById('btnAlignLeft').addEventListener('click', () => updateSelectedElements({ align: 'left', x: 0 }));
+        document.getElementById('btnAlignCenter').addEventListener('click', () => updateSelectedElements({ align: 'center', x: 0, width: PAPER_CONFIG[state.paperSize].widthPx }));
+        document.getElementById('btnAlignRight').addEventListener('click', () => {
+            const el = state.elements.find(e => e.id === state.selectedIds[0]);
+            if(el) updateSelectedElements({ align: 'right', x: PAPER_CONFIG[state.paperSize].widthPx - (el.width || 150) });
+        });
+
+        document.getElementById('inputX').addEventListener('change', e => updateSelectedElements({ x: parseInt(e.target.value) }));
+        document.getElementById('inputY').addEventListener('change', e => updateSelectedElements({ y: parseInt(e.target.value) }));
+        document.getElementById('btnUp').addEventListener('click', () => nudgeSelected(0, -5));
+        document.getElementById('btnDown').addEventListener('click', () => nudgeSelected(0, 5));
+        document.getElementById('btnLeft').addEventListener('click', () => nudgeSelected(-5, 0));
+        document.getElementById('btnRight').addEventListener('click', () => nudgeSelected(5, 0));
+
+        document.getElementById('btnDuplicate').addEventListener('click', duplicateSelected);
+        document.getElementById('btnDelete').addEventListener('click', deleteSelected);
+
+        document.getElementById('btnAddText').addEventListener('click', () => addElement('text'));
+        document.getElementById('btnAddLine').addEventListener('click', () => addElement('line'));
+        document.getElementById('btnUndo').addEventListener('click', undo);
+        document.getElementById('btnRedo').addEventListener('click', redo);
+
         // --- SYNCRONIZATION (Native Selection -> State Tracker) ---
         document.addEventListener('selectionchange', () => {
             const sel = window.getSelection();
+            
+            // BUG FIX: Jika fokus pindah ke input/dropdown di toolbar, 
+            // JANGAN hapus state seleksi agar blok teks tetap bisa diedit sizenya.
+            const toolbar = document.getElementById('toolbarFormatting');
+            if (toolbar && toolbar.contains(document.activeElement)) {
+                return;
+            }
+
             if (!sel || !canvas.contains(sel.anchorNode)) {
                 if(state.selectedIds.length > 0) {
                     state.selectedIds = [];
@@ -762,7 +827,8 @@
             }
         });
 
-        // --- THERMAL ALGORITHMS ---
+        // --- THERMAL ALGORITHMS (PENERJEMAH KE KODE ESC/POS PRINTER) ---
+        // FUNGSI INI AKAN MENJADIKAN TEKS BOLD / FONT SIZE MENJADI PERINTAH MURNI KE PRINTER
         function stripHtml(html) {
             let tmp = document.createElement('DIV');
             tmp.innerHTML = html;
@@ -785,9 +851,11 @@
             return left + " ".repeat(space) + right;
         }
 
-        function buildThermalData() {
-            const maxChars = PAPER_CONFIG[state.paperSize].maxChars;
-            let lines = [];
+        // FUNGSI UTAMA PENYESUAIAN FORMAT KE PRINTER
+        function buildThermalData(mode = 'print') {
+            const maxCharsNormal = PAPER_CONFIG[state.paperSize].maxChars;
+            let lines = []; // Untuk Output Preview (Visual Spasi)
+            let data = "";  // Untuk Output Print (Hex ESC/POS)
             
             let sortedElements = [...state.elements].sort((a, b) => a.y - b.y);
             let rows = [];
@@ -811,71 +879,87 @@
                     let el = row[0];
                     let plainText = stripHtml(el.text); 
                     
-                    if (el.align === 'center') lines.push(alignCenterData(plainText, maxChars));
-                    else if (el.align === 'right' || el.x > (PAPER_CONFIG[state.paperSize].widthPx / 2)) lines.push(alignRightData(plainText, maxChars));
-                    else lines.push(alignLeftData(plainText, maxChars));
+                    // Terjemahkan Margin Kiri ke dalam bentuk Spasi
+                    let spacesLeft = Math.max(0, Math.floor((el.marginLeft || 0) / 12));
+                    if (spacesLeft > 0) plainText = " ".repeat(spacesLeft) + plainText;
+
+                    if (mode === 'preview') {
+                        if (el.align === 'center') lines.push(alignCenterData(plainText, maxCharsNormal));
+                        else if (el.align === 'right' || el.x > (PAPER_CONFIG[state.paperSize].widthPx / 2)) lines.push(alignRightData(plainText, maxCharsNormal));
+                        else lines.push(alignLeftData(plainText, maxCharsNormal));
+                    } else {
+                        // MODE PRINT: Masukkan kode heksadesimal asli dari ESC/POS
+                        
+                        // Align
+                        if (el.align === 'center') data += "\x1B\x61\x01";
+                        else if (el.align === 'right' || el.x > (PAPER_CONFIG[state.paperSize].widthPx / 2)) data += "\x1B\x61\x02";
+                        else data += "\x1B\x61\x00";
+
+                        // Deteksi Bold & Underline (Dari tag HTML <b> atau <u>)
+                        let isBold = el.text.includes('<b>') || el.text.includes('<strong>') || el.fontWeight === 'bold';
+                        let isUnderline = el.text.includes('<u>') || el.textDecoration === 'underline';
+                        
+                        data += isBold ? "\x1B\x45\x01" : "\x1B\x45\x00";
+                        data += isUnderline ? "\x1B\x2D\x01" : "\x1B\x2D\x00";
+
+                        // Deteksi Ukuran Font
+                        let sizeHex = "\x00"; // Normal
+                        if (el.fontSize >= 24) sizeHex = "\x22"; // 3x3 Ukuran Raksasa
+                        else if (el.fontSize >= 16) sizeHex = "\x11"; // 2x2 Ukuran Ganda
+                        else if (el.fontSize > 14) sizeHex = "\x01"; // Hanya Double Height
+                        
+                        data += "\x1D\x21" + sizeHex;
+                        data += plainText + "\n";
+                    }
                 } 
                 else if (row.length >= 2) {
                     let leftEl = row[0];
                     let rightEl = row[row.length - 1];
-                    lines.push(alignLeftRightData(stripHtml(leftEl.text), stripHtml(rightEl.text), maxChars));
+
+                    let leftText = stripHtml(leftEl.text);
+                    let rightText = stripHtml(rightEl.text);
+
+                    // Pengecekan otomatis jika hurufnya kebesaran, maka maksimal karakternya dipangkas setengah (16 chars)
+                    let isDouble = leftEl.fontSize >= 16 || rightEl.fontSize >= 16;
+                    let currentMaxChars = isDouble ? Math.floor(maxCharsNormal / 2) : maxCharsNormal;
+
+                    let spaceCount = currentMaxChars - leftText.length - rightText.length;
+                    if (spaceCount < 0) spaceCount = 1;
+                    let combinedText = leftText + " ".repeat(spaceCount) + rightText;
+
+                    if (mode === 'preview') {
+                        let spaceCountPrev = maxCharsNormal - leftText.length - rightText.length;
+                        if (spaceCountPrev < 0) spaceCountPrev = 1;
+                        lines.push(leftText + " ".repeat(spaceCountPrev) + rightText);
+                    } else {
+                        data += "\x1B\x61\x00"; // Paksa rata kiri untuk dua kolom
+                        
+                        let isBold = leftEl.text.includes('<b>') || leftEl.text.includes('<strong>') || leftEl.fontWeight === 'bold';
+                        data += isBold ? "\x1B\x45\x01" : "\x1B\x45\x00";
+                        data += "\x1B\x2D\x00";
+
+                        if (isDouble) data += "\x1D\x21\x11";
+                        else data += "\x1D\x21\x00";
+
+                        data += combinedText + "\n";
+                    }
                 }
             });
-            return lines.join("\n");
+
+            if (mode === 'preview') {
+                return lines.join("\n");
+            } else {
+                // Reset/kembalikan printer ke setelan awal pabrik di akhir baris
+                data += "\x1D\x21\x00\x1B\x45\x00\x1B\x61\x00\x1B\x2D\x00";
+                return data;
+            }
         }
-
-        // --- EVENT LISTENERS UI BARIS BAWAH ---
-        document.getElementById('paperSizeSelect').addEventListener('change', (e) => {
-            state.paperSize = parseInt(e.target.value);
-            renderCanvas(true);
-        });
-
-        document.getElementById('btnZoomOut').addEventListener('click', () => {
-            state.zoom = Math.max(20, state.zoom - 10);
-            renderCanvas();
-        });
-
-        document.getElementById('btnZoomIn').addEventListener('click', () => {
-            state.zoom = Math.min(200, state.zoom + 10);
-            renderCanvas();
-        });
-
-        document.getElementById('fontFamilySelect').addEventListener('change', e => updateSelectedElements({ fontFamily: e.target.value }));
-        document.getElementById('fontSizeInput').addEventListener('change', e => updateSelectedElements({ fontSize: parseInt(e.target.value) }));
-        
-        // Listener Margin dan Lebar Teks
-        document.getElementById('inputMarginLeft').addEventListener('input', e => updateSelectedElements({ marginLeft: parseInt(e.target.value) || 0 }));
-        document.getElementById('inputMarginRight').addEventListener('input', e => updateSelectedElements({ marginRight: parseInt(e.target.value) || 0 }));
-        document.getElementById('inputLetterSpacing').addEventListener('input', e => updateSelectedElements({ letterSpacing: parseFloat(e.target.value) || 0 }));
-        document.getElementById('inputTextScaleX').addEventListener('input', e => updateSelectedElements({ textScaleX: parseFloat(e.target.value) || 1 }));
-
-        document.getElementById('btnAlignLeft').addEventListener('click', () => updateSelectedElements({ align: 'left', x: 0 }));
-        document.getElementById('btnAlignCenter').addEventListener('click', () => updateSelectedElements({ align: 'center', x: 0, width: PAPER_CONFIG[state.paperSize].widthPx }));
-        document.getElementById('btnAlignRight').addEventListener('click', () => {
-            const el = state.elements.find(e => e.id === state.selectedIds[0]);
-            if(el) updateSelectedElements({ align: 'right', x: PAPER_CONFIG[state.paperSize].widthPx - (el.width || 150) });
-        });
-
-        document.getElementById('inputX').addEventListener('change', e => updateSelectedElements({ x: parseInt(e.target.value) }));
-        document.getElementById('inputY').addEventListener('change', e => updateSelectedElements({ y: parseInt(e.target.value) }));
-        document.getElementById('btnUp').addEventListener('click', () => nudgeSelected(0, -5));
-        document.getElementById('btnDown').addEventListener('click', () => nudgeSelected(0, 5));
-        document.getElementById('btnLeft').addEventListener('click', () => nudgeSelected(-5, 0));
-        document.getElementById('btnRight').addEventListener('click', () => nudgeSelected(5, 0));
-
-        document.getElementById('btnDuplicate').addEventListener('click', duplicateSelected);
-        document.getElementById('btnDelete').addEventListener('click', deleteSelected);
-
-        document.getElementById('btnAddText').addEventListener('click', () => addElement('text'));
-        document.getElementById('btnAddLine').addEventListener('click', () => addElement('line'));
-        document.getElementById('btnUndo').addEventListener('click', undo);
-        document.getElementById('btnRedo').addEventListener('click', redo);
 
         // Preview & Print Logic
         const modalPreview = document.getElementById('modalPreview');
         
         function openPreview() {
-            document.getElementById('previewContent').innerText = buildThermalData();
+            document.getElementById('previewContent').innerText = buildThermalData('preview');
             modalPreview.classList.remove('hidden');
             modalPreview.classList.add('flex');
             lucide.createIcons(); 
@@ -932,8 +1016,9 @@
             reader.readAsText(file);
         });
 
+        // FUNGSI PRINT FINAL (KINI MEMBAWA KODE FORMAT ESC/POS)
         async function executePrintData() {
-            const textNormal = buildThermalData();
+            const textNormal = buildThermalData('print');
             
             if (typeof AndroidPrinter !== 'undefined') {
                 try {
@@ -956,10 +1041,10 @@
 
                 const encoder = new TextEncoder();
                 let data = "";
-                data += "\x1B\x40"; 
+                data += "\x1B\x40"; // Inisiasi Printer
                 data += "\x1B\x21\x00"; 
                 data += textNormal + "\n\n\n\n"; 
-                data += "\x1D\x56\x41\x10"; 
+                data += "\x1D\x56\x41\x10"; // Auto-Cut
 
                 await char.writeValue(encoder.encode(data));
                 alert("Print berhasil dikirim!");
