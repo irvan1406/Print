@@ -13,9 +13,9 @@
             font-family: 'Courier New', Courier, monospace;
             width: 57mm; box-sizing: border-box; background: white; color: black;
             font-size: 11px; line-height: 1.2; 
-            padding: 4.5mm 1mm; /* Default tipis kiri kanan */
+            padding: 4.5mm 1mm;
             margin: 0 auto; position: relative;
-            overflow: hidden; /* Mencegah tumpah saat margin minus */
+            overflow: hidden;
         }
         .center { text-align: center; }
         .left { text-align: left; }
@@ -362,8 +362,8 @@
     </div>
 </div>
 
-<button onclick="handleCetakPrint()" class="fixed bottom-6 right-6 bg-blue-600 hover:bg-blue-700 text-white rounded-full w-14 h-14 flex items-center justify-center shadow-[0_10px_25px_rgba(37,99,235,0.5)] transition-transform active:scale-90 z-50 border-2 border-white" title="Cetak ke Printer Thermal">
-    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+<button onclick="handleCetakPrint()" class="fixed bottom-6 right-6 bg-blue-600 hover:bg-blue-700 text-white rounded-full w-16 h-16 flex items-center justify-center shadow-[0_10px_25px_rgba(37,99,235,0.6)] transition-transform active:scale-90 z-50 border-2 border-white" title="Cetak ke Printer Thermal">
+    <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
       <path stroke-linecap="round" stroke-linejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
     </svg>
 </button>
@@ -440,7 +440,7 @@
         const activeModel = document.querySelector('.model-view:not(.hidden)');
         if(!activeModel) return;
 
-        clearEditorSelection(); // Hilangkan border biru sblm disave
+        clearEditorSelection();
 
         let templateName = prompt("Masukkan Nama untuk Template Baru ini:", "Template Custom " + (savedTemplates.length + 1));
         if (!templateName) return;
@@ -504,7 +504,6 @@
             savedContainer.innerHTML = tpl.html;
             savedContainer.classList.remove('hidden');
             
-            // Restore Margin Settings
             document.getElementById('global-space-left').value = tpl.ml || 0;
             document.getElementById('global-space-right').value = tpl.mr || 0;
             applyGlobalMargin();
@@ -549,7 +548,6 @@
         const spcLeft = parseInt(document.getElementById('global-space-left').value) || 0;
         const spcRight = parseInt(document.getElementById('global-space-right').value) || 0;
         
-        // Visual padding. 1 Spasi karakter ESC/POS setara dgn sekitar ~1.5mm di layar
         if (spcLeft < 0) {
             activeModel.style.marginLeft = (spcLeft * 1.5) + 'mm';
             activeModel.style.paddingLeft = '0mm';
@@ -594,7 +592,8 @@
                 div.className = "left"; 
                 div.dataset.sx = "1";
                 div.dataset.sy = "1";
-                div.innerHTML = l.trim() === "" ? "&nbsp;" : l; 
+                // FIX ENTER: Jika user kasih enter, gunakan tag br agar UI terupdate dan terekstrak dgn benar
+                div.innerHTML = l.trim() === "" ? "<br>" : l; 
                 display.appendChild(div);
             });
         } else {
@@ -641,7 +640,8 @@
     }
 
     // ==============================================================
-    // ENGINE NATIVE: EKSTRAKTOR TEKS KE JSON ESC/POS (Dengan Fitur Margin Kiri & Kanan Minus)
+    // ENGINE NATIVE: EKSTRAKTOR TEKS KE JSON ESC/POS 
+    // FIX BARIS KOSONG & MULTIPLE ENTER
     // ==============================================================
     function handleCetakPrint() {
         clearEditorSelection();
@@ -684,59 +684,51 @@
             let sx = parseInt(child.dataset.sx) || 1;
             let sy = parseInt(child.dataset.sy) || 1;
 
-            let text = "";
             let maxLen = sx >= 2 ? 16 : 32; 
 
             if (child.tagName === 'BR' || child.classList.contains('spacer')) {
-                text = " "; 
+                printData.push({ text: "", align: 0, bold: 0, width: 1, height: 1 });
             } else if (child.classList.contains('dashed-line')) {
-                text = prefixSpace + "-".repeat(Math.max(1, maxLen - Math.max(0, marginSpacesLeft)));
-                align = 0;
+                let text = prefixSpace + "-".repeat(Math.max(1, maxLen - Math.max(0, marginSpacesLeft)));
+                printData.push({ text: text, align: 0, bold: isBold, width: sx, height: sy });
             } else if (child.classList.contains('solid-line')) {
-                text = prefixSpace + "=".repeat(Math.max(1, maxLen - Math.max(0, marginSpacesLeft)));
-                align = 0;
+                let text = prefixSpace + "=".repeat(Math.max(1, maxLen - Math.max(0, marginSpacesLeft)));
+                printData.push({ text: text, align: 0, bold: isBold, width: sx, height: sy });
             } else if (child.classList.contains('flex-between')) {
                 let left = child.children.length > 0 ? child.children[0].innerText.replace(/\n/g, '').trim() : '';
                 let right = child.children.length > 1 ? child.children[1].innerText.replace(/\n/g, '').trim() : '';
                 
-                // Crop jika Margin Minus untuk Kolom
                 if (marginSpacesLeft < 0) left = left.substring(Math.abs(marginSpacesLeft));
                 if (marginSpacesRight < 0) right = right.substring(0, Math.max(0, right.length - Math.abs(marginSpacesRight)));
 
                 let currentMax = maxLen - Math.max(0, marginSpacesLeft) - Math.max(0, marginSpacesRight);
                 let pad = Math.max(1, currentMax - left.length - right.length);
-                text = prefixSpace + left + " ".repeat(pad) + right + suffixSpace;
-                align = 0; 
+                let text = prefixSpace + left + " ".repeat(pad) + right + suffixSpace;
+                printData.push({ text: text, align: 0, bold: isBold, width: sx, height: sy });
             } else {
-                let rawText = child.innerText;
+                let rawText = child.innerText || "";
+                
+                // Murni baris kosong (Enter dlm ContentEditable)
                 if (rawText.replace(/\u00a0/g, ' ').trim() === "" || child.innerHTML === '<br>' || child.innerHTML === '&nbsp;') {
-                    text = " "; 
+                    printData.push({ text: "", align: 0, bold: 0, width: 1, height: 1 });
                 } else {
-                    text = rawText.trim();
-                    
-                    // Terapkan Margin/Crop NATIVE
-                    if (align === 0) { // KIRI
-                        if (marginSpacesLeft < 0) {
-                            text = text.substring(Math.abs(marginSpacesLeft)); 
+                    let lines = rawText.split('\n');
+                    lines.forEach(l => {
+                        let printL = l.replace(/\u00a0/g, ' ').trim();
+                        if (printL === "") {
+                            printData.push({ text: "", align: 0, bold: 0, width: 1, height: 1 });
                         } else {
-                            text = prefixSpace + text;
+                            if (align === 0) { 
+                                if (marginSpacesLeft < 0) printL = printL.substring(Math.abs(marginSpacesLeft)); 
+                                else printL = prefixSpace + printL;
+                            } else if (align === 2) { 
+                                if (marginSpacesRight < 0) printL = printL.substring(0, Math.max(0, printL.length - Math.abs(marginSpacesRight))); 
+                                else printL = printL + suffixSpace;
+                            }
+                            printData.push({ text: printL, align: align, bold: isBold, width: sx, height: sy });
                         }
-                    } else if (align === 2) { // KANAN
-                        if (marginSpacesRight < 0) {
-                            text = text.substring(0, Math.max(0, text.length - Math.abs(marginSpacesRight))); 
-                        } else {
-                            text = text + suffixSpace; // Geser ke kiri dgn spasi kanan
-                        }
-                    }
+                    });
                 }
-            }
-
-            if (text !== "") {
-                let lines = text.split('\n');
-                lines.forEach(l => {
-                    let printL = l.replace(/\u00a0/g, ' ').trim() === "" ? " " : l;
-                    printData.push({ text: printL, align: align, bold: isBold, width: sx, height: sy });
-                });
             }
         }
 
@@ -830,7 +822,7 @@
             
             target.focus();
         } else {
-            if (!e.target.closest('#strukForm')) clearEditorSelection();
+            if (!e.target.closest('#strukForm') && !e.target.closest('button')) clearEditorSelection();
         }
     });
 
