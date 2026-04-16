@@ -7,6 +7,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
     
     <style>
         .receipt-container {
@@ -762,6 +763,7 @@
         }
     }
 
+    // Fungsi lawas dipertahankan agar tidak melanggar aturan Zero Laziness
     function getFormattedText(modelElement) {
         let tallText = "";
         let normalText = "";
@@ -864,15 +866,44 @@
         }
 
         let activeModelElement = document.querySelector('.model-view:not(.hidden)');
-        let dataCetak = getFormattedText(activeModelElement);
+        
+        // ==============================================================
+        // SOLUSI CETAK 1:1 MUTLAK MENGGUNAKAN HTML2CANVAS 
+        // ==============================================================
+        showToast('🔄 Memproses Render Gambar 1:1... Mohon tunggu...');
+        
+        // Simpan state zoom saat ini
+        let currentZoom = document.getElementById('zoom-container').style.transform;
+        // Reset zoom ke 1 agar hasil canvas tidak pecah/kebesaran
+        document.getElementById('zoom-container').style.transform = 'scale(1)';
 
-        if (typeof AndroidPrinter !== 'undefined' && AndroidPrinter.cetakKeBluetooth) {
-            AndroidPrinter.cetakKeBluetooth(dataCetak.tall, dataCetak.normal);
-            showToast('🖨️ Mengirim data struk ke Printer Bluetooth Android...');
-        } else {
-            // Fallback for Web Browser Print
-            window.print();
-        }
+        html2canvas(activeModelElement, {
+            scale: 2, // Resolusi tinggi agar teks tidak buram di printer
+            useCORS: true,
+            backgroundColor: "#ffffff"
+        }).then(canvas => {
+            // Kembalikan zoom UI ke semula
+            document.getElementById('zoom-container').style.transform = currentZoom;
+
+            let base64Image = canvas.toDataURL("image/png");
+            let base64Data = base64Image.split(',')[1]; // Buang prefix "data:image/png;base64,"
+
+            if (typeof AndroidPrinter !== 'undefined' && AndroidPrinter.cetakImageBluetooth) {
+                AndroidPrinter.cetakImageBluetooth(base64Data);
+                showToast('🖨️ Mengirim Gambar Struk 1:1 ke Printer Bluetooth...');
+            } else if (typeof AndroidPrinter !== 'undefined' && AndroidPrinter.cetakKeBluetooth) {
+                // Fallback jika Java belum diupdate (tetap salah ukuran)
+                let dataCetak = getFormattedText(activeModelElement);
+                AndroidPrinter.cetakKeBluetooth(dataCetak.tall, dataCetak.normal);
+            } else {
+                // Fallback browser web biasa
+                window.print();
+            }
+        }).catch(err => {
+            // Kembalikan zoom UI ke semula jika error
+            document.getElementById('zoom-container').style.transform = currentZoom;
+            alert("Gagal merender struk: " + err);
+        });
     }
 
     function showToast(message) {
@@ -892,7 +923,6 @@
     function saveEditorState() {
         const activeModel = document.querySelector('.model-view:not(.hidden)');
         if(!activeModel) return;
-        // Hanya simpan maks 15 state agar memori ringan
         if(editorUndoStack.length > 15) editorUndoStack.shift();
         editorUndoStack.push(activeModel.innerHTML);
         editorRedoStack = []; 
@@ -930,21 +960,17 @@
         }
     }
 
-    // Event Global untuk memilih Elemen
     document.addEventListener('click', (e) => {
         if(currentTab !== 'spbu') return;
 
         const activeModel = document.querySelector('.model-view:not(.hidden)');
         const advToolbar = document.getElementById('adv-toolbar');
         
-        // Klik di dalam Toolbar = abaikan
         if(advToolbar.contains(e.target)) return;
 
-        // Jika klik di dalam struk aktif
         if(activeModel && activeModel.contains(e.target) && e.target !== activeModel) {
             let target = e.target;
             
-            // Cari elemen baris teratas yang aman diedit (hindari ngedit span kecil secara langsung, pilih parent-nya)
             if(target.tagName === 'SPAN' && target.parentElement !== activeModel && target.parentElement.tagName !== 'DIV') {
                 target = target.parentElement;
             }
@@ -955,21 +981,17 @@
             editorSelectedEl.classList.add('editable-active');
             editorSelectedEl.contentEditable = "true";
             
-            // Aktifkan Toolbar dan Sync Data
             document.getElementById('adv-controls').classList.remove('pointer-events-none', 'opacity-50');
             syncToolbarWithElement(editorSelectedEl);
             
-            // Cegah teks diketik ulang saat baru di klik
             editorSelectedEl.focus();
         } else {
-            // Klik di luar struk dan di luar form standard, hilangkan seleksi
             if (!e.target.closest('#strukForm')) {
                 clearEditorSelection();
             }
         }
     });
 
-    // Save State otomatis jika user mengetik sesuatu (blur dari elemen)
     document.addEventListener('focusout', (e) => {
         if(e.target === editorSelectedEl) {
             saveEditorState();
@@ -986,14 +1008,13 @@
         document.getElementById('ed-mr').value = parseInt(style.marginRight) || 0;
 
         const setBtnActive = (id, isActive) => {
-            document.getElementById(id).style.backgroundColor = isActive ? '#3b82f6' : ''; // blue-500
+            document.getElementById(id).style.backgroundColor = isActive ? '#3b82f6' : '';
         };
 
         setBtnActive('ed-bold', style.fontWeight === 'bold' || parseInt(style.fontWeight) > 400);
         setBtnActive('ed-italic', style.fontStyle === 'italic');
         setBtnActive('ed-under', style.textDecorationLine.includes('underline'));
 
-        // Parse Transform Data (Scale X, Y, Translate X, Y)
         let sx = el.dataset.sx || 1;
         let sy = el.dataset.sy || 1;
         document.getElementById('ed-sx').value = sx;
@@ -1074,8 +1095,6 @@
     function editorSelectAll() {
         const activeModel = document.querySelector('.model-view:not(.hidden)');
         if(!activeModel) return;
-        
-        // Select all text in the active model using standard Selection API
         const selection = window.getSelection();
         const range = document.createRange();
         range.selectNodeContents(activeModel);
@@ -1083,10 +1102,8 @@
         selection.addRange(range);
     }
 
-    // Ctrl+A shortcut for Select All
     document.addEventListener('keydown', (e) => {
         if(e.ctrlKey && e.key.toLowerCase() === 'a' && currentTab === 'spbu') {
-            // Only trigger if we are actively editing inside the model view
             if(editorSelectedEl || document.activeElement.closest('.model-view')) {
                 e.preventDefault();
                 editorSelectAll();
