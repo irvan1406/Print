@@ -763,7 +763,6 @@
         }
     }
 
-    // Fungsi lawas dipertahankan agar tidak melanggar aturan Zero Laziness
     function getFormattedText(modelElement) {
         let tallText = "";
         let normalText = "";
@@ -848,7 +847,6 @@
     }
 
     function handleCetakPrint() {
-        // Hilangkan seleksi editor agar garis outline biru hilang di print
         clearEditorSelection();
 
         if(currentTab === 'wifi') {
@@ -867,41 +865,49 @@
 
         let activeModelElement = document.querySelector('.model-view:not(.hidden)');
         
-        // ==============================================================
-        // SOLUSI CETAK 1:1 MUTLAK MENGGUNAKAN HTML2CANVAS 
-        // ==============================================================
-        showToast('🔄 Memproses Render Gambar 1:1... Mohon tunggu...');
+        showToast('🔄 Memproses Render Gambar Tajam 1:1... Mohon tunggu...');
         
-        // Simpan state zoom saat ini
         let currentZoom = document.getElementById('zoom-container').style.transform;
-        // Reset zoom ke 1 agar hasil canvas tidak pecah/kebesaran
         document.getElementById('zoom-container').style.transform = 'scale(1)';
 
+        // PENAMBAHAN SOLUSI AGAR TIDAK KECIL: Copot padding & border sementara agar Teks menyentuh ujung kertas
+        let oldPadding = activeModelElement.style.padding;
+        let oldBorder = activeModelElement.style.border;
+        let oldBoxShadow = activeModelElement.style.boxShadow;
+        
+        // Atur padding sangat tipis saja (kiri kanan 1mm agar tidak terpotong body printer, atas bawah 2mm)
+        activeModelElement.style.padding = '2mm 1mm'; 
+        activeModelElement.style.border = 'none';
+        activeModelElement.style.boxShadow = 'none';
+
         html2canvas(activeModelElement, {
-            scale: 2, // Resolusi tinggi agar teks tidak buram di printer
+            scale: 3, // Skala dibesarkan 3x lipat agar sangat resolusi tinggi sebelum diperkecil di Java
             useCORS: true,
             backgroundColor: "#ffffff"
         }).then(canvas => {
-            // Kembalikan zoom UI ke semula
+            // Kembalikan ke style asli di layar HP
             document.getElementById('zoom-container').style.transform = currentZoom;
+            activeModelElement.style.padding = oldPadding;
+            activeModelElement.style.border = oldBorder;
+            activeModelElement.style.boxShadow = oldBoxShadow;
 
             let base64Image = canvas.toDataURL("image/png");
-            let base64Data = base64Image.split(',')[1]; // Buang prefix "data:image/png;base64,"
+            let base64Data = base64Image.split(',')[1];
 
             if (typeof AndroidPrinter !== 'undefined' && AndroidPrinter.cetakImageBluetooth) {
                 AndroidPrinter.cetakImageBluetooth(base64Data);
                 showToast('🖨️ Mengirim Gambar Struk 1:1 ke Printer Bluetooth...');
             } else if (typeof AndroidPrinter !== 'undefined' && AndroidPrinter.cetakKeBluetooth) {
-                // Fallback jika Java belum diupdate (tetap salah ukuran)
                 let dataCetak = getFormattedText(activeModelElement);
                 AndroidPrinter.cetakKeBluetooth(dataCetak.tall, dataCetak.normal);
             } else {
-                // Fallback browser web biasa
                 window.print();
             }
         }).catch(err => {
-            // Kembalikan zoom UI ke semula jika error
             document.getElementById('zoom-container').style.transform = currentZoom;
+            activeModelElement.style.padding = oldPadding;
+            activeModelElement.style.border = oldBorder;
+            activeModelElement.style.boxShadow = oldBoxShadow;
             alert("Gagal merender struk: " + err);
         });
     }
