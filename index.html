@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cetak Struk SPBU Pro</title>
+    <title>Cetak Struk SPBU Pro (Native ESC/POS)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
@@ -12,7 +12,7 @@
         .receipt-container {
             font-family: 'Courier New', Courier, monospace;
             width: 57mm; box-sizing: border-box; background: white; color: black;
-            font-size: 11px; line-height: 1.2; padding: 4.5mm 1mm;
+            font-size: 11px; line-height: 1.2; padding: 4.5mm;
             margin: 0 auto; position: relative;
         }
         .center { text-align: center; }
@@ -29,41 +29,15 @@
         .text-xl { font-size: 15px; }
         .w-full { width: 100%; }
 
-        #model-1, #model-2, #model-3, #model-5 {
-            font-family: 'Arial Narrow', Arial, Helvetica, sans-serif;
-            letter-spacing: -0.2px; font-size: 9.5px;
-        }
-        #model-1 .text-xl, #model-2 .text-xl, #model-3 .text-xl, #model-5 .text-xl { font-size: 13px; }
-        #model-custom { white-space: pre-wrap; word-wrap: break-word; }
-        .logo-display-container { width: 100%; margin-bottom: 10px; display: none; }
-        .logo-display-img { display: block; max-width: 100px; height: auto; }
-
-        #model-4 {
-            font-family: 'Consolas', 'Lucida Console', Monaco, monospace;
-            font-size: 10px;
-            padding-left: 5px; 
-            padding-right: 5px; 
-            padding-bottom: 10px;
-            padding-top: 5px;
-            width: 210px;
-            max-width: 210px;
-        }
-        #model-4 .text-line {
-            line-height: 1.15;
-            margin-bottom: 0px;
-            white-space: nowrap;
-        }
-        #model-4 .spbu-title {
-            font-weight: normal;
-            transform: scaleY(1.8);
-            display: inline-block;
-            margin-bottom: 6px;
-            margin-top: 6px;
-        }
+        /* Template SPBU Default (Visual Preview Saja, akan diterjemahkan ke Native di Java) */
+        #model-1, #model-2, #model-3, #model-5 { font-family: 'Courier New', Courier, monospace; letter-spacing: 0px; font-size: 11px; }
+        #model-4 { font-family: 'Courier New', Courier, monospace; font-size: 11px; padding: 5px; width: 100%; }
+        #model-4 .text-line { line-height: 1.2; margin-bottom: 0px; white-space: nowrap; }
+        #model-4 .spbu-title { font-weight: normal; transform: scaleY(2); display: inline-block; margin-bottom: 6px; margin-top: 6px; }
         #model-4 .bold-text { font-weight: bold; }
-        #model-4 .tight-number { letter-spacing: -1px; }
         #model-4 .spacer { height: 10px; }
 
+        /* CSS KHUSUS EDITOR */
         .editable-active { outline: 2px dashed #3b82f6; outline-offset: 2px; cursor: text; background-color: rgba(59, 130, 246, 0.05); }
         .model-view > * { cursor: pointer; transition: outline 0.1s; }
         .model-view > *:hover:not(.editable-active) { outline: 1px dotted #9ca3af; }
@@ -76,7 +50,6 @@
             .no-print { display: none !important; }
             .editable-active { outline: none !important; background-color: transparent !important; }
             #zoom-container { transform: scale(1) !important; transform-origin: top left !important; width: auto !important; height: auto !important; }
-            #model-4 { width: 100%; max-width: 100%; }
         }
     </style>
 </head>
@@ -112,36 +85,8 @@
                     <option value="3">Model 3 - "Pom alasrejo - Alasmalang"</option>
                     <option value="4">Model 4 - "Pom Farly"</option>
                     <option value="5">Model 5 - "Terserah"</option>
-                    <option value="custom">Mode Custom (Ketik Sendiri & Font)</option>
+                    <option value="custom">Mode Custom (Ketik Bebas)</option>
                 </select>
-            </div>
-
-            <div class="border p-4 rounded bg-purple-50 border-purple-200">
-                <div class="flex items-center space-x-2 mb-2">
-                    <input type="checkbox" id="in-show-logo" class="form-checkbox text-purple-600 w-4 h-4">
-                    <label class="font-bold text-purple-800 cursor-pointer" for="in-show-logo">Gunakan Logo Khusus</label>
-                </div>
-                <div id="logo-controls" class="hidden space-y-3 mt-3 border-t border-purple-200 pt-3">
-                    <div>
-                        <label class="block text-xs text-purple-700 font-bold">Upload Gambar Logo</label>
-                        <input type="file" id="in-logo-file" accept="image/*" class="w-full bg-white p-1 border rounded text-xs">
-                    </div>
-                    <div class="grid grid-cols-2 gap-2">
-                        <div>
-                            <label class="block text-xs text-purple-700 font-bold mb-1">Ukuran Logo (px)</label>
-                            <input type="range" id="in-logo-size" min="30" max="200" value="100" class="w-full">
-                            <div class="text-xs text-center" id="lbl-logo-size">100px</div>
-                        </div>
-                        <div>
-                            <label class="block text-xs text-purple-700 font-bold mb-1">Posisi Logo</label>
-                            <select id="in-logo-align" class="w-full border p-1 rounded text-xs">
-                                <option value="center">Tengah (Center)</option>
-                                <option value="left">Kiri (Left)</option>
-                                <option value="right">Kanan (Right)</option>
-                            </select>
-                        </div>
-                    </div>
-                </div>
             </div>
 
             <div class="border p-4 rounded bg-blue-50 border-blue-200">
@@ -152,45 +97,11 @@
             </div>
 
             <div id="custom-controls" class="hidden border p-4 rounded bg-yellow-50 border-yellow-200 space-y-3">
-                <h3 class="font-bold text-yellow-800 border-b pb-1 text-sm">Pengaturan Font & Teks Custom</h3>
-                <div class="grid grid-cols-2 gap-2">
-                    <div>
-                        <label class="block text-xs font-bold">Pilih Font (20 Macam)</label>
-                        <select id="in-custom-font" class="w-full border p-1 rounded text-xs">
-                            <option value="Arial">Arial</option>
-                            <option value="'Courier New'">Courier New</option>
-                            <option value="'Times New Roman'">Times New Roman</option>
-                            <option value="Roboto">Roboto</option>
-                            <option value="'Open Sans'">Open Sans</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block text-xs font-bold">Ukuran Font Bebas (px)</label>
-                        <input type="number" id="in-custom-size" value="11" class="w-full border p-1 rounded text-xs">
-                    </div>
-                </div>
-                <div class="flex gap-4 items-center bg-white p-2 border rounded">
-                    <label class="flex items-center space-x-1 cursor-pointer">
-                        <input type="checkbox" id="in-custom-bold" class="form-checkbox w-4 h-4 text-gray-800"> <span class="text-xs font-bold">B (Bold)</span>
-                    </label>
-                    <label class="flex items-center space-x-1 cursor-pointer">
-                        <input type="checkbox" id="in-custom-italic" class="form-checkbox w-4 h-4 text-gray-800"> <span class="text-xs font-bold">I (Italic)</span>
-                    </label>
-                    <label class="flex items-center space-x-1 cursor-pointer">
-                        <input type="checkbox" id="in-custom-underline" class="form-checkbox w-4 h-4 text-gray-800"> <span class="text-xs font-bold">U (Underline)</span>
-                    </label>
-                    <div class="flex-1 text-right">
-                        <label class="text-xs font-bold mr-1">Rata Teks:</label>
-                        <select id="in-custom-align" class="border rounded text-xs p-1">
-                            <option value="left">Kiri</option>
-                            <option value="center">Tengah</option>
-                            <option value="right">Kanan</option>
-                        </select>
-                    </div>
-                </div>
+                <h3 class="font-bold text-yellow-800 border-b pb-1 text-sm">Mode Custom (Teks Mentah)</h3>
                 <div>
                     <label class="block text-xs font-bold mb-1">Ketikan Isi Nota Anda:</label>
-                    <textarea id="in-custom-text" class="w-full h-64 border p-2 rounded text-xs font-mono leading-relaxed shadow-inner" placeholder="Silakan ketik atau tempel hasil scan di sini..."></textarea>
+                    <textarea id="in-custom-text" class="w-full h-64 border p-2 rounded text-xs font-mono leading-relaxed shadow-inner" placeholder="Silakan ketik hasil scan di sini..."></textarea>
+                    <p class="text-[10px] text-gray-500 mt-1">*Gunakan editor di sebelah kanan (layar struk) untuk mengatur Bold, Ukuran 2x, dll.</p>
                 </div>
             </div>
 
@@ -251,266 +162,164 @@
 
     <div class="w-full md:w-1/2 flex flex-col items-center pt-0 md:pt-4 relative">
         
-        <div id="adv-toolbar" class="w-full bg-slate-800 text-white p-3 rounded-t-lg shadow-lg no-print flex flex-col gap-3 transition-all duration-300 opacity-50 hover:opacity-100">
+        <div id="adv-toolbar" class="w-full bg-slate-800 text-white p-3 rounded-t-lg shadow-lg no-print flex flex-col gap-3 transition-all duration-300">
             <div class="flex justify-between items-center border-b border-slate-600 pb-2">
                 <div class="font-bold text-sm text-yellow-400 flex items-center gap-2">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
-                    PRO EDITOR KANVAS
+                    NATIVE ESC/POS EDITOR
                 </div>
                 <div class="flex gap-2">
-                    <button onclick="editorUndo()" class="bg-slate-600 hover:bg-slate-500 px-2 py-1 rounded text-xs shadow" title="Undo">↩ Undo</button>
-                    <button onclick="editorRedo()" class="bg-slate-600 hover:bg-slate-500 px-2 py-1 rounded text-xs shadow" title="Redo">Redo ↪</button>
+                    <button onclick="editorUndo()" class="bg-slate-600 hover:bg-slate-500 px-2 py-1 rounded text-xs shadow">↩ Undo</button>
+                    <button onclick="editorRedo()" class="bg-slate-600 hover:bg-slate-500 px-2 py-1 rounded text-xs shadow">Redo ↪</button>
                 </div>
             </div>
 
-            <div id="adv-controls" class="grid grid-cols-2 lg:grid-cols-4 gap-2 text-xs pointer-events-none opacity-50">
-                <div class="col-span-2 flex items-center bg-slate-700 p-1 rounded gap-1">
-                    <select id="ed-font" class="bg-slate-600 text-white rounded px-1 py-1 w-24 outline-none" onchange="applyStyle('fontFamily', this.value)">
-                        <option value="inherit">Font Asli</option>
-                        <option value="Arial">Arial</option>
-                        <option value="'Courier New'">Courier</option>
-                        <option value="Consolas">Consolas</option>
-                        <option value="'Times New Roman'">Times</option>
+            <div id="adv-controls" class="grid grid-cols-1 lg:grid-cols-2 gap-3 text-xs pointer-events-none opacity-50">
+                <div class="flex items-center bg-slate-700 p-2 rounded gap-2 justify-between">
+                    <div class="flex gap-1">
+                        <button class="px-3 py-1 bg-slate-600 hover:bg-blue-500 rounded font-bold" onclick="applyNativeStyle('textAlign', 'left')" title="Rata Kiri">Left</button>
+                        <button class="px-3 py-1 bg-slate-600 hover:bg-blue-500 rounded font-bold" onclick="applyNativeStyle('textAlign', 'center')" title="Rata Tengah">Center</button>
+                        <button class="px-3 py-1 bg-slate-600 hover:bg-blue-500 rounded font-bold" onclick="applyNativeStyle('textAlign', 'right')" title="Rata Kanan">Right</button>
+                    </div>
+                    <div class="w-px h-6 bg-slate-500"></div>
+                    <button id="ed-bold" class="px-4 py-1 bg-slate-600 hover:bg-blue-500 rounded font-bold text-lg" onclick="toggleNativeBold(this)">B</button>
+                </div>
+
+                <div class="flex items-center bg-slate-700 p-2 rounded gap-2 justify-between">
+                    <span class="font-bold text-[10px] text-yellow-300">UKURAN (SCALE):</span>
+                    <select id="ed-scale" class="bg-slate-800 text-white rounded px-2 py-1 flex-1 outline-none border border-slate-500" onchange="applyNativeScale(this.value)">
+                        <option value="1x1">1x (Normal)</option>
+                        <option value="1x2">2x Tinggi (Header)</option>
+                        <option value="2x1">2x Lebar</option>
+                        <option value="2x2">2x Tinggi & Lebar (Raksasa)</option>
                     </select>
-                    <input type="number" id="ed-size" class="bg-slate-600 text-white rounded px-1 py-1 w-12 text-center outline-none" placeholder="Px" onchange="applyStyle('fontSize', this.value + 'px')">
-                    <div class="w-px h-4 bg-slate-500 mx-1"></div>
-                    <button id="ed-bold" class="px-2 py-1 bg-slate-600 hover:bg-blue-500 rounded font-bold" onclick="toggleStyle('fontWeight', 'bold', 'normal', this)">B</button>
-                    <button id="ed-italic" class="px-2 py-1 bg-slate-600 hover:bg-blue-500 rounded italic" onclick="toggleStyle('fontStyle', 'italic', 'normal', this)">I</button>
-                    <button id="ed-under" class="px-2 py-1 bg-slate-600 hover:bg-blue-500 rounded underline" onclick="toggleStyle('textDecoration', 'underline', 'none', this)">U</button>
                 </div>
 
-                <div class="col-span-2 flex items-center bg-slate-700 p-1 rounded justify-around">
-                    <button class="px-2 py-1 bg-slate-600 hover:bg-blue-500 rounded" onclick="applyStyle('textAlign', 'left')" title="Rata Kiri">L</button>
-                    <button class="px-2 py-1 bg-slate-600 hover:bg-blue-500 rounded" onclick="applyStyle('textAlign', 'center')" title="Rata Tengah">C</button>
-                    <button class="px-2 py-1 bg-slate-600 hover:bg-blue-500 rounded" onclick="applyStyle('textAlign', 'right')" title="Rata Kanan">R</button>
-                    <div class="w-px h-4 bg-slate-500 mx-1"></div>
-                    <button class="px-2 py-1 bg-indigo-600 hover:bg-indigo-500 rounded text-[10px] font-bold" onclick="toggleDuaKolom()">Kolom Ganda</button>
-                </div>
-
-                <div class="col-span-2 flex gap-2 items-center bg-slate-700 p-1 rounded">
-                    <div class="flex items-center gap-1">
-                        <span class="text-[10px] text-yellow-300 font-bold" title="Memperlebar ukuran font di printer fisik">W:</span>
-                        <input type="number" step="0.5" id="ed-sx" class="bg-slate-600 w-12 rounded px-1 text-center" onchange="applyTransform('sx', this.value)" title="Scale X (Lebar Teks)">
-                    </div>
-                    <div class="flex items-center gap-1">
-                        <span class="text-[10px] text-yellow-300 font-bold" title="Mempertinggi ukuran font di printer fisik">H:</span>
-                        <input type="number" step="0.5" id="ed-sy" class="bg-slate-600 w-12 rounded px-1 text-center" onchange="applyTransform('sy', this.value)" title="Scale Y (Tinggi Teks)">
-                    </div>
-                    <div class="flex items-center gap-1">
-                        <span class="text-[10px]">Spc:</span>
-                        <input type="number" step="0.5" id="ed-letter" class="bg-slate-600 w-12 rounded px-1 text-center" onchange="applyStyle('letterSpacing', this.value + 'px')" title="Spasi Huruf">
+                <div class="lg:col-span-2 flex flex-wrap gap-2 items-center bg-slate-700 p-2 rounded justify-between">
+                    <button class="bg-indigo-600 hover:bg-indigo-500 px-3 py-1 rounded shadow text-[11px] font-bold" onclick="toggleDuaKolom()">Kolom Kiri-Kanan (Flex)</button>
+                    <div class="flex gap-2">
+                        <button class="bg-green-600 hover:bg-green-500 px-3 py-1 rounded shadow text-[11px] font-bold" onclick="editorDuplicateRow()">+ Duplikat</button>
+                        <button class="bg-red-600 hover:bg-red-500 px-3 py-1 rounded shadow text-[11px] font-bold" onclick="editorDeleteRow()">🗑 Hapus</button>
+                        <button class="bg-blue-600 hover:bg-blue-500 px-3 py-1 rounded shadow text-[11px] font-bold" onclick="editorSelectAll()">Blok Semua</button>
                     </div>
                 </div>
-
-                <div class="col-span-2 lg:col-span-1 flex justify-center items-center bg-slate-700 p-1 rounded relative h-[60px]">
-                    <div class="absolute text-[9px] top-1 left-1 opacity-50">Nudge</div>
-                    <div class="grid grid-cols-3 gap-1 w-16">
-                        <div></div>
-                        <button class="bg-slate-600 hover:bg-blue-500 rounded text-[10px] pb-1 h-4 flex items-center justify-center" onclick="applyTransform('ty', -1, true)">▲</button>
-                        <div></div>
-                        <button class="bg-slate-600 hover:bg-blue-500 rounded text-[10px] pb-1 h-4 flex items-center justify-center" onclick="applyTransform('tx', -1, true)">◀</button>
-                        <button class="bg-slate-800 rounded text-[8px] h-4 flex items-center justify-center" onclick="applyTransform('reset', 0)" title="Reset Posisi">O</button>
-                        <button class="bg-slate-600 hover:bg-blue-500 rounded text-[10px] pb-1 h-4 flex items-center justify-center" onclick="applyTransform('tx', 1, true)">▶</button>
-                        <div></div>
-                        <button class="bg-slate-600 hover:bg-blue-500 rounded text-[10px] pb-1 h-4 flex items-center justify-center" onclick="applyTransform('ty', 1, true)">▼</button>
-                        <div></div>
-                    </div>
-                </div>
-
-                <div class="col-span-2 lg:col-span-4 flex flex-col gap-2 bg-slate-700 p-2 rounded">
-                    <div class="flex flex-wrap gap-2 items-center">
-                        <button class="bg-green-600 hover:bg-green-500 px-3 py-1 rounded shadow text-[11px] font-bold" onclick="editorDuplicateRow()">+ Duplikat Baris</button>
-                        <button class="bg-red-600 hover:bg-red-500 px-3 py-1 rounded shadow text-[11px] font-bold" onclick="editorDeleteRow()">🗑 Hapus Baris</button>
-                        <div class="flex-1"></div>
-                        <button class="bg-blue-600 hover:bg-blue-500 px-3 py-1 rounded shadow text-[11px] font-bold" onclick="editorSelectAll()">Pilih Semua (Ctrl+A)</button>
-                    </div>
-                    
-                    <div class="flex items-center gap-2 border-t border-slate-600 pt-2 mt-1">
-                        <span class="text-[11px] font-bold text-yellow-400">MARGIN KERTAS (mm):</span>
-                        <span class="text-[11px] ml-2">Kiri:</span>
-                        <input type="number" id="paper-pl" class="bg-slate-800 w-12 rounded px-1 text-center outline-none border border-slate-500" value="1" onchange="applyPaperMargin()">
-                        <span class="text-[11px] ml-2">Kanan:</span>
-                        <input type="number" id="paper-pr" class="bg-slate-800 w-12 rounded px-1 text-center outline-none border border-slate-500" value="1" onchange="applyPaperMargin()">
-                    </div>
-                </div>
-            </div>
-            
-            <div class="flex justify-between items-center border-t border-slate-600 pt-2 mt-1">
-                <span class="text-xs">Zoom Kanvas: <span id="lbl-zoom">100%</span></span>
-                <input type="range" id="zoom-slider" min="0.2" max="2" step="0.1" value="1" class="w-1/2" oninput="changeZoom(this.value)">
             </div>
         </div>
+
         <div id="print-area" class="w-full bg-gray-200 border-x border-b shadow-inner overflow-hidden flex justify-center py-4 rounded-b-lg">
             
-            <div id="zoom-container" style="transform: scale(1); transform-origin: top center; transition: transform 0.1s ease-out;">
+            <div id="zoom-container" style="transform: scale(1.2); transform-origin: top center;">
                 <div id="view-spbu-wrapper">
                     <div id="model-1" class="receipt-container shadow-xl border model-view">
-                        <div class="logo-display-container"><img class="logo-display-img" src=""></div>
-                        
-                        <div class="text-xl">
-                            <div class="center" style="transform: scaleY(1.6) scaleX(0.85); margin-bottom: 2px; white-space: nowrap; font-weight: bold; font-family: Arial;">PERTAMINA "PASTI PAS"</div>
-                            <div class="left" style="transform: scaleY(1.6) scaleX(0.85); margin-bottom: 5px; white-space: nowrap; transform-origin: left; font-weight: bold; font-family: Arial;">SPBU <span class="out-kode"></span></div>
-                        </div>
-                        
+                        <div class="center fw-bold" data-sx="1" data-sy="2" style="transform: scaleX(1) scaleY(2); margin-bottom: 6px;">PERTAMINA "PASTI PAS"</div>
+                        <div class="left fw-bold" data-sx="1" data-sy="2" style="transform: scaleX(1) scaleY(2); margin-bottom: 6px;">SPBU <span class="out-kode"></span></div>
                         <div class="left"><span class="out-jalan"></span></div>
                         <div class="left"><span class="out-kota"></span></div>
                         <div class="left"><span class="out-telp"></span></div>
-                        <br>
+                        <div class="spacer"></div>
                         <div class="flex-between"><div><span class="out-tgl"></span></div><div><span class="out-jam-menit"></span></div></div>
                         <div class="left">Receipt No. :<span class="out-notrans"></span></div>
-                        <br>
+                        <div class="spacer"></div>
                         <div class="flex-between"><div>Pump No.</div><div><span class="out-pompa"></span></div></div>
                         <div class="flex-between"><div>Grade</div><div><span class="out-bbm"></span></div></div>
                         <div class="flex-between"><div>Volume</div><div><span class="out-vol-koma"></span></div></div>
                         <div class="flex-between"><div>Unit Price</div><div><span class="out-hj-polos"></span></div></div>
                         <div class="flex-between fw-bold"><div>Amount</div><div><span class="out-tot-bayar-polos"></span></div></div>
-                        <br>
+                        <div class="spacer"></div>
                         <div class="flex-between"><div>Vehicle No.</div><div><span class="out-plat"></span></div></div>
-                        <br>
+                        <div class="spacer"></div>
                         <div class="left">Terima Kasih & Selamat Jalan</div>
                     </div>
 
                     <div id="model-2" class="receipt-container shadow-xl border model-view hidden">
-                        <div class="logo-display-container"><img class="logo-display-img" src=""></div>
-                        <div class="text-xl">
-                            <div class="left" style="transform: scaleY(1.6) scaleX(0.85); margin-bottom: 5px; white-space: nowrap; transform-origin: left; font-weight: bold; font-family: Arial;">SPBU.<span class="out-kode"></span></div>
-                        </div>
+                        <div class="left fw-bold" data-sx="1" data-sy="2" style="transform: scaleX(1) scaleY(2); margin-bottom: 6px;">SPBU.<span class="out-kode"></span></div>
                         <div class="left"><span class="out-nama"></span></div>
                         <div class="left"><span class="out-jalan"></span></div>
-                        <br>
                         <div class="left"><span class="out-kota"></span></div>
                         <div class="left"><span class="out-telp"></span></div>
-                        <br>
+                        <div class="spacer"></div>
                         <div class="flex-between"><div><span class="out-tgl"></span></div><div><span class="out-jam-menit"></span></div></div>
                         <div class="left">Receipt No. : <span class="out-notrans"></span></div>
-                        <br>
+                        <div class="spacer"></div>
                         <div class="flex-between"><div>Pump No.</div><div><span class="out-pompa"></span></div></div>
                         <div class="flex-between"><div>Grade</div><div><span class="out-bbm"></span></div></div>
                         <div class="flex-between"><div>Volume</div><div><span class="out-vol-koma"></span></div></div>
                         <div class="flex-between"><div>Unit Price</div><div><span class="out-hj-polos"></span></div></div>
                         <div class="flex-between fw-bold"><div>Amount</div><div><span class="out-tot-bayar-polos"></span></div></div>
-                        <br>
+                        <div class="spacer"></div>
                         <div class="flex-between"><div>Vehicle No.</div><div><span class="out-plat"></span></div></div>
-                        <br>
+                        <div class="spacer"></div>
                         <div class="left">TERIMA KASIH & SELAMAT JALAN</div>
                     </div>
 
                     <div id="model-3" class="receipt-container shadow-xl border model-view hidden">
-                        <div class="logo-display-container"><img class="logo-display-img" src=""></div>
-                        <div class="text-xl">
-                            <div class="left" style="transform: scaleY(1.6) scaleX(0.85); margin-bottom: 5px; white-space: nowrap; transform-origin: left; font-weight: bold; font-family: Arial;">SPBU <span class="out-kode"></span></div>
-                        </div>
+                        <div class="left fw-bold" data-sx="1" data-sy="2" style="transform: scaleX(1) scaleY(2); margin-bottom: 6px;">SPBU <span class="out-kode"></span></div>
                         <div class="left"><span class="out-nama"></span></div>
                         <div class="left"><span class="out-jalan"></span></div>
                         <div class="left"><span class="out-kota"></span></div>
                         <div class="left"><span class="out-telp"></span></div>
-                        <br>
+                        <div class="spacer"></div>
                         <div class="flex-between"><div><span class="out-tgl"></span></div><div><span class="out-jam-menit"></span></div></div>
                         <div class="left">Receipt No.:<span class="out-notrans"></span></div>
-                        <br>
+                        <div class="spacer"></div>
                         <div class="flex-between"><div>Pump No.</div><div><span class="out-pompa"></span></div></div>
                         <div class="flex-between"><div>Grade</div><div><span class="out-bbm"></span></div></div>
                         <div class="flex-between"><div>Volume</div><div><span class="out-vol-koma"></span></div></div>
                         <div class="flex-between"><div>Unit Price</div><div><span class="out-hj-polos"></span></div></div>
                         <div class="flex-between fw-bold"><div>Amount</div><div><span class="out-tot-bayar-polos"></span></div></div>
-                        <br>
+                        <div class="spacer"></div>
                         <div class="flex-between"><div>Vehicle No.</div><div><span class="out-plat"></span></div></div>
-                        <br>
+                        <div class="spacer"></div>
                         <div class="left">TERIMA KASIH & SELAMAT JALAN</div>
                     </div>
 
                     <div id="model-4" class="receipt-container shadow-xl border model-view hidden">
-                        <div class="logo-display-container"><img class="logo-display-img" src=""></div>
-                        
-                        <div class="spacer no-print"></div>
-                        <div class="spacer no-print"></div>
-                        <div class="spacer no-print"></div>
-
-                        <div class="text-xl">
-                            <div class="center text-line spbu-title">SPBU <span class="out-kode"></span></div>
-                        </div>
-                        
-                        <div class="center text-line"><span class="out-nama"></span></div>
-                        
-                        <div class="spacer"></div>
-                        
-                        <div class="center text-line"><span class="out-jalan"></span></div>
-                        <div class="center text-line"><span class="out-kota"></span></div>
-                        <div class="center text-line"><span class="out-telp"></span></div>
-                        
-                        <div class="spacer"></div>
-
-                        <div class="flex-between text-line">
-                            <div><span class="out-tgl"></span></div>
-                            <div><span class="out-jam-menit"></span></div>
-                        </div>
-
-                        <div class="left text-line">Receipt No. :<span class="out-notrans"></span></div>
-
-                        <div class="spacer"></div>
-
-                        <div class="flex-between text-line">
-                            <div>Pump No.</div>
-                            <div><span class="out-pompa"></span></div>
-                        </div>
-                        <div class="flex-between text-line">
-                            <div>Grade</div>
-                            <div><span class="out-bbm"></span></div>
-                        </div>
-                        <div class="flex-between text-line">
-                            <div>Volume</div>
-                            <div><span class="out-vol-koma"></span></div>
-                        </div>
-                        <div class="flex-between text-line">
-                            <div>Unit Price</div>
-                            <div><span class="tight-number out-hj-polos"></span></div>
-                        </div>
-                        
-                        <div class="flex-between text-line bold-text">
-                            <div>Amount</div>
-                            <div><span class="tight-number out-tot-bayar-polos"></span></div>
-                        </div>
-                        
-                        <div class="spacer"></div>
-                        
-                        <div class="flex-between text-line">
-                            <div>Vehicle No.</div>
-                            <div><span class="out-plat"></span></div>
-                        </div>
-
-                        <div class="spacer"></div>
-
-                        <div class="left text-line">BBM BERSUPSIDI HANYA UNTUK GOLONG</div>
-                        <div class="left text-line">AN TIDAK MAMPU TERIMAKASIH ANDA</div>
-                        <div class="left text-line">TIDAK IKUT MENGGUNAKANNYA</div>
-                    </div>
-
-                    <div id="model-5" class="receipt-container shadow-xl border model-view hidden">
-                        <div class="logo-display-container"><img class="logo-display-img" src=""></div>
-                        <div class="text-xl">
-                            <div class="center" style="transform: scaleY(1.6) scaleX(0.85); margin-bottom: 10px; white-space: nowrap; font-weight: bold; font-family: Arial;">SPBU <span class="out-kode"></span></div>
-                        </div>
+                        <div class="spacer"></div><div class="spacer"></div>
+                        <div class="center fw-bold" data-sx="1" data-sy="2" style="transform: scaleX(1) scaleY(2); margin-bottom: 6px;">SPBU <span class="out-kode"></span></div>
                         <div class="center"><span class="out-nama"></span></div>
+                        <div class="spacer"></div>
                         <div class="center"><span class="out-jalan"></span></div>
                         <div class="center"><span class="out-kota"></span></div>
                         <div class="center"><span class="out-telp"></span></div>
-                        <br>
+                        <div class="spacer"></div>
                         <div class="flex-between"><div><span class="out-tgl"></span></div><div><span class="out-jam-menit"></span></div></div>
                         <div class="left">Receipt No. :<span class="out-notrans"></span></div>
-                        <br>
+                        <div class="spacer"></div>
                         <div class="flex-between"><div>Pump No.</div><div><span class="out-pompa"></span></div></div>
                         <div class="flex-between"><div>Grade</div><div><span class="out-bbm"></span></div></div>
                         <div class="flex-between"><div>Volume</div><div><span class="out-vol-koma"></span></div></div>
                         <div class="flex-between"><div>Unit Price</div><div><span class="out-hj-polos"></span></div></div>
                         <div class="flex-between fw-bold"><div>Amount</div><div><span class="out-tot-bayar-polos"></span></div></div>
-                        <br>
+                        <div class="spacer"></div>
                         <div class="flex-between"><div>Vehicle No.</div><div><span class="out-plat"></span></div></div>
-                        <br>
+                        <div class="spacer"></div>
+                        <div class="left">BBM BERSUBSIDI HANYA UNTUK GOLONG</div>
+                        <div class="left">AN TIDAK MAMPU TERIMAKASIH ANDA</div>
+                        <div class="left">TIDAK IKUT MENGGUNAKANNYA</div>
+                    </div>
+
+                    <div id="model-5" class="receipt-container shadow-xl border model-view hidden">
+                        <div class="center fw-bold" data-sx="1" data-sy="2" style="transform: scaleX(1) scaleY(2); margin-bottom: 6px;">SPBU <span class="out-kode"></span></div>
+                        <div class="center"><span class="out-nama"></span></div>
+                        <div class="center"><span class="out-jalan"></span></div>
+                        <div class="center"><span class="out-kota"></span></div>
+                        <div class="center"><span class="out-telp"></span></div>
+                        <div class="spacer"></div>
+                        <div class="flex-between"><div><span class="out-tgl"></span></div><div><span class="out-jam-menit"></span></div></div>
+                        <div class="left">Receipt No. :<span class="out-notrans"></span></div>
+                        <div class="spacer"></div>
+                        <div class="flex-between"><div>Pump No.</div><div><span class="out-pompa"></span></div></div>
+                        <div class="flex-between"><div>Grade</div><div><span class="out-bbm"></span></div></div>
+                        <div class="flex-between"><div>Volume</div><div><span class="out-vol-koma"></span></div></div>
+                        <div class="flex-between"><div>Unit Price</div><div><span class="out-hj-polos"></span></div></div>
+                        <div class="flex-between fw-bold"><div>Amount</div><div><span class="out-tot-bayar-polos"></span></div></div>
+                        <div class="spacer"></div>
+                        <div class="flex-between"><div>Vehicle No.</div><div><span class="out-plat"></span></div></div>
+                        <div class="spacer"></div>
                         <div class="center">Terima Kasih & Selamat Jalan</div>
                     </div>
 
                     <div id="model-custom" class="receipt-container shadow-xl border model-view hidden">
-                        <div class="logo-display-container"><img class="logo-display-img" src=""></div>
                         <div id="custom-text-display"></div>
                     </div>
                 </div>
@@ -518,13 +327,9 @@
 
             <div id="view-wifi-wrapper" class="hidden w-full">
                 <div class="receipt-container shadow-xl border" style="padding-bottom: 30px;">
-                    <div class="center mb-4" style="font-family: 'Courier New'; font-size: 14px; font-weight: bold;">
-                        SCAN UNTUK KONEK WIFI
-                    </div>
+                    <div class="center mb-4" style="font-size: 14px; font-weight: bold;">SCAN UNTUK KONEK WIFI</div>
                     <div id="qrcode-box" class="flex justify-center p-2 mb-2 bg-white"></div>
-                    <div class="center mt-4 text-sm" style="font-family: 'Courier New'; font-weight: bold;">
-                        SSID: <span id="wifi-name-display">---</span>
-                    </div>
+                    <div class="center mt-4 text-sm font-bold">SSID: <span id="wifi-name-display">---</span></div>
                 </div>
             </div>
 
@@ -535,7 +340,7 @@
 <div class="fixed bottom-0 left-0 right-0 bg-white p-4 border-t shadow-[0_-10px_20px_rgba(0,0,0,0.1)] z-50">
     <div class="max-w-6xl mx-auto flex gap-4">
         <button onclick="handleCetakPrint()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-xl shadow-lg transition-all text-lg active:scale-[0.98]">
-            CETAK KE PRINTER THERMAL (Bluetooth)
+            CETAK KE PRINTER THERMAL (Native Text)
         </button>
     </div>
 </div>
@@ -549,11 +354,8 @@
         document.getElementById('txt-printer-name').innerText = "Printer: " + name;
         document.getElementById('txt-printer-battery').innerText = battery + "%";
         const dot = document.getElementById('status-dot');
-        if(name === "Terputus") {
-            dot.className = "w-2 h-2 rounded-full bg-red-500";
-        } else {
-            dot.className = "w-2 h-2 rounded-full bg-green-500 animate-pulse";
-        }
+        if(name === "Terputus") dot.className = "w-2 h-2 rounded-full bg-red-500";
+        else dot.className = "w-2 h-2 rounded-full bg-green-500 animate-pulse";
     };
 
     function switchTab(tab) {
@@ -582,16 +384,8 @@
         const pass = document.getElementById('wifi-pass').value;
         const box = document.getElementById('qrcode-box');
         box.innerHTML = "";
-        
         const wifiString = `WIFI:S:${ssid};T:WPA;P:${pass};;`;
-        
-        new QRCode(box, {
-            text: wifiString,
-            width: 150,
-            height: 150,
-            colorDark : "#000000",
-            colorLight : "#ffffff"
-        });
+        new QRCode(box, { text: wifiString, width: 150, height: 150, colorDark : "#000000", colorLight : "#ffffff" });
         document.getElementById('wifi-name-display').innerText = ssid;
     }
 
@@ -639,48 +433,8 @@
             }
         }
         updateReceipt();
-        applyPaperMargin();
         saveEditorState();
     });
-
-    const chkLogo = document.getElementById('in-show-logo');
-    const logoFile = document.getElementById('in-logo-file');
-    let currentLogoSrc = "";
-
-    chkLogo.addEventListener('change', function() {
-        document.getElementById('logo-controls').classList.toggle('hidden', !this.checked);
-        updateLogo();
-    });
-
-    logoFile.addEventListener('change', function(e) {
-        const file = e.target.files[0];
-        if (file) {
-            const reader = new FileReader();
-            reader.onload = function(event) { currentLogoSrc = event.target.result; updateLogo(); }
-            reader.readAsDataURL(file);
-        }
-    });
-
-    function updateLogo() {
-        saveEditorState();
-        const isShow = chkLogo.checked;
-        const size = document.getElementById('in-logo-size').value;
-        const align = document.getElementById('in-logo-align').value;
-        document.getElementById('lbl-logo-size').innerText = size + 'px';
-
-        document.querySelectorAll('.logo-display-container').forEach(container => {
-            if (isShow && currentLogoSrc !== "") {
-                container.style.display = 'block';
-                container.style.textAlign = align;
-                let img = container.querySelector('.logo-display-img');
-                img.src = currentLogoSrc;
-                img.style.width = size + 'px';
-                img.style.margin = align === 'center' ? '0 auto' : (align === 'right' ? '0 0 0 auto' : '0');
-            } else {
-                container.style.display = 'none';
-            }
-        });
-    }
 
     document.getElementById('in-scan-nota').addEventListener('change', function(e) {
         const file = e.target.files[0];
@@ -702,14 +456,16 @@
         const type = document.getElementById('in-desain').value;
         if (type === 'custom') {
             const display = document.getElementById('custom-text-display');
-            display.innerText = document.getElementById('in-custom-text').value;
-            const customContainer = document.getElementById('model-custom');
-            customContainer.style.fontFamily = document.getElementById('in-custom-font').value;
-            customContainer.style.fontSize = document.getElementById('in-custom-size').value + 'px';
-            customContainer.style.fontWeight = document.getElementById('in-custom-bold').checked ? 'bold' : 'normal';
-            customContainer.style.fontStyle = document.getElementById('in-custom-italic').checked ? 'italic' : 'normal';
-            customContainer.style.textDecoration = document.getElementById('in-custom-underline').checked ? 'underline' : 'none';
-            customContainer.style.textAlign = document.getElementById('in-custom-align').value;
+            display.innerHTML = ""; // Bersihkan
+            let rawLines = document.getElementById('in-custom-text').value.split('\n');
+            rawLines.forEach(l => {
+                let div = document.createElement('div');
+                div.className = "left"; // Default kiri
+                div.dataset.sx = "1";
+                div.dataset.sy = "1";
+                div.innerText = l || " "; // Spasi jika baris kosong
+                display.appendChild(div);
+            });
         } else {
             const kode = document.getElementById('in-kode').value;
             const nama = document.getElementById('in-nama').value;
@@ -754,8 +510,7 @@
     }
 
     // ==============================================================
-    // ENGINE BARU: EKSTRAKTOR TEKS + FORMATTING (UNTUK JSON ESC/POS)
-    // Mengganti cara lama (getFormattedText/Image) jadi pintar 1:1
+    // ENGINE NATIVE: EKSTRAKTOR TEKS KE JSON ESC/POS
     // ==============================================================
     function handleCetakPrint() {
         clearEditorSelection();
@@ -774,128 +529,61 @@
         }
 
         let activeModelElement = document.querySelector('.model-view:not(.hidden)');
-        showToast('🔄 Memproses Cetak Native Super Tajam... Mohon tunggu...');
+        showToast('🔄 Memproses Cetak Teks Native Asli... Mohon tunggu...');
 
         let printData = [];
         
-        // Cek Logo Aktif
-        let logoBase64 = "";
-        let logoContainer = activeModelElement.querySelector('.logo-display-container');
-        if (logoContainer && logoContainer.style.display !== 'none' && currentLogoSrc) {
-            logoBase64 = currentLogoSrc.split(',')[1];
-        }
+        // Ekstrak Teks Baris per Baris
+        const children = activeModelElement.children;
+        for (let i = 0; i < children.length; i++) {
+            const child = children[i];
+            // Abaikan yang tersembunyi
+            if (child.classList.contains('hidden') || child.style.display === 'none') continue;
 
-        if (activeModelElement.id === 'model-custom') {
-            let rawLines = document.getElementById('in-custom-text').value.split('\n');
-            let alignStr = document.getElementById('in-custom-align').value;
-            let alignNum = alignStr === 'center' ? 1 : (alignStr === 'right' ? 2 : 0);
-            let isBold = document.getElementById('in-custom-bold').checked ? 1 : 0;
-            let size = parseFloat(document.getElementById('in-custom-size').value);
-            let scaleMult = size > 15 ? 2 : 1;
+            let align = 0; // 0=Left, 1=Center, 2=Right
+            if (child.style.textAlign === 'center' || child.classList.contains('center')) align = 1;
+            else if (child.style.textAlign === 'right' || child.classList.contains('right')) align = 2;
 
-            rawLines.forEach(l => {
-                printData.push({ text: l, align: alignNum, bold: isBold, width: scaleMult, height: scaleMult });
-            });
-        } else {
-            // EKSTRAK TEKS DARI TEMPLATE DOM (Bisa mendeteksi Scale H/W editan)
-            const children = activeModelElement.children;
-            for (let i = 0; i < children.length; i++) {
-                const child = children[i];
-                if (child.classList.contains('hidden') || child.classList.contains('logo-display-container') || child.style.display === 'none') continue;
+            let isBold = (child.style.fontWeight === 'bold' || parseInt(child.style.fontWeight) >= 600 || child.classList.contains('fw-bold')) ? 1 : 0;
 
-                let style = window.getComputedStyle(child);
-                let align = 0; // 0=Left, 1=Center, 2=Right
-                if (style.textAlign === 'center' || child.classList.contains('center')) align = 1;
-                else if (style.textAlign === 'right' || child.classList.contains('right')) align = 2;
+            let sx = parseInt(child.dataset.sx) || 1;
+            let sy = parseInt(child.dataset.sy) || 1;
 
-                let isBold = (style.fontWeight === 'bold' || parseInt(style.fontWeight) >= 600 || child.classList.contains('fw-bold')) ? 1 : 0;
+            let text = "";
+            let maxLen = sx >= 2 ? 16 : 32; // Jika ukuran font 2x, batas spasi kolom hanya 16 karakter. Normal 32.
 
-                // Membaca editan tinggi (Scale Y)
-                let sy = parseFloat(child.dataset.sy);
-                if(isNaN(sy)) {
-                    if(child.outerHTML.includes('scaleY(1.6)') || child.outerHTML.includes('scaleY(1.8)')) sy = 2;
-                    else sy = 1;
-                }
-                
-                // Membaca editan lebar (Scale X)
-                let sx = parseFloat(child.dataset.sx);
-                if(isNaN(sx)) {
-                    if(child.outerHTML.includes('scaleX(1.5)') || child.outerHTML.includes('scaleX(2)')) sx = 2;
-                    else sx = 1;
-                }
+            if (child.tagName === 'BR' || child.classList.contains('spacer')) {
+                text = " "; 
+            } else if (child.classList.contains('dashed-line')) {
+                text = "-".repeat(maxLen);
+            } else if (child.classList.contains('solid-line')) {
+                text = "=".repeat(maxLen);
+            } else if (child.classList.contains('flex-between')) {
+                // LOGIKA KOLOM GANDA
+                let left = child.children.length > 0 ? child.children[0].innerText.replace(/\n/g, '').trim() : '';
+                let right = child.children.length > 1 ? child.children[1].innerText.replace(/\n/g, '').trim() : '';
+                let pad = Math.max(1, maxLen - left.length - right.length);
+                text = left + " ".repeat(pad) + right;
+                align = 0; // Paksa Left agar kolom berfungsi
+            } else {
+                text = child.innerText.trim();
+            }
 
-                // Konversi skala float ke integer ESC/POS (Maksimal 8x)
-                let hMult = sy >= 1.5 ? 2 : 1;
-                if (sy >= 2.5) hMult = 3;
-                let wMult = sx >= 1.5 ? 2 : 1;
-                if (sx >= 2.5) wMult = 3;
-
-                // Handle Sub-Header Text-XL (Khusus SPBU)
-                if (child.classList.contains('text-xl')) {
-                    Array.from(child.children).forEach(sub => {
-                        let subStyle = window.getComputedStyle(sub);
-                        let subAlign = 0;
-                        if (subStyle.textAlign === 'center' || sub.classList.contains('center')) subAlign = 1;
-                        else if (subStyle.textAlign === 'right' || sub.classList.contains('right')) subAlign = 2;
-                        
-                        let subSy = parseFloat(sub.dataset.sy);
-                        if(isNaN(subSy)) subSy = (sub.outerHTML.includes('scaleY(1.6)') || subStyle.transform !== 'none') ? 2 : 1;
-                        let subH = subSy >= 1.5 ? 2 : 1;
-                        
-                        let subSx = parseFloat(sub.dataset.sx);
-                        if(isNaN(subSx)) subSx = 1;
-                        let subW = subSx >= 1.5 ? 2 : 1;
-
-                        if (sub.innerText.trim()) {
-                            printData.push({ text: sub.innerText.trim(), align: subAlign, bold: 1, width: subW, height: subH });
-                        }
-                    });
-                    continue;
-                }
-
-                let text = "";
-                // Logika Spasi Kolom Ganda (Tergantung dari Lebar Font)
-                let maxLen = wMult >= 2 ? 16 : 32; // Jika font lebar ganda, batas spasi hanya 16 karakter
-
-                if (child.tagName === 'BR' || child.classList.contains('spacer')) {
-                    text = " "; // Spasi kosong
-                } else if (child.classList.contains('dashed-line')) {
-                    text = "-".repeat(maxLen);
-                } else if (child.classList.contains('solid-line')) {
-                    text = "=".repeat(maxLen);
-                } else if (child.classList.contains('flex-between')) {
-                    let left = child.children.length > 0 ? child.children[0].innerText.replace(/\n/g, '').trim() : '';
-                    let right = child.children.length > 1 ? child.children[1].innerText.replace(/\n/g, '').trim() : '';
-                    let pad = Math.max(1, maxLen - left.length - right.length);
-                    text = left + " ".repeat(pad) + right;
-                    align = 0; // Paksa Left agar spasi pas
-                } else if (child.classList.contains('flex-row')) {
-                    let left = child.children.length > 0 ? child.children[0].innerText.replace(/\n/g, '').trim() : '';
-                    let right = child.children.length > 1 ? child.children[1].innerText.replace(/\n/g, '').trim() : '';
-                    let rPad = wMult >= 2 ? 7 : 14;
-                    text = left.padEnd(rPad, ' ') + right;
-                    align = 0;
-                } else {
-                    text = child.innerText.trim();
-                }
-
-                if (text) {
-                    let lines = text.split('\n');
-                    lines.forEach(l => {
-                        printData.push({ text: l, align: align, bold: isBold, width: wMult, height: hMult });
-                    });
-                }
+            if (text) {
+                let lines = text.split('\n');
+                lines.forEach(l => {
+                    printData.push({ text: l, align: align, bold: isBold, width: sx, height: sy });
+                });
             }
         }
 
-        // Kirim Array ke Android Java
         let jsonPayload = JSON.stringify(printData);
 
         if (typeof AndroidPrinter !== 'undefined' && AndroidPrinter.cetakStrukDinamic) {
-            AndroidPrinter.cetakStrukDinamic(jsonPayload, logoBase64);
+            AndroidPrinter.cetakStrukDinamic(jsonPayload, ""); // Logo ditiadakan krn fokus native text
         } else {
-            console.log("JSON Payload:", jsonPayload);
-            alert("⚠️ Harap update APK Android Anda untuk menggunakan sistem cetak Native JSON yang baru.");
+            console.log("Data Native siap dikirim:", printData);
+            alert("⚠️ Harap update Aplikasi Android Anda (MainActivity.java) untuk mendukung Native JSON.");
         }
     }
 
@@ -907,20 +595,11 @@
     }
 
     // ==========================================
-    // LOGIKA ADVANCED EDITOR (MULTI-SELECT & PADDING)
+    // LOGIKA ADVANCED EDITOR (MULTI-SELECT UNTUK NATIVE)
     // ==========================================
     let editorSelectedElements = [];
     let editorUndoStack = [];
     let editorRedoStack = [];
-
-    function applyPaperMargin() {
-        const activeModel = document.querySelector('.model-view:not(.hidden)');
-        if(!activeModel) return;
-        const ml = document.getElementById('paper-pl').value;
-        const mr = document.getElementById('paper-pr').value;
-        activeModel.style.paddingLeft = ml + 'mm';
-        activeModel.style.paddingRight = mr + 'mm';
-    }
 
     function saveEditorState() {
         const activeModel = document.querySelector('.model-view:not(.hidden)');
@@ -948,11 +627,6 @@
         }
     }
 
-    function changeZoom(val) {
-        document.getElementById('zoom-container').style.transform = `scale(${val})`;
-        document.getElementById('lbl-zoom').innerText = Math.round(val * 100) + '%';
-    }
-
     function clearEditorSelection() {
         editorSelectedElements.forEach(el => {
             el.classList.remove('editable-active');
@@ -973,6 +647,7 @@
         if(activeModel && activeModel.contains(e.target) && e.target !== activeModel) {
             let target = e.target;
             
+            // Cari elemen baris parent (jangan span)
             if(target.tagName === 'SPAN' && target.parentElement !== activeModel && target.parentElement.tagName !== 'DIV') {
                 target = target.parentElement;
             }
@@ -988,88 +663,77 @@
             
             target.focus();
         } else {
-            if (!e.target.closest('#strukForm')) {
-                clearEditorSelection();
-            }
+            if (!e.target.closest('#strukForm')) clearEditorSelection();
         }
     });
 
     document.addEventListener('focusout', (e) => {
-        if(editorSelectedElements.includes(e.target)) {
-            saveEditorState();
-        }
+        if(editorSelectedElements.includes(e.target)) saveEditorState();
     });
 
     function syncToolbarWithElement(el) {
         const style = window.getComputedStyle(el);
         
-        document.getElementById('ed-font').value = el.style.fontFamily ? el.style.fontFamily.replace(/['"]/g, '') : 'inherit';
-        document.getElementById('ed-size').value = parseInt(style.fontSize) || '';
-        document.getElementById('ed-letter').value = parseFloat(style.letterSpacing) || 0;
-        
         const setBtnActive = (id, isActive) => { document.getElementById(id).style.backgroundColor = isActive ? '#3b82f6' : ''; };
+        setBtnActive('ed-bold', style.fontWeight === 'bold' || parseInt(style.fontWeight) > 400 || el.classList.contains('fw-bold'));
 
-        setBtnActive('ed-bold', style.fontWeight === 'bold' || parseInt(style.fontWeight) > 400);
-        setBtnActive('ed-italic', style.fontStyle === 'italic');
-        setBtnActive('ed-under', style.textDecorationLine.includes('underline'));
-
-        let sx = el.dataset.sx || 1;
-        let sy = el.dataset.sy || 1;
-        
-        if (el.outerHTML.includes('scaleY(1.6)')) sy = 2; // Sinkronisasi tampilan header lawas
-        
-        document.getElementById('ed-sx').value = sx;
-        document.getElementById('ed-sy').value = sy;
+        let sx = el.dataset.sx || "1";
+        let sy = el.dataset.sy || "1";
+        document.getElementById('ed-scale').value = `${sx}x${sy}`;
     }
 
-    function applyStyle(property, value) {
+    function applyNativeStyle(property, value) {
         if(editorSelectedElements.length === 0) return;
         saveEditorState();
         editorSelectedElements.forEach(el => {
             el.style[property] = value;
+            // Hapus class bawaan jika ada agar tidak bentrok
+            if(property === 'textAlign') {
+                el.classList.remove('center', 'left', 'right');
+            }
         });
     }
 
-    function toggleStyle(property, activeValue, normalValue, btnObj) {
+    function toggleNativeBold(btnObj) {
         if(editorSelectedElements.length === 0) return;
         saveEditorState();
         
         const firstEl = editorSelectedElements[0];
-        const current = window.getComputedStyle(firstEl)[property];
-        const isApplying = !(current.includes(activeValue) || (property === 'fontWeight' && parseInt(current) > 400));
+        const style = window.getComputedStyle(firstEl);
+        const isCurrentlyBold = style.fontWeight === 'bold' || parseInt(style.fontWeight) > 400 || firstEl.classList.contains('fw-bold');
         
         editorSelectedElements.forEach(el => {
-            el.style[property] = isApplying ? activeValue : normalValue;
+            if (isCurrentlyBold) {
+                el.style.fontWeight = 'normal';
+                el.classList.remove('fw-bold');
+            } else {
+                el.style.fontWeight = 'bold';
+            }
         });
         
-        btnObj.style.backgroundColor = isApplying ? '#3b82f6' : '';
+        btnObj.style.backgroundColor = !isCurrentlyBold ? '#3b82f6' : '';
     }
 
-    function applyTransform(type, val, isRelative = false) {
+    function applyNativeScale(val) {
         if(editorSelectedElements.length === 0) return;
         saveEditorState();
         
+        let parts = val.split('x');
+        let sx = parts[0];
+        let sy = parts[1];
+
         editorSelectedElements.forEach(el => {
-            let tx = parseFloat(el.dataset.tx || 0);
-            let ty = parseFloat(el.dataset.ty || 0);
-            let sx = parseFloat(el.dataset.sx || 1);
-            let sy = parseFloat(el.dataset.sy || 1);
-            
-            // Override auto-scale dari template
-            if (el.outerHTML.includes('scaleY(1.6)') && isNaN(parseFloat(el.dataset.sy))) sy = 2;
-
-            if(type === 'reset') { tx = 0; ty = 0; }
-            else if(type === 'tx') { tx = isRelative ? tx + parseFloat(val) : parseFloat(val); }
-            else if(type === 'ty') { ty = isRelative ? ty + parseFloat(val) : parseFloat(val); }
-            else if(type === 'sx') { sx = parseFloat(val); }
-            else if(type === 'sy') { sy = parseFloat(val); }
-
-            el.dataset.tx = tx;
-            el.dataset.ty = ty;
             el.dataset.sx = sx;
             el.dataset.sy = sy;
-
-            el.style.transform = `translate(${tx}px, ${ty}px) scaleX(${sx}) scaleY(${sy})`;
+            // Visual Preview di Web
+            el.style.transform = `scaleX(${sx}) scaleY(${sy})`;
+            el.style.transformOrigin = el.style.textAlign === 'center' ? 'center top' : (el.style.textAlign === 'right' ? 'right top' : 'left top');
+            el.style.display = 'inline-block';
+            el.style.width = '100%';
+            
+            // Fix margin preview agar tidak nabrak jika diperbesar
+            if (sy == "2") el.style.marginBottom = "10px";
+            else el.style.marginBottom = "0px";
         });
     }
 
@@ -1083,7 +747,8 @@
         } else {
             el.classList.add('flex-between');
             let content = el.innerText;
-            el.innerHTML = `<div>${content}</div><div>Nilai Kanan</div>`;
+            el.innerHTML = `<div>${content}</div><div>10000</div>`;
+            el.style.textAlign = 'left'; // Reset align
         }
     }
 
@@ -1146,10 +811,9 @@
     });
     
     document.querySelectorAll('input, textarea, select').forEach(input => {
-        if(!input.id.startsWith('ed-') && !input.id.startsWith('paper-') && input.id !== 'in-scan-nota' && input.id !== 'in-logo-file') {
+        if(!input.id.startsWith('ed-') && input.id !== 'in-scan-nota' && input.id !== 'in-logo-file') {
             input.addEventListener('input', () => {
                 updateReceipt();
-                if(input.id.includes('logo')) updateLogo();
                 if(input.id.includes('wifi')) buatWifiQR(); 
             });
         }
