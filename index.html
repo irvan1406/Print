@@ -29,7 +29,7 @@
         .text-xl { font-size: 15px; }
         .w-full { width: 100%; }
 
-        /* Template SPBU Default (Visual Preview Saja, akan diterjemahkan ke Native di Java) */
+        /* Template SPBU Default */
         #model-1, #model-2, #model-3, #model-5 { font-family: 'Courier New', Courier, monospace; letter-spacing: 0px; font-size: 11px; }
         #model-4 { font-family: 'Courier New', Courier, monospace; font-size: 11px; padding: 5px; width: 100%; }
         #model-4 .text-line { line-height: 1.2; margin-bottom: 0px; white-space: nowrap; }
@@ -39,8 +39,8 @@
         #model-4 .spacer { height: 10px; }
 
         /* CSS KHUSUS EDITOR */
-        .editable-active { outline: 2px dashed #3b82f6; outline-offset: 2px; cursor: text; background-color: rgba(59, 130, 246, 0.05); }
-        .model-view > * { cursor: pointer; transition: outline 0.1s; }
+        .editable-active { outline: 2px dashed #3b82f6; outline-offset: 2px; cursor: text; background-color: rgba(59, 130, 246, 0.05); min-height: 14px; }
+        .model-view > * { cursor: pointer; transition: outline 0.1s; min-height: 12px; }
         .model-view > *:hover:not(.editable-active) { outline: 1px dotted #9ca3af; }
 
         @media print {
@@ -102,7 +102,7 @@
                 <h3 class="font-bold text-yellow-800 border-b pb-1 text-sm">Mode Custom (Teks Mentah)</h3>
                 <div>
                     <label class="block text-xs font-bold mb-1">Ketikan Isi Nota Anda:</label>
-                    <textarea id="in-custom-text" class="w-full h-64 border p-2 rounded text-xs font-mono leading-relaxed shadow-inner" placeholder="Silakan ketik hasil scan di sini..."></textarea>
+                    <textarea id="in-custom-text" class="w-full h-64 border p-2 rounded text-xs font-mono leading-relaxed shadow-inner" placeholder="Silakan ketik hasil scan di sini...&#10;(Gunakan tombol Enter untuk baris kosong)"></textarea>
                     <p class="text-[10px] text-gray-500 mt-1">*Gunakan editor di sebelah kanan (layar struk) untuk mengatur Bold, Ukuran 2x, dll.</p>
                 </div>
             </div>
@@ -209,7 +209,7 @@
                 <div class="lg:col-span-2 flex items-center gap-2 border-t border-slate-600 pt-2 mt-1">
                     <span class="text-[11px] font-bold text-yellow-400">MARGIN KIRI (SPASI):</span>
                     <input type="number" id="paper-margin" class="bg-slate-800 w-16 rounded px-2 py-1 text-center outline-none border border-slate-500" value="0" min="0" max="15">
-                    <span class="text-[10px] text-gray-400 ml-1 leading-tight flex-1">*Catatan: Printer Thermal mentok 32 huruf per baris. Menambah margin spasi akan mengurangi jatah huruf Anda.</span>
+                    <span class="text-[10px] text-gray-400 ml-1 leading-tight flex-1">*Catatan: Menambah margin spasi akan mengurangi sisa jatah 32 huruf Anda.</span>
                 </div>
             </div>
             
@@ -475,7 +475,8 @@
                 div.className = "left"; 
                 div.dataset.sx = "1";
                 div.dataset.sy = "1";
-                div.innerText = l || " "; 
+                // FIX ENTER: Jika user kasih enter (baris kosong), gunakan no-break space agar div terbaca utuh
+                div.innerHTML = l.trim() === "" ? "&nbsp;" : l; 
                 display.appendChild(div);
             });
         } else {
@@ -522,7 +523,8 @@
     }
 
     // ==============================================================
-    // ENGINE NATIVE: EKSTRAKTOR TEKS KE JSON ESC/POS (Dengan Fitur Margin Kiri)
+    // ENGINE NATIVE: EKSTRAKTOR TEKS KE JSON ESC/POS 
+    // (FIX BUG: Mencegah penghapusan spasi/enter oleh perintah trim)
     // ==============================================================
     function handleCetakPrint() {
         clearEditorSelection();
@@ -545,7 +547,6 @@
 
         let printData = [];
         
-        // Ambil Margin Kiri Global (Spasi)
         let marginSpaces = parseInt(document.getElementById('paper-margin').value) || 0;
         let prefixSpace = " ".repeat(marginSpaces);
         
@@ -575,7 +576,6 @@
                 text = prefixSpace + "=".repeat(Math.max(1, maxLen - marginSpaces));
                 align = 0;
             } else if (child.classList.contains('flex-between')) {
-                // LOGIKA KOLOM GANDA + MARGIN KIRI
                 let left = child.children.length > 0 ? child.children[0].innerText.replace(/\n/g, '').trim() : '';
                 let right = child.children.length > 1 ? child.children[1].innerText.replace(/\n/g, '').trim() : '';
                 
@@ -584,17 +584,26 @@
                 text = prefixSpace + left + " ".repeat(pad) + right;
                 align = 0; 
             } else {
-                text = child.innerText.trim();
-                // Terapkan Margin Kiri (Spasi) HANYA untuk teks yang rata kiri
-                if(align === 0 && text !== "") {
-                    text = prefixSpace + text;
+                // FIX ENTER: Jangan trim baris yang murni sengaja dikosongkan
+                let rawText = child.innerText;
+                // Cek jika teks asli kosong atau berisi No-Break Space bawaan editor/html
+                if (rawText.replace(/\u00a0/g, ' ').trim() === "" || child.innerHTML === '<br>' || child.innerHTML === '&nbsp;') {
+                    text = " "; // Ini krusial: Memaksa printer memajukan 1 baris
+                } else {
+                    text = rawText.trim();
+                    if(align === 0) {
+                        text = prefixSpace + text;
+                    }
                 }
             }
 
-            if (text) {
+            // Jika text BUKAN String kosong (minimal ia berisi spasi " ")
+            if (text !== "") {
                 let lines = text.split('\n');
                 lines.forEach(l => {
-                    printData.push({ text: l, align: align, bold: isBold, width: sx, height: sy });
+                    // Jika user enter berulang kali dalam 1 div, ubah sisa \n jadi spasi
+                    let printL = l.replace(/\u00a0/g, ' ').trim() === "" ? " " : l;
+                    printData.push({ text: printL, align: align, bold: isBold, width: sx, height: sy });
                 });
             }
         }
@@ -602,7 +611,7 @@
         let jsonPayload = JSON.stringify(printData);
 
         if (typeof AndroidPrinter !== 'undefined' && AndroidPrinter.cetakStrukDinamic) {
-            AndroidPrinter.cetakStrukDinamic(jsonPayload, ""); // Logo ditiadakan untuk native text
+            AndroidPrinter.cetakStrukDinamic(jsonPayload, ""); 
         } else {
             console.log("Data Native siap dikirim:", printData);
             alert("⚠️ Harap update Aplikasi Android Anda untuk mendukung Native JSON.");
@@ -750,7 +759,6 @@
         editorSelectedElements.forEach(el => {
             el.dataset.sx = sx;
             el.dataset.sy = sy;
-            // Visual Preview di Web
             el.style.transform = `scaleX(${sx}) scaleY(${sy})`;
             el.style.transformOrigin = el.style.textAlign === 'center' ? 'center top' : (el.style.textAlign === 'right' ? 'right top' : 'left top');
             el.style.display = 'inline-block';
@@ -811,6 +819,12 @@
                 if(!editorSelectedElements.includes(target) && target !== activeModel) {
                     editorSelectedElements.push(target);
                     target.classList.add('editable-active');
+                }
+            } else if (el.innerHTML === '<br>' || el.innerHTML === '&nbsp;') {
+                 // Tambahkan seleksi untuk baris kosong
+                 if(!editorSelectedElements.includes(el) && el !== activeModel) {
+                    editorSelectedElements.push(el);
+                    el.classList.add('editable-active');
                 }
             }
         });
