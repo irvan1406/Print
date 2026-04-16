@@ -13,7 +13,8 @@
         .receipt-container {
             font-family: 'Courier New', Courier, monospace;
             width: 57mm; box-sizing: border-box; background: white; color: black;
-            font-size: 11px; line-height: 1.2; padding: 4.5mm; margin: 0 auto; position: relative;
+            font-size: 11px; line-height: 1.2; padding: 4.5mm 1mm; /* Default Margin Kiri Kanan 1mm agar pas */
+            margin: 0 auto; position: relative;
         }
         .center { text-align: center; }
         .left { text-align: left; }
@@ -255,7 +256,7 @@
             <div class="flex justify-between items-center border-b border-slate-600 pb-2">
                 <div class="font-bold text-sm text-yellow-400 flex items-center gap-2">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
-                    PRO EDITOR KANVAS (Klik Teks Untuk Edit)
+                    PRO EDITOR KANVAS
                 </div>
                 <div class="flex gap-2">
                     <button onclick="editorUndo()" class="bg-slate-600 hover:bg-slate-500 px-2 py-1 rounded text-xs shadow" title="Undo">↩ Undo</button>
@@ -302,17 +303,6 @@
                     </div>
                 </div>
 
-                <div class="col-span-2 flex gap-2 items-center bg-slate-700 p-1 rounded">
-                    <div class="flex items-center gap-1">
-                        <span class="text-[10px]">ML:</span>
-                        <input type="number" id="ed-ml" class="bg-slate-600 w-12 rounded px-1 text-center" onchange="applyStyle('marginLeft', this.value + 'px')" title="Margin Kiri">
-                    </div>
-                    <div class="flex items-center gap-1">
-                        <span class="text-[10px]">MR:</span>
-                        <input type="number" id="ed-mr" class="bg-slate-600 w-12 rounded px-1 text-center" onchange="applyStyle('marginRight', this.value + 'px')" title="Margin Kanan">
-                    </div>
-                </div>
-
                 <div class="col-span-2 lg:col-span-1 flex justify-center items-center bg-slate-700 p-1 rounded relative h-[60px]">
                     <div class="absolute text-[9px] top-1 left-1 opacity-50">Nudge</div>
                     <div class="grid grid-cols-3 gap-1 w-16">
@@ -328,11 +318,21 @@
                     </div>
                 </div>
 
-                <div class="col-span-2 lg:col-span-3 flex flex-wrap gap-2 items-center bg-slate-700 p-2 rounded">
-                    <button class="bg-green-600 hover:bg-green-500 px-3 py-1 rounded shadow text-[11px] font-bold" onclick="editorDuplicateRow()">+ Duplikat Baris</button>
-                    <button class="bg-red-600 hover:bg-red-500 px-3 py-1 rounded shadow text-[11px] font-bold" onclick="editorDeleteRow()">🗑 Hapus Baris</button>
-                    <div class="flex-1"></div>
-                    <button class="bg-blue-600 hover:bg-blue-500 px-3 py-1 rounded shadow text-[11px] font-bold" onclick="editorSelectAll()">Pilih Semua (Ctrl+A)</button>
+                <div class="col-span-2 lg:col-span-4 flex flex-col gap-2 bg-slate-700 p-2 rounded">
+                    <div class="flex flex-wrap gap-2 items-center">
+                        <button class="bg-green-600 hover:bg-green-500 px-3 py-1 rounded shadow text-[11px] font-bold" onclick="editorDuplicateRow()">+ Duplikat Baris</button>
+                        <button class="bg-red-600 hover:bg-red-500 px-3 py-1 rounded shadow text-[11px] font-bold" onclick="editorDeleteRow()">🗑 Hapus Baris</button>
+                        <div class="flex-1"></div>
+                        <button class="bg-blue-600 hover:bg-blue-500 px-3 py-1 rounded shadow text-[11px] font-bold" onclick="editorSelectAll()">Pilih Semua (Ctrl+A)</button>
+                    </div>
+                    
+                    <div class="flex items-center gap-2 border-t border-slate-600 pt-2 mt-1">
+                        <span class="text-[11px] font-bold text-yellow-400">MARGIN KERTAS (mm):</span>
+                        <span class="text-[11px] ml-2">Kiri:</span>
+                        <input type="number" id="paper-pl" class="bg-slate-800 w-12 rounded px-1 text-center outline-none border border-slate-500" value="1" onchange="applyPaperMargin()">
+                        <span class="text-[11px] ml-2">Kanan:</span>
+                        <input type="number" id="paper-pr" class="bg-slate-800 w-12 rounded px-1 text-center outline-none border border-slate-500" value="1" onchange="applyPaperMargin()">
+                    </div>
                 </div>
             </div>
             
@@ -558,13 +558,8 @@
     function switchTab(tab) {
         currentTab = tab;
         document.getElementById('panel-spbu').classList.toggle('hidden', tab !== 'spbu');
-        
-        // Hide Toolbar in Wifi Tab
         document.getElementById('adv-toolbar').classList.toggle('hidden', tab !== 'spbu');
-        
-        // Setup wrappers
         document.getElementById('view-spbu-wrapper').parentElement.classList.toggle('hidden', tab !== 'spbu');
-        
         document.getElementById('panel-wifi').classList.toggle('hidden', tab !== 'wifi');
         document.getElementById('view-wifi-wrapper').classList.toggle('hidden', tab !== 'wifi');
         
@@ -643,6 +638,7 @@
             }
         }
         updateReceipt();
+        applyPaperMargin(); // Terapkan nilai input Margin Kertas secara dinamis
         saveEditorState();
     });
 
@@ -857,37 +853,30 @@
         }
 
         let activeModelElement = document.querySelector('.model-view:not(.hidden)');
-        
         showToast('🔄 Memproses Kualitas Teks Tajam 1:1... Mohon tunggu...');
         
-        // 1. Simpan State Asli
         let currentZoom = document.getElementById('zoom-container').style.transform;
-        let oldPadding = activeModelElement.style.padding;
         let oldBorder = activeModelElement.style.border;
         let oldBoxShadow = activeModelElement.style.boxShadow;
         let oldFilter = activeModelElement.style.filter;
         
-        // 2. Manipulasi CSS Sesaat untuk Ketajaman Printer
         document.getElementById('zoom-container').style.transform = 'scale(1)';
-        activeModelElement.style.padding = '0mm 1mm'; // Kurangi margin agar pas 58mm
+        
+        // Sengaja TIDAK mengubah padding di sini agar Margin Kertas dari user tetap terbawa saat di-render
         activeModelElement.style.border = 'none';
         activeModelElement.style.boxShadow = 'none';
-        activeModelElement.style.filter = 'grayscale(100%) contrast(200%)'; // Paksa warna hitam pekat
+        activeModelElement.style.filter = 'grayscale(100%) contrast(200%)';
 
-        // Beri waktu 50ms agar browser merender CSS baru sebelum difoto html2canvas
         setTimeout(() => {
-            // Kalkulasi lebar div untuk dijadikan patokan Skala (Target Mutlak 384 pixel)
             let rect = activeModelElement.getBoundingClientRect();
             let exactScale = 384 / rect.width; 
 
             html2canvas(activeModelElement, {
-                scale: exactScale, // SKALA PRESISI: 1 pixel HTML = 1 Dot Printer (Tidak ada Pengecilan di Java)
+                scale: exactScale,
                 useCORS: true,
                 backgroundColor: "#ffffff"
             }).then(canvas => {
-                // 3. Kembalikan ke tampilan asli layar HP
                 document.getElementById('zoom-container').style.transform = currentZoom;
-                activeModelElement.style.padding = oldPadding;
                 activeModelElement.style.border = oldBorder;
                 activeModelElement.style.boxShadow = oldBoxShadow;
                 activeModelElement.style.filter = oldFilter;
@@ -906,7 +895,6 @@
                 }
             }).catch(err => {
                 document.getElementById('zoom-container').style.transform = currentZoom;
-                activeModelElement.style.padding = oldPadding;
                 activeModelElement.style.border = oldBorder;
                 activeModelElement.style.boxShadow = oldBoxShadow;
                 activeModelElement.style.filter = oldFilter;
@@ -923,11 +911,21 @@
     }
 
     // ==========================================
-    // LOGIKA ADVANCED EDITOR (TOOLBAR)
+    // LOGIKA ADVANCED EDITOR (MULTI-SELECT & PADDING)
     // ==========================================
-    let editorSelectedEl = null;
+    let editorSelectedElements = []; // SEKARANG ARRAY UNTUK MULTI-SELECT
     let editorUndoStack = [];
     let editorRedoStack = [];
+
+    // Terapkan Margin Kertas Kiri dan Kanan ke dalam wadah struk utama
+    function applyPaperMargin() {
+        const activeModel = document.querySelector('.model-view:not(.hidden)');
+        if(!activeModel) return;
+        const ml = document.getElementById('paper-pl').value;
+        const mr = document.getElementById('paper-pr').value;
+        activeModel.style.paddingLeft = ml + 'mm';
+        activeModel.style.paddingRight = mr + 'mm';
+    }
 
     function saveEditorState() {
         const activeModel = document.querySelector('.model-view:not(.hidden)');
@@ -961,12 +959,12 @@
     }
 
     function clearEditorSelection() {
-        if(editorSelectedEl) {
-            editorSelectedEl.classList.remove('editable-active');
-            editorSelectedEl.contentEditable = "false";
-            editorSelectedEl = null;
-            document.getElementById('adv-controls').classList.add('pointer-events-none', 'opacity-50');
-        }
+        editorSelectedElements.forEach(el => {
+            el.classList.remove('editable-active');
+            el.contentEditable = "false";
+        });
+        editorSelectedElements = [];
+        document.getElementById('adv-controls').classList.add('pointer-events-none', 'opacity-50');
     }
 
     document.addEventListener('click', (e) => {
@@ -986,14 +984,14 @@
             if(target.tagName === 'IMG' || target.classList.contains('logo-display-container')) return;
             
             clearEditorSelection();
-            editorSelectedEl = target;
-            editorSelectedEl.classList.add('editable-active');
-            editorSelectedEl.contentEditable = "true";
+            editorSelectedElements.push(target); // Pilih satu elemen
+            target.classList.add('editable-active');
+            target.contentEditable = "true";
             
             document.getElementById('adv-controls').classList.remove('pointer-events-none', 'opacity-50');
-            syncToolbarWithElement(editorSelectedEl);
+            syncToolbarWithElement(target);
             
-            editorSelectedEl.focus();
+            target.focus();
         } else {
             if (!e.target.closest('#strukForm')) {
                 clearEditorSelection();
@@ -1002,7 +1000,7 @@
     });
 
     document.addEventListener('focusout', (e) => {
-        if(e.target === editorSelectedEl) {
+        if(editorSelectedElements.includes(e.target)) {
             saveEditorState();
         }
     });
@@ -1030,90 +1028,128 @@
         document.getElementById('ed-sy').value = sy;
     }
 
+    // Terapkan ke SELURUH elemen yang diblok
     function applyStyle(property, value) {
-        if(!editorSelectedEl) return;
+        if(editorSelectedElements.length === 0) return;
         saveEditorState();
-        editorSelectedEl.style[property] = value;
+        editorSelectedElements.forEach(el => {
+            el.style[property] = value;
+        });
     }
 
+    // Toggle Style ke SELURUH elemen yang diblok
     function toggleStyle(property, activeValue, normalValue, btnObj) {
-        if(!editorSelectedEl) return;
-        saveEditorState();
-        const current = window.getComputedStyle(editorSelectedEl)[property];
-        if (current.includes(activeValue) || (property === 'fontWeight' && parseInt(current) > 400)) {
-            editorSelectedEl.style[property] = normalValue;
-            btnObj.style.backgroundColor = '';
-        } else {
-            editorSelectedEl.style[property] = activeValue;
-            btnObj.style.backgroundColor = '#3b82f6';
-        }
-    }
-
-    function applyTransform(type, val, isRelative = false) {
-        if(!editorSelectedEl) return;
+        if(editorSelectedElements.length === 0) return;
         saveEditorState();
         
-        let tx = parseFloat(editorSelectedEl.dataset.tx || 0);
-        let ty = parseFloat(editorSelectedEl.dataset.ty || 0);
-        let sx = parseFloat(editorSelectedEl.dataset.sx || 1);
-        let sy = parseFloat(editorSelectedEl.dataset.sy || 1);
-
-        if(type === 'reset') { tx = 0; ty = 0; }
-        else if(type === 'tx') { tx = isRelative ? tx + parseFloat(val) : parseFloat(val); }
-        else if(type === 'ty') { ty = isRelative ? ty + parseFloat(val) : parseFloat(val); }
-        else if(type === 'sx') { sx = parseFloat(val); }
-        else if(type === 'sy') { sy = parseFloat(val); }
-
-        editorSelectedEl.dataset.tx = tx;
-        editorSelectedEl.dataset.ty = ty;
-        editorSelectedEl.dataset.sx = sx;
-        editorSelectedEl.dataset.sy = sy;
-
-        editorSelectedEl.style.transform = `translate(${tx}px, ${ty}px) scaleX(${sx}) scaleY(${sy})`;
+        // Gunakan elemen pertama sebagai patokan toggle
+        const firstEl = editorSelectedElements[0];
+        const current = window.getComputedStyle(firstEl)[property];
+        const isApplying = !(current.includes(activeValue) || (property === 'fontWeight' && parseInt(current) > 400));
+        
+        editorSelectedElements.forEach(el => {
+            el.style[property] = isApplying ? activeValue : normalValue;
+        });
+        
+        btnObj.style.backgroundColor = isApplying ? '#3b82f6' : '';
     }
 
-    function toggleDuaKolom() {
-        if(!editorSelectedEl) return;
+    // Terapkan Nudge/Scale ke SELURUH elemen yang diblok
+    function applyTransform(type, val, isRelative = false) {
+        if(editorSelectedElements.length === 0) return;
         saveEditorState();
-        if(editorSelectedEl.classList.contains('flex-between')) {
-            editorSelectedEl.classList.remove('flex-between');
-            editorSelectedEl.innerHTML = editorSelectedEl.innerText.replace(/\n/g, ' ');
+        
+        editorSelectedElements.forEach(el => {
+            let tx = parseFloat(el.dataset.tx || 0);
+            let ty = parseFloat(el.dataset.ty || 0);
+            let sx = parseFloat(el.dataset.sx || 1);
+            let sy = parseFloat(el.dataset.sy || 1);
+
+            if(type === 'reset') { tx = 0; ty = 0; }
+            else if(type === 'tx') { tx = isRelative ? tx + parseFloat(val) : parseFloat(val); }
+            else if(type === 'ty') { ty = isRelative ? ty + parseFloat(val) : parseFloat(val); }
+            else if(type === 'sx') { sx = parseFloat(val); }
+            else if(type === 'sy') { sy = parseFloat(val); }
+
+            el.dataset.tx = tx;
+            el.dataset.ty = ty;
+            el.dataset.sx = sx;
+            el.dataset.sy = sy;
+
+            el.style.transform = `translate(${tx}px, ${ty}px) scaleX(${sx}) scaleY(${sy})`;
+        });
+    }
+
+    // Hanya ubah elemen pertama untuk fungsi dua kolom agar tidak berantakan
+    function toggleDuaKolom() {
+        if(editorSelectedElements.length === 0) return;
+        saveEditorState();
+        let el = editorSelectedElements[0];
+        if(el.classList.contains('flex-between')) {
+            el.classList.remove('flex-between');
+            el.innerHTML = el.innerText.replace(/\n/g, ' ');
         } else {
-            editorSelectedEl.classList.add('flex-between');
-            let content = editorSelectedEl.innerText;
-            editorSelectedEl.innerHTML = `<div>${content}</div><div>Nilai Kanan</div>`;
+            el.classList.add('flex-between');
+            let content = el.innerText;
+            el.innerHTML = `<div>${content}</div><div>Nilai Kanan</div>`;
         }
     }
 
+    // Duplikasi semua yang diblok
     function editorDuplicateRow() {
-        if(!editorSelectedEl) return;
+        if(editorSelectedElements.length === 0) return;
         saveEditorState();
-        const clone = editorSelectedEl.cloneNode(true);
-        clone.classList.remove('editable-active');
-        clone.contentEditable = "false";
-        editorSelectedEl.parentNode.insertBefore(clone, editorSelectedEl.nextSibling);
+        editorSelectedElements.forEach(el => {
+            const clone = el.cloneNode(true);
+            clone.classList.remove('editable-active');
+            clone.contentEditable = "false";
+            el.parentNode.insertBefore(clone, el.nextSibling);
+        });
     }
 
+    // Hapus semua yang diblok
     function editorDeleteRow() {
-        if(!editorSelectedEl) return;
+        if(editorSelectedElements.length === 0) return;
         saveEditorState();
-        editorSelectedEl.remove();
+        editorSelectedElements.forEach(el => el.remove());
         clearEditorSelection();
     }
 
+    // FITUR: BLOK SEMUA TEKS
     function editorSelectAll() {
         const activeModel = document.querySelector('.model-view:not(.hidden)');
         if(!activeModel) return;
-        const selection = window.getSelection();
-        const range = document.createRange();
-        range.selectNodeContents(activeModel);
-        selection.removeAllRanges();
-        selection.addRange(range);
+        
+        clearEditorSelection(); // Kosongkan yang ada
+        
+        const elements = Array.from(activeModel.querySelectorAll('*'));
+        elements.forEach(el => {
+            // Deteksi teks/elemen valid (hindari logo atau spasi kosong belaka)
+            if (el.children.length === 0 && el.textContent.trim() !== '') {
+                let target = el;
+                // Naikkan target jika itu adalah span di dalam baris agar yang terseleksi 1 baris full
+                if(target.tagName === 'SPAN' && target.parentElement !== activeModel && target.parentElement.tagName !== 'DIV') {
+                    target = target.parentElement;
+                }
+                
+                // Tambahkan ke array blok jika belum ada dan bukan main box
+                if(!editorSelectedElements.includes(target) && target !== activeModel) {
+                    editorSelectedElements.push(target);
+                    target.classList.add('editable-active');
+                }
+            }
+        });
+
+        if(editorSelectedElements.length > 0) {
+            document.getElementById('adv-controls').classList.remove('pointer-events-none', 'opacity-50');
+            syncToolbarWithElement(editorSelectedElements[0]);
+        }
     }
 
     document.addEventListener('keydown', (e) => {
+        // Deteksi Ctrl+A (Blok Semua)
         if(e.ctrlKey && e.key.toLowerCase() === 'a' && currentTab === 'spbu') {
-            if(editorSelectedEl || document.activeElement.closest('.model-view')) {
+            if(editorSelectedElements.length > 0 || document.activeElement.closest('.model-view')) {
                 e.preventDefault();
                 editorSelectAll();
             }
@@ -1125,7 +1161,7 @@
     });
     
     document.querySelectorAll('input, textarea, select').forEach(input => {
-        if(!input.id.startsWith('ed-') && input.id !== 'in-scan-nota' && input.id !== 'in-logo-file') {
+        if(!input.id.startsWith('ed-') && !input.id.startsWith('paper-') && input.id !== 'in-scan-nota' && input.id !== 'in-logo-file') {
             input.addEventListener('input', () => {
                 updateReceipt();
                 if(input.id.includes('logo')) updateLogo();
