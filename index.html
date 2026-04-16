@@ -35,6 +35,7 @@
         #model-4 .text-line { line-height: 1.2; margin-bottom: 0px; white-space: nowrap; }
         #model-4 .spbu-title { font-weight: normal; transform: scaleY(2); display: inline-block; margin-bottom: 6px; margin-top: 6px; }
         #model-4 .bold-text { font-weight: bold; }
+        #model-4 .tight-number { letter-spacing: -1px; }
         #model-4 .spacer { height: 10px; }
 
         /* CSS KHUSUS EDITOR */
@@ -50,6 +51,7 @@
             .no-print { display: none !important; }
             .editable-active { outline: none !important; background-color: transparent !important; }
             #zoom-container { transform: scale(1) !important; transform-origin: top left !important; width: auto !important; height: auto !important; }
+            #model-4 { width: 100%; max-width: 100%; }
         }
     </style>
 </head>
@@ -203,10 +205,20 @@
                         <button class="bg-blue-600 hover:bg-blue-500 px-3 py-1 rounded shadow text-[11px] font-bold" onclick="editorSelectAll()">Blok Semua</button>
                     </div>
                 </div>
+
+                <div class="lg:col-span-2 flex items-center gap-2 border-t border-slate-600 pt-2 mt-1">
+                    <span class="text-[11px] font-bold text-yellow-400">MARGIN KIRI (SPASI):</span>
+                    <input type="number" id="paper-margin" class="bg-slate-800 w-16 rounded px-2 py-1 text-center outline-none border border-slate-500" value="0" min="0" max="15">
+                    <span class="text-[10px] text-gray-400 ml-1 leading-tight flex-1">*Catatan: Printer Thermal mentok 32 huruf per baris. Menambah margin spasi akan mengurangi jatah huruf Anda.</span>
+                </div>
+            </div>
+            
+            <div class="flex justify-between items-center border-t border-slate-600 pt-2 mt-1">
+                <span class="text-xs">Zoom UI: <span id="lbl-zoom">120%</span></span>
+                <input type="range" id="zoom-slider" min="0.5" max="2" step="0.1" value="1.2" class="w-1/2" oninput="changeZoom(this.value)">
             </div>
         </div>
-
-        <div id="print-area" class="w-full bg-gray-200 border-x border-b shadow-inner overflow-hidden flex justify-center py-4 rounded-b-lg">
+        <div id="print-area" class="w-full bg-gray-200 border-x border-b shadow-inner overflow-visible flex justify-center py-4 rounded-b-lg pb-48">
             
             <div id="zoom-container" style="transform: scale(1.2); transform-origin: top center;">
                 <div id="view-spbu-wrapper">
@@ -293,9 +305,9 @@
                         <div class="spacer"></div>
                         <div class="flex-between"><div>Vehicle No.</div><div><span class="out-plat"></span></div></div>
                         <div class="spacer"></div>
-                        <div class="left">BBM BERSUBSIDI HANYA UNTUK GOLONG</div>
-                        <div class="left">AN TIDAK MAMPU TERIMAKASIH ANDA</div>
-                        <div class="left">TIDAK IKUT MENGGUNAKANNYA</div>
+                        <div class="left text-line">BBM BERSUPSIDI HANYA UNTUK GOLON</div>
+                        <div class="left text-line">AN TIDAK MAMPU TERIMAKASIH ANDA</div>
+                        <div class="left text-line">TIDAK IKUT MENGGUNAKANNYA</div>
                     </div>
 
                     <div id="model-5" class="receipt-container shadow-xl border model-view hidden">
@@ -456,14 +468,14 @@
         const type = document.getElementById('in-desain').value;
         if (type === 'custom') {
             const display = document.getElementById('custom-text-display');
-            display.innerHTML = ""; // Bersihkan
+            display.innerHTML = ""; 
             let rawLines = document.getElementById('in-custom-text').value.split('\n');
             rawLines.forEach(l => {
                 let div = document.createElement('div');
-                div.className = "left"; // Default kiri
+                div.className = "left"; 
                 div.dataset.sx = "1";
                 div.dataset.sy = "1";
-                div.innerText = l || " "; // Spasi jika baris kosong
+                div.innerText = l || " "; 
                 display.appendChild(div);
             });
         } else {
@@ -510,7 +522,7 @@
     }
 
     // ==============================================================
-    // ENGINE NATIVE: EKSTRAKTOR TEKS KE JSON ESC/POS
+    // ENGINE NATIVE: EKSTRAKTOR TEKS KE JSON ESC/POS (Dengan Fitur Margin Kiri)
     // ==============================================================
     function handleCetakPrint() {
         clearEditorSelection();
@@ -533,11 +545,13 @@
 
         let printData = [];
         
-        // Ekstrak Teks Baris per Baris
+        // Ambil Margin Kiri Global (Spasi)
+        let marginSpaces = parseInt(document.getElementById('paper-margin').value) || 0;
+        let prefixSpace = " ".repeat(marginSpaces);
+        
         const children = activeModelElement.children;
         for (let i = 0; i < children.length; i++) {
             const child = children[i];
-            // Abaikan yang tersembunyi
             if (child.classList.contains('hidden') || child.style.display === 'none') continue;
 
             let align = 0; // 0=Left, 1=Center, 2=Right
@@ -550,23 +564,31 @@
             let sy = parseInt(child.dataset.sy) || 1;
 
             let text = "";
-            let maxLen = sx >= 2 ? 16 : 32; // Jika ukuran font 2x, batas spasi kolom hanya 16 karakter. Normal 32.
+            let maxLen = sx >= 2 ? 16 : 32; 
 
             if (child.tagName === 'BR' || child.classList.contains('spacer')) {
                 text = " "; 
             } else if (child.classList.contains('dashed-line')) {
-                text = "-".repeat(maxLen);
+                text = prefixSpace + "-".repeat(Math.max(1, maxLen - marginSpaces));
+                align = 0;
             } else if (child.classList.contains('solid-line')) {
-                text = "=".repeat(maxLen);
+                text = prefixSpace + "=".repeat(Math.max(1, maxLen - marginSpaces));
+                align = 0;
             } else if (child.classList.contains('flex-between')) {
-                // LOGIKA KOLOM GANDA
+                // LOGIKA KOLOM GANDA + MARGIN KIRI
                 let left = child.children.length > 0 ? child.children[0].innerText.replace(/\n/g, '').trim() : '';
                 let right = child.children.length > 1 ? child.children[1].innerText.replace(/\n/g, '').trim() : '';
-                let pad = Math.max(1, maxLen - left.length - right.length);
-                text = left + " ".repeat(pad) + right;
-                align = 0; // Paksa Left agar kolom berfungsi
+                
+                let currentMax = maxLen - marginSpaces;
+                let pad = Math.max(1, currentMax - left.length - right.length);
+                text = prefixSpace + left + " ".repeat(pad) + right;
+                align = 0; 
             } else {
                 text = child.innerText.trim();
+                // Terapkan Margin Kiri (Spasi) HANYA untuk teks yang rata kiri
+                if(align === 0 && text !== "") {
+                    text = prefixSpace + text;
+                }
             }
 
             if (text) {
@@ -580,10 +602,10 @@
         let jsonPayload = JSON.stringify(printData);
 
         if (typeof AndroidPrinter !== 'undefined' && AndroidPrinter.cetakStrukDinamic) {
-            AndroidPrinter.cetakStrukDinamic(jsonPayload, ""); // Logo ditiadakan krn fokus native text
+            AndroidPrinter.cetakStrukDinamic(jsonPayload, ""); // Logo ditiadakan untuk native text
         } else {
             console.log("Data Native siap dikirim:", printData);
-            alert("⚠️ Harap update Aplikasi Android Anda (MainActivity.java) untuk mendukung Native JSON.");
+            alert("⚠️ Harap update Aplikasi Android Anda untuk mendukung Native JSON.");
         }
     }
 
@@ -595,7 +617,7 @@
     }
 
     // ==========================================
-    // LOGIKA ADVANCED EDITOR (MULTI-SELECT UNTUK NATIVE)
+    // LOGIKA ADVANCED EDITOR
     // ==========================================
     let editorSelectedElements = [];
     let editorUndoStack = [];
@@ -636,6 +658,11 @@
         document.getElementById('adv-controls').classList.add('pointer-events-none', 'opacity-50');
     }
 
+    function changeZoom(val) {
+        document.getElementById('zoom-container').style.transform = `scale(${val})`;
+        document.getElementById('lbl-zoom').innerText = Math.round(val * 100) + '%';
+    }
+
     document.addEventListener('click', (e) => {
         if(currentTab !== 'spbu') return;
 
@@ -647,7 +674,6 @@
         if(activeModel && activeModel.contains(e.target) && e.target !== activeModel) {
             let target = e.target;
             
-            // Cari elemen baris parent (jangan span)
             if(target.tagName === 'SPAN' && target.parentElement !== activeModel && target.parentElement.tagName !== 'DIV') {
                 target = target.parentElement;
             }
@@ -687,7 +713,6 @@
         saveEditorState();
         editorSelectedElements.forEach(el => {
             el.style[property] = value;
-            // Hapus class bawaan jika ada agar tidak bentrok
             if(property === 'textAlign') {
                 el.classList.remove('center', 'left', 'right');
             }
@@ -731,7 +756,6 @@
             el.style.display = 'inline-block';
             el.style.width = '100%';
             
-            // Fix margin preview agar tidak nabrak jika diperbesar
             if (sy == "2") el.style.marginBottom = "10px";
             else el.style.marginBottom = "0px";
         });
@@ -748,7 +772,7 @@
             el.classList.add('flex-between');
             let content = el.innerText;
             el.innerHTML = `<div>${content}</div><div>10000</div>`;
-            el.style.textAlign = 'left'; // Reset align
+            el.style.textAlign = 'left';
         }
     }
 
@@ -811,7 +835,7 @@
     });
     
     document.querySelectorAll('input, textarea, select').forEach(input => {
-        if(!input.id.startsWith('ed-') && input.id !== 'in-scan-nota' && input.id !== 'in-logo-file') {
+        if(!input.id.startsWith('ed-') && !input.id.startsWith('paper-') && input.id !== 'in-scan-nota' && input.id !== 'in-logo-file') {
             input.addEventListener('input', () => {
                 updateReceipt();
                 if(input.id.includes('wifi')) buatWifiQR(); 
