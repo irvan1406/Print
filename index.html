@@ -421,7 +421,7 @@
     };
 
     // ==============================================================
-    // SISTEM PENYIMPANAN TEMPLATE (LOCAL STORAGE)
+    // SISTEM PENYIMPANAN TEMPLATE (DENGAN DATA FORM)
     // ==============================================================
     let savedTemplates = JSON.parse(localStorage.getItem('notaku_templates')) || [];
 
@@ -449,7 +449,35 @@
         let ml = document.getElementById('global-space-left').value;
         let mr = document.getElementById('global-space-right').value;
 
-        savedTemplates.push({ name: templateName, html: templateHTML, ml: ml, mr: mr });
+        // Ambil SEMUA data dari Form Input saat ini
+        let templateData = {
+            kode: document.getElementById('in-kode').value,
+            nama: document.getElementById('in-nama').value,
+            jalan: document.getElementById('in-jalan').value,
+            kota: document.getElementById('in-kota').value,
+            telp: document.getElementById('in-telp').value,
+            shift: document.getElementById('in-shift').value,
+            notrans: document.getElementById('in-notrans').value,
+            tgl: document.getElementById('in-tgl').value,
+            jam: document.getElementById('in-jam').value,
+            menit: document.getElementById('in-menit').value,
+            detik: document.getElementById('in-detik').value,
+            pompa: document.getElementById('in-pompa').value,
+            op: document.getElementById('in-op').value,
+            plat: document.getElementById('in-plat').value,
+            pengemudi: document.getElementById('in-pengemudi').value,
+            bbm: document.getElementById('in-bbm').value,
+            vol: document.getElementById('in-vol').value,
+            hj: document.getElementById('in-hj').value
+        };
+
+        savedTemplates.push({ 
+            name: templateName, 
+            html: templateHTML, 
+            ml: ml, 
+            mr: mr,
+            data: templateData // Simpan data ke dalam storage
+        });
         localStorage.setItem('notaku_templates', JSON.stringify(savedTemplates));
 
         loadSavedTemplates();
@@ -457,7 +485,7 @@
         document.getElementById('in-desain').value = 'saved_' + (savedTemplates.length - 1);
         document.getElementById('in-desain').dispatchEvent(new Event('change'));
 
-        showToast('✅ Template "' + templateName + '" berhasil disimpan!');
+        showToast('✅ Template & Data "' + templateName + '" berhasil disimpan!');
     }
 
     function deleteCurrentTemplate() {
@@ -507,6 +535,28 @@
             document.getElementById('global-space-left').value = tpl.ml || 0;
             document.getElementById('global-space-right').value = tpl.mr || 0;
             applyGlobalMargin();
+
+            // SUNTIKKAN DATA FORM YANG TERSIMPAN KE INPUT KIRI
+            if (tpl.data) {
+                document.getElementById('in-kode').value = tpl.data.kode || '';
+                document.getElementById('in-nama').value = tpl.data.nama || '';
+                document.getElementById('in-jalan').value = tpl.data.jalan || '';
+                document.getElementById('in-kota').value = tpl.data.kota || '';
+                document.getElementById('in-telp').value = tpl.data.telp || '';
+                document.getElementById('in-shift').value = tpl.data.shift || '';
+                document.getElementById('in-notrans').value = tpl.data.notrans || '';
+                document.getElementById('in-tgl').value = tpl.data.tgl || '';
+                document.getElementById('in-jam').value = tpl.data.jam || '';
+                document.getElementById('in-menit').value = tpl.data.menit || '';
+                document.getElementById('in-detik').value = tpl.data.detik || '';
+                document.getElementById('in-pompa').value = tpl.data.pompa || '';
+                document.getElementById('in-op').value = tpl.data.op || '';
+                document.getElementById('in-plat').value = tpl.data.plat || '';
+                document.getElementById('in-pengemudi').value = tpl.data.pengemudi || '';
+                document.getElementById('in-bbm').value = tpl.data.bbm || '';
+                document.getElementById('in-vol').value = tpl.data.vol || '';
+                document.getElementById('in-hj').value = tpl.data.hj || '';
+            }
         } else {
             document.getElementById('model-' + val).classList.remove('hidden');
             const tpl = templates[val];
@@ -639,7 +689,7 @@
     }
 
     // ==============================================================
-    // ENGINE NATIVE JSON ESC/POS (FIX ENTER DOUBLE)
+    // ENGINE NATIVE: EKSTRAKTOR TEKS KE JSON ESC/POS 
     // ==============================================================
     function handleCetakPrint() {
         clearEditorSelection();
@@ -685,7 +735,6 @@
             let maxLen = sx >= 2 ? 16 : 32; 
 
             if (child.tagName === 'BR' || child.classList.contains('spacer')) {
-                // FIX: Paksa ukuran 1x1 untuk baris kosong agar tidak lompat 2 baris
                 printData.push({ text: "", align: 0, bold: 0, width: 1, height: 1 });
             } else if (child.classList.contains('dashed-line')) {
                 let text = prefixSpace + "-".repeat(Math.max(1, maxLen - Math.max(0, marginSpacesLeft)));
@@ -708,14 +757,12 @@
                 let rawText = child.innerText || "";
                 
                 if (rawText.replace(/\u00a0/g, ' ').trim() === "" || child.innerHTML === '<br>' || child.innerHTML === '&nbsp;') {
-                    // FIX: Paksa ukuran 1x1 untuk baris kosong
                     printData.push({ text: "", align: 0, bold: 0, width: 1, height: 1 });
                 } else {
                     let lines = rawText.split('\n');
                     lines.forEach(l => {
                         let printL = l.replace(/\u00a0/g, ' ').trim();
                         if (printL === "") {
-                            // FIX: Paksa ukuran 1x1 untuk baris kosong hasil enter di dalam div
                             printData.push({ text: "", align: 0, bold: 0, width: 1, height: 1 });
                         } else {
                             if (align === 0) { 
@@ -756,7 +803,6 @@
     let editorUndoStack = [];
     let editorRedoStack = [];
 
-    // Helper Mendapatkan Baris Utama
     function getMainRow(el) {
         const activeModel = document.querySelector('.model-view:not(.hidden)');
         let row = el;
@@ -817,7 +863,6 @@
         if(activeModel && activeModel.contains(e.target) && e.target !== activeModel) {
             let target = e.target;
             
-            // Cari elemen baris parent (jangan span)
             if(target.tagName === 'SPAN' && target.parentElement !== activeModel && target.parentElement.tagName !== 'DIV') {
                 target = target.parentElement;
             }
@@ -940,7 +985,6 @@
         });
     }
 
-    // FITUR BARU: SISIP BARIS DI BAWAH ELEMEN YANG DIPILIH
     function editorInsertRow() {
         if(editorSelectedElements.length === 0) return;
         saveEditorState();
