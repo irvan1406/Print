@@ -7,13 +7,12 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
     
     <style>
         .receipt-container {
             font-family: 'Courier New', Courier, monospace;
             width: 57mm; box-sizing: border-box; background: white; color: black;
-            font-size: 11px; line-height: 1.2; padding: 4.5mm 1mm; /* Default Margin Kiri Kanan 1mm agar pas */
+            font-size: 11px; line-height: 1.2; padding: 4.5mm 1mm;
             margin: 0 auto; position: relative;
         }
         .center { text-align: center; }
@@ -290,12 +289,12 @@
 
                 <div class="col-span-2 flex gap-2 items-center bg-slate-700 p-1 rounded">
                     <div class="flex items-center gap-1">
-                        <span class="text-[10px]">W:</span>
-                        <input type="number" step="0.1" id="ed-sx" class="bg-slate-600 w-12 rounded px-1 text-center" onchange="applyTransform('sx', this.value)" title="Scale X (Lebar)">
+                        <span class="text-[10px] text-yellow-300 font-bold" title="Memperlebar ukuran font di printer fisik">W:</span>
+                        <input type="number" step="0.5" id="ed-sx" class="bg-slate-600 w-12 rounded px-1 text-center" onchange="applyTransform('sx', this.value)" title="Scale X (Lebar Teks)">
                     </div>
                     <div class="flex items-center gap-1">
-                        <span class="text-[10px]">H:</span>
-                        <input type="number" step="0.1" id="ed-sy" class="bg-slate-600 w-12 rounded px-1 text-center" onchange="applyTransform('sy', this.value)" title="Scale Y (Tinggi)">
+                        <span class="text-[10px] text-yellow-300 font-bold" title="Mempertinggi ukuran font di printer fisik">H:</span>
+                        <input type="number" step="0.5" id="ed-sy" class="bg-slate-600 w-12 rounded px-1 text-center" onchange="applyTransform('sy', this.value)" title="Scale Y (Tinggi Teks)">
                     </div>
                     <div class="flex items-center gap-1">
                         <span class="text-[10px]">Spc:</span>
@@ -515,7 +514,9 @@
                         <div id="custom-text-display"></div>
                     </div>
                 </div>
-            </div> <div id="view-wifi-wrapper" class="hidden w-full">
+            </div>
+
+            <div id="view-wifi-wrapper" class="hidden w-full">
                 <div class="receipt-container shadow-xl border" style="padding-bottom: 30px;">
                     <div class="center mb-4" style="font-family: 'Courier New'; font-size: 14px; font-weight: bold;">
                         SCAN UNTUK KONEK WIFI
@@ -638,7 +639,7 @@
             }
         }
         updateReceipt();
-        applyPaperMargin(); // Terapkan nilai input Margin Kertas secara dinamis
+        applyPaperMargin();
         saveEditorState();
     });
 
@@ -752,89 +753,10 @@
         }
     }
 
-    function getFormattedText(modelElement) {
-        let tallText = "";
-        let normalText = "";
-        const maxLen = 32;
-
-        const wrapWord = (str) => {
-            let words = str.split(' ');
-            let lines = [];
-            let currentLine = '';
-            words.forEach(word => {
-                if((currentLine + word).length > maxLen) {
-                    if(currentLine) lines.push(currentLine.trim());
-                    currentLine = word + ' ';
-                } else {
-                    currentLine += word + ' ';
-                }
-            });
-            if(currentLine) lines.push(currentLine.trim());
-            return lines.join('\n');
-        };
-
-        if (modelElement.id === 'model-custom') {
-            let rawLines = document.getElementById('in-custom-text').value.split('\n');
-            rawLines.forEach(l => { normalText += wrapWord(l) + "\n"; });
-            return { tall: tallText, normal: normalText };
-        }
-
-        const children = modelElement.children;
-        for (let i = 0; i < children.length; i++) {
-            const child = children[i];
-            if (child.classList.contains('hidden') || child.classList.contains('logo-display-container') || child.style.display === 'none') continue;
-            
-            let parsedLine = "";
-
-            if (child.classList.contains('text-xl')) {
-                const subChildren = child.children;
-                for (let j = 0; j < subChildren.length; j++) {
-                    let subLine = subChildren[j].innerText.trim();
-                    if(subLine) tallText += subLine + "\n";
-                }
-                continue; 
-            }
-
-            if (child.tagName === 'BR' || child.classList.contains('spacer')) {
-                parsedLine += "\n";
-            } else if (child.classList.contains('dashed-line')) {
-                parsedLine += "-".repeat(maxLen) + "\n";
-            } else if (child.classList.contains('solid-line')) {
-                parsedLine += "=".repeat(maxLen) + "\n";
-            } else if (child.classList.contains('center') || child.style.textAlign === 'center') {
-                let lines = child.innerText.trim().split('\n');
-                lines.forEach(line => {
-                    let wrappedLines = wrapWord(line).split('\n');
-                    wrappedLines.forEach(wl => {
-                        let pad = Math.max(0, Math.floor((maxLen - wl.length) / 2));
-                        parsedLine += " ".repeat(pad) + wl + "\n";
-                    });
-                });
-            } else if (child.classList.contains('right') || child.style.textAlign === 'right') {
-                let wrappedLines = wrapWord(child.innerText.trim()).split('\n');
-                wrappedLines.forEach(wl => {
-                    let pad = Math.max(0, maxLen - wl.length);
-                    parsedLine += " ".repeat(pad) + wl + "\n";
-                });
-            } else if (child.classList.contains('flex-between')) {
-                let left = child.children.length > 0 ? child.children[0].innerText.replace(/\n/g, '').trim() : '';
-                let right = child.children.length > 1 ? child.children[1].innerText.replace(/\n/g, '').trim() : '';
-                let pad = Math.max(1, maxLen - left.length - right.length);
-                parsedLine += left + " ".repeat(pad) + right + "\n";
-            } else if (child.classList.contains('flex-row')) {
-                let left = child.children.length > 0 ? child.children[0].innerText.replace(/\n/g, '').trim() : '';
-                let right = child.children.length > 1 ? child.children[1].innerText.replace(/\n/g, '').trim() : '';
-                parsedLine += left.padEnd(14, ' ') + right + "\n";
-            } else {
-                let wrappedLines = wrapWord(child.innerText.trim()).split('\n');
-                wrappedLines.forEach(wl => { parsedLine += wl + "\n"; });
-            }
-
-            normalText += parsedLine;
-        }
-        return { tall: tallText, normal: normalText };
-    }
-
+    // ==============================================================
+    // ENGINE BARU: EKSTRAKTOR TEKS + FORMATTING (UNTUK JSON ESC/POS)
+    // Mengganti cara lama (getFormattedText/Image) jadi pintar 1:1
+    // ==============================================================
     function handleCetakPrint() {
         clearEditorSelection();
 
@@ -842,65 +764,139 @@
             const ssid = document.getElementById('wifi-ssid').value || "RADHEN RIZAL";
             const pass = document.getElementById('wifi-pass').value;
             const qrString = `WIFI:S:${ssid};T:WPA;P:${pass};;`;
-
             if (typeof AndroidPrinter !== 'undefined' && AndroidPrinter.cetakWifi) {
                 AndroidPrinter.cetakWifi(ssid, qrString);
                 showToast('🖨️ Mencetak Barcode WiFi...');
             } else {
-                alert('⚠️ Anda harus mengupdate Aplikasi Android ke versi terbaru untuk mencetak Barcode.');
+                alert('⚠️ Harap jalankan dari aplikasi Android Anda.');
             }
             return;
         }
 
         let activeModelElement = document.querySelector('.model-view:not(.hidden)');
-        showToast('🔄 Memproses Kualitas Teks Tajam 1:1... Mohon tunggu...');
+        showToast('🔄 Memproses Cetak Native Super Tajam... Mohon tunggu...');
+
+        let printData = [];
         
-        let currentZoom = document.getElementById('zoom-container').style.transform;
-        let oldBorder = activeModelElement.style.border;
-        let oldBoxShadow = activeModelElement.style.boxShadow;
-        let oldFilter = activeModelElement.style.filter;
-        
-        document.getElementById('zoom-container').style.transform = 'scale(1)';
-        
-        // Sengaja TIDAK mengubah padding di sini agar Margin Kertas dari user tetap terbawa saat di-render
-        activeModelElement.style.border = 'none';
-        activeModelElement.style.boxShadow = 'none';
-        activeModelElement.style.filter = 'grayscale(100%) contrast(200%)';
+        // Cek Logo Aktif
+        let logoBase64 = "";
+        let logoContainer = activeModelElement.querySelector('.logo-display-container');
+        if (logoContainer && logoContainer.style.display !== 'none' && currentLogoSrc) {
+            logoBase64 = currentLogoSrc.split(',')[1];
+        }
 
-        setTimeout(() => {
-            let rect = activeModelElement.getBoundingClientRect();
-            let exactScale = 384 / rect.width; 
+        if (activeModelElement.id === 'model-custom') {
+            let rawLines = document.getElementById('in-custom-text').value.split('\n');
+            let alignStr = document.getElementById('in-custom-align').value;
+            let alignNum = alignStr === 'center' ? 1 : (alignStr === 'right' ? 2 : 0);
+            let isBold = document.getElementById('in-custom-bold').checked ? 1 : 0;
+            let size = parseFloat(document.getElementById('in-custom-size').value);
+            let scaleMult = size > 15 ? 2 : 1;
 
-            html2canvas(activeModelElement, {
-                scale: exactScale,
-                useCORS: true,
-                backgroundColor: "#ffffff"
-            }).then(canvas => {
-                document.getElementById('zoom-container').style.transform = currentZoom;
-                activeModelElement.style.border = oldBorder;
-                activeModelElement.style.boxShadow = oldBoxShadow;
-                activeModelElement.style.filter = oldFilter;
-
-                let base64Image = canvas.toDataURL("image/png");
-                let base64Data = base64Image.split(',')[1];
-
-                if (typeof AndroidPrinter !== 'undefined' && AndroidPrinter.cetakImageBluetooth) {
-                    AndroidPrinter.cetakImageBluetooth(base64Data);
-                    showToast('🖨️ Mengirim Teks Super Tajam ke Printer Bluetooth...');
-                } else if (typeof AndroidPrinter !== 'undefined' && AndroidPrinter.cetakKeBluetooth) {
-                    let dataCetak = getFormattedText(activeModelElement);
-                    AndroidPrinter.cetakKeBluetooth(dataCetak.tall, dataCetak.normal);
-                } else {
-                    window.print();
-                }
-            }).catch(err => {
-                document.getElementById('zoom-container').style.transform = currentZoom;
-                activeModelElement.style.border = oldBorder;
-                activeModelElement.style.boxShadow = oldBoxShadow;
-                activeModelElement.style.filter = oldFilter;
-                alert("Gagal merender struk: " + err);
+            rawLines.forEach(l => {
+                printData.push({ text: l, align: alignNum, bold: isBold, width: scaleMult, height: scaleMult });
             });
-        }, 50);
+        } else {
+            // EKSTRAK TEKS DARI TEMPLATE DOM (Bisa mendeteksi Scale H/W editan)
+            const children = activeModelElement.children;
+            for (let i = 0; i < children.length; i++) {
+                const child = children[i];
+                if (child.classList.contains('hidden') || child.classList.contains('logo-display-container') || child.style.display === 'none') continue;
+
+                let style = window.getComputedStyle(child);
+                let align = 0; // 0=Left, 1=Center, 2=Right
+                if (style.textAlign === 'center' || child.classList.contains('center')) align = 1;
+                else if (style.textAlign === 'right' || child.classList.contains('right')) align = 2;
+
+                let isBold = (style.fontWeight === 'bold' || parseInt(style.fontWeight) >= 600 || child.classList.contains('fw-bold')) ? 1 : 0;
+
+                // Membaca editan tinggi (Scale Y)
+                let sy = parseFloat(child.dataset.sy);
+                if(isNaN(sy)) {
+                    if(child.outerHTML.includes('scaleY(1.6)') || child.outerHTML.includes('scaleY(1.8)')) sy = 2;
+                    else sy = 1;
+                }
+                
+                // Membaca editan lebar (Scale X)
+                let sx = parseFloat(child.dataset.sx);
+                if(isNaN(sx)) {
+                    if(child.outerHTML.includes('scaleX(1.5)') || child.outerHTML.includes('scaleX(2)')) sx = 2;
+                    else sx = 1;
+                }
+
+                // Konversi skala float ke integer ESC/POS (Maksimal 8x)
+                let hMult = sy >= 1.5 ? 2 : 1;
+                if (sy >= 2.5) hMult = 3;
+                let wMult = sx >= 1.5 ? 2 : 1;
+                if (sx >= 2.5) wMult = 3;
+
+                // Handle Sub-Header Text-XL (Khusus SPBU)
+                if (child.classList.contains('text-xl')) {
+                    Array.from(child.children).forEach(sub => {
+                        let subStyle = window.getComputedStyle(sub);
+                        let subAlign = 0;
+                        if (subStyle.textAlign === 'center' || sub.classList.contains('center')) subAlign = 1;
+                        else if (subStyle.textAlign === 'right' || sub.classList.contains('right')) subAlign = 2;
+                        
+                        let subSy = parseFloat(sub.dataset.sy);
+                        if(isNaN(subSy)) subSy = (sub.outerHTML.includes('scaleY(1.6)') || subStyle.transform !== 'none') ? 2 : 1;
+                        let subH = subSy >= 1.5 ? 2 : 1;
+                        
+                        let subSx = parseFloat(sub.dataset.sx);
+                        if(isNaN(subSx)) subSx = 1;
+                        let subW = subSx >= 1.5 ? 2 : 1;
+
+                        if (sub.innerText.trim()) {
+                            printData.push({ text: sub.innerText.trim(), align: subAlign, bold: 1, width: subW, height: subH });
+                        }
+                    });
+                    continue;
+                }
+
+                let text = "";
+                // Logika Spasi Kolom Ganda (Tergantung dari Lebar Font)
+                let maxLen = wMult >= 2 ? 16 : 32; // Jika font lebar ganda, batas spasi hanya 16 karakter
+
+                if (child.tagName === 'BR' || child.classList.contains('spacer')) {
+                    text = " "; // Spasi kosong
+                } else if (child.classList.contains('dashed-line')) {
+                    text = "-".repeat(maxLen);
+                } else if (child.classList.contains('solid-line')) {
+                    text = "=".repeat(maxLen);
+                } else if (child.classList.contains('flex-between')) {
+                    let left = child.children.length > 0 ? child.children[0].innerText.replace(/\n/g, '').trim() : '';
+                    let right = child.children.length > 1 ? child.children[1].innerText.replace(/\n/g, '').trim() : '';
+                    let pad = Math.max(1, maxLen - left.length - right.length);
+                    text = left + " ".repeat(pad) + right;
+                    align = 0; // Paksa Left agar spasi pas
+                } else if (child.classList.contains('flex-row')) {
+                    let left = child.children.length > 0 ? child.children[0].innerText.replace(/\n/g, '').trim() : '';
+                    let right = child.children.length > 1 ? child.children[1].innerText.replace(/\n/g, '').trim() : '';
+                    let rPad = wMult >= 2 ? 7 : 14;
+                    text = left.padEnd(rPad, ' ') + right;
+                    align = 0;
+                } else {
+                    text = child.innerText.trim();
+                }
+
+                if (text) {
+                    let lines = text.split('\n');
+                    lines.forEach(l => {
+                        printData.push({ text: l, align: align, bold: isBold, width: wMult, height: hMult });
+                    });
+                }
+            }
+        }
+
+        // Kirim Array ke Android Java
+        let jsonPayload = JSON.stringify(printData);
+
+        if (typeof AndroidPrinter !== 'undefined' && AndroidPrinter.cetakStrukDinamic) {
+            AndroidPrinter.cetakStrukDinamic(jsonPayload, logoBase64);
+        } else {
+            console.log("JSON Payload:", jsonPayload);
+            alert("⚠️ Harap update APK Android Anda untuk menggunakan sistem cetak Native JSON yang baru.");
+        }
     }
 
     function showToast(message) {
@@ -913,11 +909,10 @@
     // ==========================================
     // LOGIKA ADVANCED EDITOR (MULTI-SELECT & PADDING)
     // ==========================================
-    let editorSelectedElements = []; // SEKARANG ARRAY UNTUK MULTI-SELECT
+    let editorSelectedElements = [];
     let editorUndoStack = [];
     let editorRedoStack = [];
 
-    // Terapkan Margin Kertas Kiri dan Kanan ke dalam wadah struk utama
     function applyPaperMargin() {
         const activeModel = document.querySelector('.model-view:not(.hidden)');
         if(!activeModel) return;
@@ -984,7 +979,7 @@
             if(target.tagName === 'IMG' || target.classList.contains('logo-display-container')) return;
             
             clearEditorSelection();
-            editorSelectedElements.push(target); // Pilih satu elemen
+            editorSelectedElements.push(target);
             target.classList.add('editable-active');
             target.contentEditable = "true";
             
@@ -1011,12 +1006,8 @@
         document.getElementById('ed-font').value = el.style.fontFamily ? el.style.fontFamily.replace(/['"]/g, '') : 'inherit';
         document.getElementById('ed-size').value = parseInt(style.fontSize) || '';
         document.getElementById('ed-letter').value = parseFloat(style.letterSpacing) || 0;
-        document.getElementById('ed-ml').value = parseInt(style.marginLeft) || 0;
-        document.getElementById('ed-mr').value = parseInt(style.marginRight) || 0;
-
-        const setBtnActive = (id, isActive) => {
-            document.getElementById(id).style.backgroundColor = isActive ? '#3b82f6' : '';
-        };
+        
+        const setBtnActive = (id, isActive) => { document.getElementById(id).style.backgroundColor = isActive ? '#3b82f6' : ''; };
 
         setBtnActive('ed-bold', style.fontWeight === 'bold' || parseInt(style.fontWeight) > 400);
         setBtnActive('ed-italic', style.fontStyle === 'italic');
@@ -1024,11 +1015,13 @@
 
         let sx = el.dataset.sx || 1;
         let sy = el.dataset.sy || 1;
+        
+        if (el.outerHTML.includes('scaleY(1.6)')) sy = 2; // Sinkronisasi tampilan header lawas
+        
         document.getElementById('ed-sx').value = sx;
         document.getElementById('ed-sy').value = sy;
     }
 
-    // Terapkan ke SELURUH elemen yang diblok
     function applyStyle(property, value) {
         if(editorSelectedElements.length === 0) return;
         saveEditorState();
@@ -1037,12 +1030,10 @@
         });
     }
 
-    // Toggle Style ke SELURUH elemen yang diblok
     function toggleStyle(property, activeValue, normalValue, btnObj) {
         if(editorSelectedElements.length === 0) return;
         saveEditorState();
         
-        // Gunakan elemen pertama sebagai patokan toggle
         const firstEl = editorSelectedElements[0];
         const current = window.getComputedStyle(firstEl)[property];
         const isApplying = !(current.includes(activeValue) || (property === 'fontWeight' && parseInt(current) > 400));
@@ -1054,7 +1045,6 @@
         btnObj.style.backgroundColor = isApplying ? '#3b82f6' : '';
     }
 
-    // Terapkan Nudge/Scale ke SELURUH elemen yang diblok
     function applyTransform(type, val, isRelative = false) {
         if(editorSelectedElements.length === 0) return;
         saveEditorState();
@@ -1064,6 +1054,9 @@
             let ty = parseFloat(el.dataset.ty || 0);
             let sx = parseFloat(el.dataset.sx || 1);
             let sy = parseFloat(el.dataset.sy || 1);
+            
+            // Override auto-scale dari template
+            if (el.outerHTML.includes('scaleY(1.6)') && isNaN(parseFloat(el.dataset.sy))) sy = 2;
 
             if(type === 'reset') { tx = 0; ty = 0; }
             else if(type === 'tx') { tx = isRelative ? tx + parseFloat(val) : parseFloat(val); }
@@ -1080,7 +1073,6 @@
         });
     }
 
-    // Hanya ubah elemen pertama untuk fungsi dua kolom agar tidak berantakan
     function toggleDuaKolom() {
         if(editorSelectedElements.length === 0) return;
         saveEditorState();
@@ -1095,7 +1087,6 @@
         }
     }
 
-    // Duplikasi semua yang diblok
     function editorDuplicateRow() {
         if(editorSelectedElements.length === 0) return;
         saveEditorState();
@@ -1107,7 +1098,6 @@
         });
     }
 
-    // Hapus semua yang diblok
     function editorDeleteRow() {
         if(editorSelectedElements.length === 0) return;
         saveEditorState();
@@ -1115,24 +1105,20 @@
         clearEditorSelection();
     }
 
-    // FITUR: BLOK SEMUA TEKS
     function editorSelectAll() {
         const activeModel = document.querySelector('.model-view:not(.hidden)');
         if(!activeModel) return;
         
-        clearEditorSelection(); // Kosongkan yang ada
+        clearEditorSelection();
         
         const elements = Array.from(activeModel.querySelectorAll('*'));
         elements.forEach(el => {
-            // Deteksi teks/elemen valid (hindari logo atau spasi kosong belaka)
             if (el.children.length === 0 && el.textContent.trim() !== '') {
                 let target = el;
-                // Naikkan target jika itu adalah span di dalam baris agar yang terseleksi 1 baris full
                 if(target.tagName === 'SPAN' && target.parentElement !== activeModel && target.parentElement.tagName !== 'DIV') {
                     target = target.parentElement;
                 }
                 
-                // Tambahkan ke array blok jika belum ada dan bukan main box
                 if(!editorSelectedElements.includes(target) && target !== activeModel) {
                     editorSelectedElements.push(target);
                     target.classList.add('editable-active');
@@ -1147,7 +1133,6 @@
     }
 
     document.addEventListener('keydown', (e) => {
-        // Deteksi Ctrl+A (Blok Semua)
         if(e.ctrlKey && e.key.toLowerCase() === 'a' && currentTab === 'spbu') {
             if(editorSelectedElements.length > 0 || document.activeElement.closest('.model-view')) {
                 e.preventDefault();
