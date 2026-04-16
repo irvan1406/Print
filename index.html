@@ -30,7 +30,7 @@
         .w-full { width: 100%; }
 
         /* Template SPBU Default */
-        #model-1, #model-2, #model-3, #model-5 { font-family: 'Courier New', Courier, monospace; letter-spacing: 0px; font-size: 11px; }
+        #model-1, #model-2, #model-3, #model-5, #model-saved { font-family: 'Courier New', Courier, monospace; letter-spacing: 0px; font-size: 11px; }
         #model-4 { font-family: 'Courier New', Courier, monospace; font-size: 11px; padding: 5px; width: 100%; }
         #model-4 .text-line { line-height: 1.2; margin-bottom: 0px; white-space: nowrap; }
         #model-4 .spbu-title { font-weight: normal; transform: scaleY(2); display: inline-block; margin-bottom: 6px; margin-top: 6px; }
@@ -82,12 +82,15 @@
             <div class="border p-4 rounded bg-green-50 border-green-200">
                 <label class="block font-bold text-green-800 mb-2">Pilih Template (Model Desain)</label>
                 <select id="in-desain" class="w-full border p-2 rounded bg-white text-gray-700 font-bold">
-                    <option value="1">Model 1 - "Pasti pas" Watudodol</option>
-                    <option value="2">Model 2 - "Pom Sukowidi"</option>
-                    <option value="3">Model 3 - "Pom alasrejo - Alasmalang"</option>
-                    <option value="4">Model 4 - "Pom Farly"</option>
-                    <option value="5">Model 5 - "Terserah"</option>
-                    <option value="custom">Mode Custom (Ketik Bebas)</option>
+                    <optgroup label="Template Bawaan">
+                        <option value="1">Model 1 - "Pasti pas" Watudodol</option>
+                        <option value="2">Model 2 - "Pom Sukowidi"</option>
+                        <option value="3">Model 3 - "Pom alasrejo - Alasmalang"</option>
+                        <option value="4">Model 4 - "Pom Farly"</option>
+                        <option value="5">Model 5 - "Terserah"</option>
+                        <option value="custom">Mode Custom (Ketik Bebas)</option>
+                    </optgroup>
+                    <optgroup id="saved-optgroup" label="Template Tersimpan (Custom)"></optgroup>
                 </select>
             </div>
 
@@ -171,8 +174,9 @@
                     NATIVE ESC/POS EDITOR
                 </div>
                 <div class="flex gap-2">
-                    <button onclick="editorUndo()" class="bg-slate-600 hover:bg-slate-500 px-2 py-1 rounded text-xs shadow">↩ Undo</button>
-                    <button onclick="editorRedo()" class="bg-slate-600 hover:bg-slate-500 px-2 py-1 rounded text-xs shadow">Redo ↪</button>
+                    <button onclick="saveAsTemplate()" class="bg-yellow-600 hover:bg-yellow-500 text-slate-900 px-3 py-1 rounded text-xs shadow font-bold" title="Simpan sebagai Template Baru">💾 Simpan Template</button>
+                    <button onclick="editorUndo()" class="bg-slate-600 hover:bg-slate-500 px-2 py-1 rounded text-xs shadow">↩</button>
+                    <button onclick="editorRedo()" class="bg-slate-600 hover:bg-slate-500 px-2 py-1 rounded text-xs shadow">↪</button>
                 </div>
             </div>
 
@@ -210,6 +214,7 @@
                     <span class="text-[11px] font-bold text-yellow-400">MARGIN KIRI (SPASI):</span>
                     <input type="number" id="paper-margin" class="bg-slate-800 w-16 rounded px-2 py-1 text-center outline-none border border-slate-500" value="0" min="0" max="15">
                     <span class="text-[10px] text-gray-400 ml-1 leading-tight flex-1">*Catatan: Menambah margin spasi akan mengurangi sisa jatah 32 huruf Anda.</span>
+                    <button id="btn-delete-template" onclick="deleteCurrentTemplate()" class="bg-red-600 hover:bg-red-500 px-3 py-1 rounded shadow text-[10px] font-bold hidden">🗑 Hapus Template</button>
                 </div>
             </div>
             
@@ -334,6 +339,9 @@
                     <div id="model-custom" class="receipt-container shadow-xl border model-view hidden">
                         <div id="custom-text-display"></div>
                     </div>
+
+                    <div id="model-saved" class="receipt-container shadow-xl border model-view hidden">
+                        </div>
                 </div>
             </div>
 
@@ -409,20 +417,92 @@
         '5': { kode: '12.345.67', nama: 'SPBU TERSERAH', jalan: 'Jl. Bebas Merdeka No.1', kota: 'Kota Bebas', telp: '08123456789', shift: '', notrans: '0001', tgl: '01/01/2027', jam: '12', menit: '00', detik: '00', pompa: '01', op: '', plat: 'B 1234 CD', pengemudi: '', bbm: 'Pertalite', vol: '10.00', hj: '10000', bayar: '100000' }
     };
 
+    // ==============================================================
+    // SISTEM PENYIMPANAN TEMPLATE (LOCAL STORAGE)
+    // ==============================================================
+    let savedTemplates = JSON.parse(localStorage.getItem('notaku_templates')) || [];
+
+    function loadSavedTemplates() {
+        const group = document.getElementById('saved-optgroup');
+        group.innerHTML = '';
+        savedTemplates.forEach((tpl, index) => {
+            const opt = document.createElement('option');
+            opt.value = 'saved_' + index;
+            opt.innerText = tpl.name;
+            group.appendChild(opt);
+        });
+    }
+
+    function saveAsTemplate() {
+        const activeModel = document.querySelector('.model-view:not(.hidden)');
+        if(!activeModel) return;
+
+        // Pastikan tidak mensave status "editable-active" (outline biru)
+        clearEditorSelection();
+
+        let templateName = prompt("Masukkan Nama untuk Template Baru ini:", "Template Custom " + (savedTemplates.length + 1));
+        if (!templateName) return;
+
+        let templateHTML = activeModel.innerHTML;
+
+        savedTemplates.push({ name: templateName, html: templateHTML });
+        localStorage.setItem('notaku_templates', JSON.stringify(savedTemplates));
+
+        loadSavedTemplates();
+        
+        // Langsung arahkan dropdown ke template yang baru disave
+        document.getElementById('in-desain').value = 'saved_' + (savedTemplates.length - 1);
+        document.getElementById('in-desain').dispatchEvent(new Event('change'));
+
+        showToast('✅ Template "' + templateName + '" berhasil disimpan!');
+    }
+
+    function deleteCurrentTemplate() {
+        const val = document.getElementById('in-desain').value;
+        if (val.startsWith('saved_')) {
+            if(confirm("Yakin ingin menghapus template ini permanen?")) {
+                const index = parseInt(val.split('_')[1]);
+                savedTemplates.splice(index, 1);
+                localStorage.setItem('notaku_templates', JSON.stringify(savedTemplates));
+                
+                loadSavedTemplates();
+                document.getElementById('in-desain').value = '1';
+                document.getElementById('in-desain').dispatchEvent(new Event('change'));
+                
+                showToast('🗑️ Template berhasil dihapus!');
+            }
+        }
+    }
+
     document.getElementById('in-desain').addEventListener('change', function() {
         clearEditorSelection();
         editorUndoStack = [];
         editorRedoStack = [];
 
         document.querySelectorAll('.model-view').forEach(el => el.classList.add('hidden'));
-        document.getElementById('model-' + this.value).classList.remove('hidden');
+        
+        const val = this.value;
+        const isCustom = val === 'custom';
+        const isSaved = val.startsWith('saved_');
 
-        const isCustom = this.value === 'custom';
+        // Tampilkan/Sembunyikan tombol Hapus
+        document.getElementById('btn-delete-template').classList.toggle('hidden', !isSaved);
+
         document.getElementById('custom-controls').classList.toggle('hidden', !isCustom);
+        // Form standar akan ditampilkan baik untuk template default maupun tersimpan, karena template tersimpan masih memilik class .out-*
         document.getElementById('standard-form-wrapper').classList.toggle('hidden', isCustom);
 
-        if(!isCustom) {
-            const tpl = templates[this.value];
+        if (isCustom) {
+            document.getElementById('model-custom').classList.remove('hidden');
+        } else if (isSaved) {
+            const index = parseInt(val.split('_')[1]);
+            const tpl = savedTemplates[index];
+            const savedContainer = document.getElementById('model-saved');
+            savedContainer.innerHTML = tpl.html;
+            savedContainer.classList.remove('hidden');
+        } else {
+            document.getElementById('model-' + val).classList.remove('hidden');
+            const tpl = templates[val];
             if(tpl) {
                 document.getElementById('in-kode').value = tpl.kode;
                 document.getElementById('in-nama').value = tpl.nama;
@@ -444,8 +524,8 @@
                 document.getElementById('in-hj').value = tpl.hj;
             }
         }
+        
         updateReceipt();
-        saveEditorState();
     });
 
     document.getElementById('in-scan-nota').addEventListener('change', function(e) {
@@ -475,11 +555,11 @@
                 div.className = "left"; 
                 div.dataset.sx = "1";
                 div.dataset.sy = "1";
-                // FIX ENTER: Jika user kasih enter (baris kosong), gunakan no-break space agar div terbaca utuh
                 div.innerHTML = l.trim() === "" ? "&nbsp;" : l; 
                 display.appendChild(div);
             });
         } else {
+            // Logika form isian biasa, berlaku untuk Template Bawaan maupun Template Tersimpan
             const kode = document.getElementById('in-kode').value;
             const nama = document.getElementById('in-nama').value;
             const jalan = document.getElementById('in-jalan').value;
@@ -524,7 +604,6 @@
 
     // ==============================================================
     // ENGINE NATIVE: EKSTRAKTOR TEKS KE JSON ESC/POS 
-    // (FIX BUG: Mencegah penghapusan spasi/enter oleh perintah trim)
     // ==============================================================
     function handleCetakPrint() {
         clearEditorSelection();
@@ -555,7 +634,7 @@
             const child = children[i];
             if (child.classList.contains('hidden') || child.style.display === 'none') continue;
 
-            let align = 0; // 0=Left, 1=Center, 2=Right
+            let align = 0; 
             if (child.style.textAlign === 'center' || child.classList.contains('center')) align = 1;
             else if (child.style.textAlign === 'right' || child.classList.contains('right')) align = 2;
 
@@ -584,11 +663,9 @@
                 text = prefixSpace + left + " ".repeat(pad) + right;
                 align = 0; 
             } else {
-                // FIX ENTER: Jangan trim baris yang murni sengaja dikosongkan
                 let rawText = child.innerText;
-                // Cek jika teks asli kosong atau berisi No-Break Space bawaan editor/html
                 if (rawText.replace(/\u00a0/g, ' ').trim() === "" || child.innerHTML === '<br>' || child.innerHTML === '&nbsp;') {
-                    text = " "; // Ini krusial: Memaksa printer memajukan 1 baris
+                    text = " "; 
                 } else {
                     text = rawText.trim();
                     if(align === 0) {
@@ -597,11 +674,9 @@
                 }
             }
 
-            // Jika text BUKAN String kosong (minimal ia berisi spasi " ")
             if (text !== "") {
                 let lines = text.split('\n');
                 lines.forEach(l => {
-                    // Jika user enter berulang kali dalam 1 div, ubah sisa \n jadi spasi
                     let printL = l.replace(/\u00a0/g, ' ').trim() === "" ? " " : l;
                     printData.push({ text: printL, align: align, bold: isBold, width: sx, height: sy });
                 });
@@ -821,7 +896,6 @@
                     target.classList.add('editable-active');
                 }
             } else if (el.innerHTML === '<br>' || el.innerHTML === '&nbsp;') {
-                 // Tambahkan seleksi untuk baris kosong
                  if(!editorSelectedElements.includes(el) && el !== activeModel) {
                     editorSelectedElements.push(el);
                     el.classList.add('editable-active');
@@ -844,7 +918,9 @@
         }
     });
 
+    // Inisialisasi saat web pertama kali diload
     window.addEventListener('DOMContentLoaded', () => {
+        loadSavedTemplates(); // Load template dari memori
         document.getElementById('in-desain').dispatchEvent(new Event('change'));
     });
     
