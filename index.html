@@ -38,7 +38,6 @@
         .logo-display-container { width: 100%; margin-bottom: 10px; display: none; }
         .logo-display-img { display: block; max-width: 100px; height: auto; }
 
-        /* KUMPULAN CSS KHUSUS UNTUK MODEL 4 (POM FARLY) */
         #model-4 {
             font-family: 'Consolas', 'Lucida Console', Monaco, monospace;
             font-size: 10px;
@@ -65,7 +64,6 @@
         #model-4 .tight-number { letter-spacing: -1px; }
         #model-4 .spacer { height: 10px; }
 
-        /* CSS KHUSUS EDITOR */
         .editable-active { outline: 2px dashed #3b82f6; outline-offset: 2px; cursor: text; background-color: rgba(59, 130, 246, 0.05); }
         .model-view > * { cursor: pointer; transition: outline 0.1s; }
         .model-view > *:hover:not(.editable-active) { outline: 1px dotted #9ca3af; }
@@ -78,11 +76,7 @@
             .no-print { display: none !important; }
             .editable-active { outline: none !important; background-color: transparent !important; }
             #zoom-container { transform: scale(1) !important; transform-origin: top left !important; width: auto !important; height: auto !important; }
-            
-            #model-4 {
-                width: 100%; 
-                max-width: 100%;
-            }
+            #model-4 { width: 100%; max-width: 100%; }
         }
     </style>
 </head>
@@ -614,7 +608,6 @@
     };
 
     document.getElementById('in-desain').addEventListener('change', function() {
-        // Reset Editor Selection on Template Change
         clearEditorSelection();
         editorUndoStack = [];
         editorRedoStack = [];
@@ -650,7 +643,7 @@
             }
         }
         updateReceipt();
-        saveEditorState(); // Initial save
+        saveEditorState();
     });
 
     const chkLogo = document.getElementById('in-show-logo');
@@ -865,51 +858,61 @@
 
         let activeModelElement = document.querySelector('.model-view:not(.hidden)');
         
-        showToast('🔄 Memproses Render Gambar Tajam 1:1... Mohon tunggu...');
+        showToast('🔄 Memproses Kualitas Teks Tajam 1:1... Mohon tunggu...');
         
+        // 1. Simpan State Asli
         let currentZoom = document.getElementById('zoom-container').style.transform;
-        document.getElementById('zoom-container').style.transform = 'scale(1)';
-
-        // PENAMBAHAN SOLUSI AGAR TIDAK KECIL: Copot padding & border sementara agar Teks menyentuh ujung kertas
         let oldPadding = activeModelElement.style.padding;
         let oldBorder = activeModelElement.style.border;
         let oldBoxShadow = activeModelElement.style.boxShadow;
+        let oldFilter = activeModelElement.style.filter;
         
-        // Atur padding sangat tipis saja (kiri kanan 1mm agar tidak terpotong body printer, atas bawah 2mm)
-        activeModelElement.style.padding = '2mm 1mm'; 
+        // 2. Manipulasi CSS Sesaat untuk Ketajaman Printer
+        document.getElementById('zoom-container').style.transform = 'scale(1)';
+        activeModelElement.style.padding = '0mm 1mm'; // Kurangi margin agar pas 58mm
         activeModelElement.style.border = 'none';
         activeModelElement.style.boxShadow = 'none';
+        activeModelElement.style.filter = 'grayscale(100%) contrast(200%)'; // Paksa warna hitam pekat
 
-        html2canvas(activeModelElement, {
-            scale: 3, // Skala dibesarkan 3x lipat agar sangat resolusi tinggi sebelum diperkecil di Java
-            useCORS: true,
-            backgroundColor: "#ffffff"
-        }).then(canvas => {
-            // Kembalikan ke style asli di layar HP
-            document.getElementById('zoom-container').style.transform = currentZoom;
-            activeModelElement.style.padding = oldPadding;
-            activeModelElement.style.border = oldBorder;
-            activeModelElement.style.boxShadow = oldBoxShadow;
+        // Beri waktu 50ms agar browser merender CSS baru sebelum difoto html2canvas
+        setTimeout(() => {
+            // Kalkulasi lebar div untuk dijadikan patokan Skala (Target Mutlak 384 pixel)
+            let rect = activeModelElement.getBoundingClientRect();
+            let exactScale = 384 / rect.width; 
 
-            let base64Image = canvas.toDataURL("image/png");
-            let base64Data = base64Image.split(',')[1];
+            html2canvas(activeModelElement, {
+                scale: exactScale, // SKALA PRESISI: 1 pixel HTML = 1 Dot Printer (Tidak ada Pengecilan di Java)
+                useCORS: true,
+                backgroundColor: "#ffffff"
+            }).then(canvas => {
+                // 3. Kembalikan ke tampilan asli layar HP
+                document.getElementById('zoom-container').style.transform = currentZoom;
+                activeModelElement.style.padding = oldPadding;
+                activeModelElement.style.border = oldBorder;
+                activeModelElement.style.boxShadow = oldBoxShadow;
+                activeModelElement.style.filter = oldFilter;
 
-            if (typeof AndroidPrinter !== 'undefined' && AndroidPrinter.cetakImageBluetooth) {
-                AndroidPrinter.cetakImageBluetooth(base64Data);
-                showToast('🖨️ Mengirim Gambar Struk 1:1 ke Printer Bluetooth...');
-            } else if (typeof AndroidPrinter !== 'undefined' && AndroidPrinter.cetakKeBluetooth) {
-                let dataCetak = getFormattedText(activeModelElement);
-                AndroidPrinter.cetakKeBluetooth(dataCetak.tall, dataCetak.normal);
-            } else {
-                window.print();
-            }
-        }).catch(err => {
-            document.getElementById('zoom-container').style.transform = currentZoom;
-            activeModelElement.style.padding = oldPadding;
-            activeModelElement.style.border = oldBorder;
-            activeModelElement.style.boxShadow = oldBoxShadow;
-            alert("Gagal merender struk: " + err);
-        });
+                let base64Image = canvas.toDataURL("image/png");
+                let base64Data = base64Image.split(',')[1];
+
+                if (typeof AndroidPrinter !== 'undefined' && AndroidPrinter.cetakImageBluetooth) {
+                    AndroidPrinter.cetakImageBluetooth(base64Data);
+                    showToast('🖨️ Mengirim Teks Super Tajam ke Printer Bluetooth...');
+                } else if (typeof AndroidPrinter !== 'undefined' && AndroidPrinter.cetakKeBluetooth) {
+                    let dataCetak = getFormattedText(activeModelElement);
+                    AndroidPrinter.cetakKeBluetooth(dataCetak.tall, dataCetak.normal);
+                } else {
+                    window.print();
+                }
+            }).catch(err => {
+                document.getElementById('zoom-container').style.transform = currentZoom;
+                activeModelElement.style.padding = oldPadding;
+                activeModelElement.style.border = oldBorder;
+                activeModelElement.style.boxShadow = oldBoxShadow;
+                activeModelElement.style.filter = oldFilter;
+                alert("Gagal merender struk: " + err);
+            });
+        }, 50);
     }
 
     function showToast(message) {
