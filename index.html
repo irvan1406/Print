@@ -12,8 +12,7 @@
         .receipt-container {
             font-family: 'Courier New', Courier, monospace;
             width: 57mm; box-sizing: border-box; background: white; color: black;
-            font-size: 11px; line-height: 1.2; 
-            padding: 4.5mm 1mm;
+            font-size: 11px; line-height: 1.2; padding: 4.5mm 1mm;
             margin: 0 auto; position: relative;
             overflow: hidden;
         }
@@ -216,6 +215,7 @@
                 <div class="lg:col-span-2 flex flex-wrap gap-2 items-center bg-slate-700 p-2 rounded justify-between">
                     <button class="bg-indigo-600 hover:bg-indigo-500 px-3 py-1 rounded shadow text-[11px] font-bold" onclick="toggleDuaKolom()">Kolom Kiri-Kanan (Flex)</button>
                     <div class="flex gap-2">
+                        <button class="bg-emerald-600 hover:bg-emerald-500 px-3 py-1 rounded shadow text-[11px] font-bold" onclick="editorInsertRow()">+ Sisip Baris</button>
                         <button class="bg-green-600 hover:bg-green-500 px-3 py-1 rounded shadow text-[11px] font-bold" onclick="editorDuplicateRow()">+ Duplikat</button>
                         <button class="bg-red-600 hover:bg-red-500 px-3 py-1 rounded shadow text-[11px] font-bold" onclick="editorDeleteRow()">🗑 Hapus</button>
                         <button class="bg-blue-600 hover:bg-blue-500 px-3 py-1 rounded shadow text-[11px] font-bold" onclick="editorSelectAll()">Blok Semua</button>
@@ -540,7 +540,7 @@
     });
 
     // ==========================================
-    // LOGIKA GLOBAL MARGIN TANPA SELEKSI
+    // LOGIKA GLOBAL MARGIN
     // ==========================================
     function applyGlobalMargin() {
         const activeModel = document.querySelector('.model-view:not(.hidden)');
@@ -589,11 +589,10 @@
             let rawLines = document.getElementById('in-custom-text').value.split('\n');
             rawLines.forEach(l => {
                 let div = document.createElement('div');
-                div.className = "left"; 
+                div.className = "left text-line"; 
                 div.dataset.sx = "1";
                 div.dataset.sy = "1";
-                // FIX ENTER: Jika user kasih enter, gunakan tag br agar UI terupdate dan terekstrak dgn benar
-                div.innerHTML = l.trim() === "" ? "<br>" : l; 
+                div.innerHTML = l.trim() === "" ? "&nbsp;" : l; 
                 display.appendChild(div);
             });
         } else {
@@ -640,8 +639,7 @@
     }
 
     // ==============================================================
-    // ENGINE NATIVE: EKSTRAKTOR TEKS KE JSON ESC/POS 
-    // FIX BARIS KOSONG & MULTIPLE ENTER
+    // ENGINE NATIVE JSON ESC/POS (FIX ENTER DOUBLE)
     // ==============================================================
     function handleCetakPrint() {
         clearEditorSelection();
@@ -687,6 +685,7 @@
             let maxLen = sx >= 2 ? 16 : 32; 
 
             if (child.tagName === 'BR' || child.classList.contains('spacer')) {
+                // FIX: Paksa ukuran 1x1 untuk baris kosong agar tidak lompat 2 baris
                 printData.push({ text: "", align: 0, bold: 0, width: 1, height: 1 });
             } else if (child.classList.contains('dashed-line')) {
                 let text = prefixSpace + "-".repeat(Math.max(1, maxLen - Math.max(0, marginSpacesLeft)));
@@ -708,14 +707,15 @@
             } else {
                 let rawText = child.innerText || "";
                 
-                // Murni baris kosong (Enter dlm ContentEditable)
                 if (rawText.replace(/\u00a0/g, ' ').trim() === "" || child.innerHTML === '<br>' || child.innerHTML === '&nbsp;') {
+                    // FIX: Paksa ukuran 1x1 untuk baris kosong
                     printData.push({ text: "", align: 0, bold: 0, width: 1, height: 1 });
                 } else {
                     let lines = rawText.split('\n');
                     lines.forEach(l => {
                         let printL = l.replace(/\u00a0/g, ' ').trim();
                         if (printL === "") {
+                            // FIX: Paksa ukuran 1x1 untuk baris kosong hasil enter di dalam div
                             printData.push({ text: "", align: 0, bold: 0, width: 1, height: 1 });
                         } else {
                             if (align === 0) { 
@@ -755,6 +755,16 @@
     let editorSelectedElements = [];
     let editorUndoStack = [];
     let editorRedoStack = [];
+
+    // Helper Mendapatkan Baris Utama
+    function getMainRow(el) {
+        const activeModel = document.querySelector('.model-view:not(.hidden)');
+        let row = el;
+        while(row && row.parentElement && row.parentElement !== activeModel) {
+            row = row.parentElement;
+        }
+        return row;
+    }
 
     function saveEditorState() {
         const activeModel = document.querySelector('.model-view:not(.hidden)');
@@ -807,6 +817,7 @@
         if(activeModel && activeModel.contains(e.target) && e.target !== activeModel) {
             let target = e.target;
             
+            // Cari elemen baris parent (jangan span)
             if(target.tagName === 'SPAN' && target.parentElement !== activeModel && target.parentElement.tagName !== 'DIV') {
                 target = target.parentElement;
             }
@@ -831,13 +842,14 @@
     });
 
     function syncToolbarWithElement(el) {
-        const style = window.getComputedStyle(el);
+        let rowEl = getMainRow(el);
+        const style = window.getComputedStyle(rowEl);
         
         const setBtnActive = (id, isActive) => { document.getElementById(id).style.backgroundColor = isActive ? '#3b82f6' : ''; };
-        setBtnActive('ed-bold', style.fontWeight === 'bold' || parseInt(style.fontWeight) > 400 || el.classList.contains('fw-bold'));
+        setBtnActive('ed-bold', style.fontWeight === 'bold' || parseInt(style.fontWeight) > 400 || rowEl.classList.contains('fw-bold'));
 
-        let sx = el.dataset.sx || "1";
-        let sy = el.dataset.sy || "1";
+        let sx = rowEl.dataset.sx || "1";
+        let sy = rowEl.dataset.sy || "1";
         document.getElementById('ed-scale').value = `${sx}x${sy}`;
     }
 
@@ -845,9 +857,10 @@
         if(editorSelectedElements.length === 0) return;
         saveEditorState();
         editorSelectedElements.forEach(el => {
-            el.style[property] = value;
+            let rowEl = getMainRow(el);
+            rowEl.style[property] = value;
             if(property === 'textAlign') {
-                el.classList.remove('center', 'left', 'right');
+                rowEl.classList.remove('center', 'left', 'right', 'flex-between');
             }
         });
     }
@@ -856,16 +869,17 @@
         if(editorSelectedElements.length === 0) return;
         saveEditorState();
         
-        const firstEl = editorSelectedElements[0];
+        const firstEl = getMainRow(editorSelectedElements[0]);
         const style = window.getComputedStyle(firstEl);
         const isCurrentlyBold = style.fontWeight === 'bold' || parseInt(style.fontWeight) > 400 || firstEl.classList.contains('fw-bold');
         
         editorSelectedElements.forEach(el => {
+            let rowEl = getMainRow(el);
             if (isCurrentlyBold) {
-                el.style.fontWeight = 'normal';
-                el.classList.remove('fw-bold');
+                rowEl.style.fontWeight = 'normal';
+                rowEl.classList.remove('fw-bold');
             } else {
-                el.style.fontWeight = 'bold';
+                rowEl.style.fontWeight = 'bold';
             }
         });
         
@@ -881,15 +895,16 @@
         let sy = parts[1];
 
         editorSelectedElements.forEach(el => {
-            el.dataset.sx = sx;
-            el.dataset.sy = sy;
-            el.style.transform = `scaleX(${sx}) scaleY(${sy})`;
-            el.style.transformOrigin = el.style.textAlign === 'center' ? 'center top' : (el.style.textAlign === 'right' ? 'right top' : 'left top');
-            el.style.display = 'inline-block';
-            el.style.width = '100%';
+            let rowEl = getMainRow(el);
+            rowEl.dataset.sx = sx;
+            rowEl.dataset.sy = sy;
+            rowEl.style.transform = `scaleX(${sx}) scaleY(${sy})`;
+            rowEl.style.transformOrigin = rowEl.style.textAlign === 'center' ? 'center top' : (rowEl.style.textAlign === 'right' ? 'right top' : 'left top');
+            rowEl.style.display = 'inline-block';
+            rowEl.style.width = '100%';
             
-            if (sy == "2") el.style.marginBottom = "10px";
-            else el.style.marginBottom = "0px";
+            if (sy == "2") rowEl.style.marginBottom = "10px";
+            else rowEl.style.marginBottom = "0px";
         });
     }
 
@@ -897,14 +912,15 @@
         if(editorSelectedElements.length === 0) return;
         saveEditorState();
         let el = editorSelectedElements[0];
-        if(el.classList.contains('flex-between')) {
-            el.classList.remove('flex-between');
-            el.innerHTML = el.innerText.replace(/\n/g, ' ');
+        let rowEl = getMainRow(el);
+        if(rowEl.classList.contains('flex-between')) {
+            rowEl.classList.remove('flex-between');
+            rowEl.innerHTML = rowEl.innerText.replace(/\n/g, ' ');
         } else {
-            el.classList.add('flex-between');
-            let content = el.innerText;
-            el.innerHTML = `<div>${content}</div><div>10000</div>`;
-            el.style.textAlign = 'left';
+            rowEl.classList.add('flex-between');
+            let content = rowEl.innerText;
+            rowEl.innerHTML = `<div>${content}</div><div>10000</div>`;
+            rowEl.style.textAlign = 'left';
         }
     }
 
@@ -912,17 +928,50 @@
         if(editorSelectedElements.length === 0) return;
         saveEditorState();
         editorSelectedElements.forEach(el => {
-            const clone = el.cloneNode(true);
+            let rowEl = getMainRow(el);
+            const clone = rowEl.cloneNode(true);
             clone.classList.remove('editable-active');
             clone.contentEditable = "false";
-            el.parentNode.insertBefore(clone, el.nextSibling);
+            clone.querySelectorAll('.editable-active').forEach(c => {
+                c.classList.remove('editable-active');
+                c.contentEditable = "false";
+            });
+            rowEl.parentNode.insertBefore(clone, rowEl.nextSibling);
         });
+    }
+
+    // FITUR BARU: SISIP BARIS DI BAWAH ELEMEN YANG DIPILIH
+    function editorInsertRow() {
+        if(editorSelectedElements.length === 0) return;
+        saveEditorState();
+        
+        let lastEl = editorSelectedElements[editorSelectedElements.length - 1];
+        let rowEl = getMainRow(lastEl);
+        
+        let div = document.createElement('div');
+        div.className = "left text-line";
+        div.dataset.sx = "1";
+        div.dataset.sy = "1";
+        div.innerHTML = "&nbsp;"; 
+        
+        rowEl.parentNode.insertBefore(div, rowEl.nextSibling);
+        
+        clearEditorSelection();
+        editorSelectedElements.push(div);
+        div.classList.add('editable-active');
+        div.contentEditable = "true";
+        document.getElementById('adv-controls').classList.remove('pointer-events-none', 'opacity-50');
+        syncToolbarWithElement(div);
+        div.focus();
     }
 
     function editorDeleteRow() {
         if(editorSelectedElements.length === 0) return;
         saveEditorState();
-        editorSelectedElements.forEach(el => el.remove());
+        editorSelectedElements.forEach(el => {
+            let rowEl = getMainRow(el);
+            rowEl.remove();
+        });
         clearEditorSelection();
     }
 
