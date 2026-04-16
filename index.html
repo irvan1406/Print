@@ -12,8 +12,10 @@
         .receipt-container {
             font-family: 'Courier New', Courier, monospace;
             width: 57mm; box-sizing: border-box; background: white; color: black;
-            font-size: 11px; line-height: 1.2; padding: 4.5mm;
+            font-size: 11px; line-height: 1.2; 
+            padding: 4.5mm 1mm; /* Default tipis kiri kanan */
             margin: 0 auto; position: relative;
+            overflow: hidden; /* Mencegah tumpah saat margin minus */
         }
         .center { text-align: center; }
         .left { text-align: left; }
@@ -55,7 +57,7 @@
         }
     </style>
 </head>
-<body class="bg-gray-100 min-h-screen p-4 md:p-8 pb-32">
+<body class="bg-gray-100 min-h-screen p-4 md:p-8 pb-10">
 
 <div id="status-bar" class="max-w-6xl mx-auto bg-slate-900 text-white text-[10px] px-4 py-2 flex justify-between items-center rounded-lg shadow-md mb-4 sticky top-2 z-50">
     <div class="flex items-center gap-2">
@@ -180,7 +182,17 @@
                 </div>
             </div>
 
-            <div id="adv-controls" class="grid grid-cols-1 lg:grid-cols-2 gap-3 text-xs pointer-events-none opacity-50">
+            <div class="flex items-center gap-2 bg-slate-700 p-2 rounded">
+                <span class="text-[11px] font-bold text-yellow-400">MARGIN GLOBAL (Spasi):</span>
+                <span class="text-[10px]">Kiri:</span>
+                <input type="number" id="global-space-left" class="bg-slate-800 w-12 rounded px-1 text-center outline-none border border-slate-500" value="0" oninput="applyGlobalMargin()">
+                <span class="text-[10px]">Kanan:</span>
+                <input type="number" id="global-space-right" class="bg-slate-800 w-12 rounded px-1 text-center outline-none border border-slate-500" value="0" oninput="applyGlobalMargin()">
+                <span class="text-[9px] text-gray-400 ml-1 leading-tight flex-1">*Bisa Minus (-) utk mepet.</span>
+                <button id="btn-delete-template" onclick="deleteCurrentTemplate()" class="bg-red-600 hover:bg-red-500 px-3 py-1 rounded shadow text-[10px] font-bold hidden">🗑 Hapus</button>
+            </div>
+
+            <div id="adv-controls" class="grid grid-cols-1 lg:grid-cols-2 gap-3 text-xs pointer-events-none opacity-50 border-t border-slate-600 pt-3">
                 <div class="flex items-center bg-slate-700 p-2 rounded gap-2 justify-between">
                     <div class="flex gap-1">
                         <button class="px-3 py-1 bg-slate-600 hover:bg-blue-500 rounded font-bold" onclick="applyNativeStyle('textAlign', 'left')" title="Rata Kiri">Left</button>
@@ -208,13 +220,6 @@
                         <button class="bg-red-600 hover:bg-red-500 px-3 py-1 rounded shadow text-[11px] font-bold" onclick="editorDeleteRow()">🗑 Hapus</button>
                         <button class="bg-blue-600 hover:bg-blue-500 px-3 py-1 rounded shadow text-[11px] font-bold" onclick="editorSelectAll()">Blok Semua</button>
                     </div>
-                </div>
-
-                <div class="lg:col-span-2 flex items-center gap-2 border-t border-slate-600 pt-2 mt-1">
-                    <span class="text-[11px] font-bold text-yellow-400">MARGIN KIRI (SPASI):</span>
-                    <input type="number" id="paper-margin" class="bg-slate-800 w-16 rounded px-2 py-1 text-center outline-none border border-slate-500" value="0" min="0" max="15">
-                    <span class="text-[10px] text-gray-400 ml-1 leading-tight flex-1">*Catatan: Menambah margin spasi akan mengurangi sisa jatah 32 huruf Anda.</span>
-                    <button id="btn-delete-template" onclick="deleteCurrentTemplate()" class="bg-red-600 hover:bg-red-500 px-3 py-1 rounded shadow text-[10px] font-bold hidden">🗑 Hapus Template</button>
                 </div>
             </div>
             
@@ -357,15 +362,13 @@
     </div>
 </div>
 
-<div class="fixed bottom-0 left-0 right-0 bg-white p-4 border-t shadow-[0_-10px_20px_rgba(0,0,0,0.1)] z-50">
-    <div class="max-w-6xl mx-auto flex gap-4">
-        <button onclick="handleCetakPrint()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-xl shadow-lg transition-all text-lg active:scale-[0.98]">
-            CETAK KE PRINTER THERMAL (Native Text)
-        </button>
-    </div>
-</div>
+<button onclick="handleCetakPrint()" class="fixed bottom-6 right-6 bg-blue-600 hover:bg-blue-700 text-white rounded-full w-14 h-14 flex items-center justify-center shadow-[0_10px_25px_rgba(37,99,235,0.5)] transition-transform active:scale-90 z-50 border-2 border-white" title="Cetak ke Printer Thermal">
+    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+      <path stroke-linecap="round" stroke-linejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+    </svg>
+</button>
 
-<div id="toast-message" class="fixed bottom-4 right-4 bg-green-800 text-white px-6 py-3 rounded shadow-xl transition-opacity duration-300 opacity-0 pointer-events-none z-50"></div>
+<div id="toast-message" class="fixed bottom-6 left-1/2 transform -translate-x-1/2 bg-green-800 text-white px-6 py-3 rounded-full shadow-2xl transition-opacity duration-300 opacity-0 pointer-events-none z-50 whitespace-nowrap font-bold text-sm"></div>
 
 <script>
     let currentTab = 'spbu';
@@ -437,20 +440,20 @@
         const activeModel = document.querySelector('.model-view:not(.hidden)');
         if(!activeModel) return;
 
-        // Pastikan tidak mensave status "editable-active" (outline biru)
-        clearEditorSelection();
+        clearEditorSelection(); // Hilangkan border biru sblm disave
 
         let templateName = prompt("Masukkan Nama untuk Template Baru ini:", "Template Custom " + (savedTemplates.length + 1));
         if (!templateName) return;
 
         let templateHTML = activeModel.innerHTML;
+        let ml = document.getElementById('global-space-left').value;
+        let mr = document.getElementById('global-space-right').value;
 
-        savedTemplates.push({ name: templateName, html: templateHTML });
+        savedTemplates.push({ name: templateName, html: templateHTML, ml: ml, mr: mr });
         localStorage.setItem('notaku_templates', JSON.stringify(savedTemplates));
 
         loadSavedTemplates();
         
-        // Langsung arahkan dropdown ke template yang baru disave
         document.getElementById('in-desain').value = 'saved_' + (savedTemplates.length - 1);
         document.getElementById('in-desain').dispatchEvent(new Event('change'));
 
@@ -485,21 +488,26 @@
         const isCustom = val === 'custom';
         const isSaved = val.startsWith('saved_');
 
-        // Tampilkan/Sembunyikan tombol Hapus
         document.getElementById('btn-delete-template').classList.toggle('hidden', !isSaved);
-
         document.getElementById('custom-controls').classList.toggle('hidden', !isCustom);
-        // Form standar akan ditampilkan baik untuk template default maupun tersimpan, karena template tersimpan masih memilik class .out-*
         document.getElementById('standard-form-wrapper').classList.toggle('hidden', isCustom);
 
         if (isCustom) {
             document.getElementById('model-custom').classList.remove('hidden');
+            document.getElementById('global-space-left').value = 0;
+            document.getElementById('global-space-right').value = 0;
+            applyGlobalMargin();
         } else if (isSaved) {
             const index = parseInt(val.split('_')[1]);
             const tpl = savedTemplates[index];
             const savedContainer = document.getElementById('model-saved');
             savedContainer.innerHTML = tpl.html;
             savedContainer.classList.remove('hidden');
+            
+            // Restore Margin Settings
+            document.getElementById('global-space-left').value = tpl.ml || 0;
+            document.getElementById('global-space-right').value = tpl.mr || 0;
+            applyGlobalMargin();
         } else {
             document.getElementById('model-' + val).classList.remove('hidden');
             const tpl = templates[val];
@@ -522,11 +530,42 @@
                 document.getElementById('in-bbm').value = tpl.bbm;
                 document.getElementById('in-vol').value = tpl.vol;
                 document.getElementById('in-hj').value = tpl.hj;
+                
+                document.getElementById('global-space-left').value = 0;
+                document.getElementById('global-space-right').value = 0;
+                applyGlobalMargin();
             }
         }
         
         updateReceipt();
     });
+
+    // ==========================================
+    // LOGIKA GLOBAL MARGIN TANPA SELEKSI
+    // ==========================================
+    function applyGlobalMargin() {
+        const activeModel = document.querySelector('.model-view:not(.hidden)');
+        if(!activeModel) return;
+        const spcLeft = parseInt(document.getElementById('global-space-left').value) || 0;
+        const spcRight = parseInt(document.getElementById('global-space-right').value) || 0;
+        
+        // Visual padding. 1 Spasi karakter ESC/POS setara dgn sekitar ~1.5mm di layar
+        if (spcLeft < 0) {
+            activeModel.style.marginLeft = (spcLeft * 1.5) + 'mm';
+            activeModel.style.paddingLeft = '0mm';
+        } else {
+            activeModel.style.marginLeft = '0mm';
+            activeModel.style.paddingLeft = (spcLeft * 1.5) + 'mm';
+        }
+
+        if (spcRight < 0) {
+            activeModel.style.marginRight = (spcRight * 1.5) + 'mm';
+            activeModel.style.paddingRight = '0mm';
+        } else {
+            activeModel.style.marginRight = '0mm';
+            activeModel.style.paddingRight = (spcRight * 1.5) + 'mm';
+        }
+    }
 
     document.getElementById('in-scan-nota').addEventListener('change', function(e) {
         const file = e.target.files[0];
@@ -559,7 +598,6 @@
                 display.appendChild(div);
             });
         } else {
-            // Logika form isian biasa, berlaku untuk Template Bawaan maupun Template Tersimpan
             const kode = document.getElementById('in-kode').value;
             const nama = document.getElementById('in-nama').value;
             const jalan = document.getElementById('in-jalan').value;
@@ -603,7 +641,7 @@
     }
 
     // ==============================================================
-    // ENGINE NATIVE: EKSTRAKTOR TEKS KE JSON ESC/POS 
+    // ENGINE NATIVE: EKSTRAKTOR TEKS KE JSON ESC/POS (Dengan Fitur Margin Kiri & Kanan Minus)
     // ==============================================================
     function handleCetakPrint() {
         clearEditorSelection();
@@ -622,12 +660,15 @@
         }
 
         let activeModelElement = document.querySelector('.model-view:not(.hidden)');
-        showToast('🔄 Memproses Cetak Teks Native Asli... Mohon tunggu...');
+        showToast('🔄 Memproses Cetak Teks Native Asli...');
 
         let printData = [];
         
-        let marginSpaces = parseInt(document.getElementById('paper-margin').value) || 0;
-        let prefixSpace = " ".repeat(marginSpaces);
+        let marginSpacesLeft = parseInt(document.getElementById('global-space-left').value) || 0;
+        let marginSpacesRight = parseInt(document.getElementById('global-space-right').value) || 0;
+        
+        let prefixSpace = marginSpacesLeft > 0 ? " ".repeat(marginSpacesLeft) : "";
+        let suffixSpace = marginSpacesRight > 0 ? " ".repeat(marginSpacesRight) : "";
         
         const children = activeModelElement.children;
         for (let i = 0; i < children.length; i++) {
@@ -649,18 +690,22 @@
             if (child.tagName === 'BR' || child.classList.contains('spacer')) {
                 text = " "; 
             } else if (child.classList.contains('dashed-line')) {
-                text = prefixSpace + "-".repeat(Math.max(1, maxLen - marginSpaces));
+                text = prefixSpace + "-".repeat(Math.max(1, maxLen - Math.max(0, marginSpacesLeft)));
                 align = 0;
             } else if (child.classList.contains('solid-line')) {
-                text = prefixSpace + "=".repeat(Math.max(1, maxLen - marginSpaces));
+                text = prefixSpace + "=".repeat(Math.max(1, maxLen - Math.max(0, marginSpacesLeft)));
                 align = 0;
             } else if (child.classList.contains('flex-between')) {
                 let left = child.children.length > 0 ? child.children[0].innerText.replace(/\n/g, '').trim() : '';
                 let right = child.children.length > 1 ? child.children[1].innerText.replace(/\n/g, '').trim() : '';
                 
-                let currentMax = maxLen - marginSpaces;
+                // Crop jika Margin Minus untuk Kolom
+                if (marginSpacesLeft < 0) left = left.substring(Math.abs(marginSpacesLeft));
+                if (marginSpacesRight < 0) right = right.substring(0, Math.max(0, right.length - Math.abs(marginSpacesRight)));
+
+                let currentMax = maxLen - Math.max(0, marginSpacesLeft) - Math.max(0, marginSpacesRight);
                 let pad = Math.max(1, currentMax - left.length - right.length);
-                text = prefixSpace + left + " ".repeat(pad) + right;
+                text = prefixSpace + left + " ".repeat(pad) + right + suffixSpace;
                 align = 0; 
             } else {
                 let rawText = child.innerText;
@@ -668,8 +713,20 @@
                     text = " "; 
                 } else {
                     text = rawText.trim();
-                    if(align === 0) {
-                        text = prefixSpace + text;
+                    
+                    // Terapkan Margin/Crop NATIVE
+                    if (align === 0) { // KIRI
+                        if (marginSpacesLeft < 0) {
+                            text = text.substring(Math.abs(marginSpacesLeft)); 
+                        } else {
+                            text = prefixSpace + text;
+                        }
+                    } else if (align === 2) { // KANAN
+                        if (marginSpacesRight < 0) {
+                            text = text.substring(0, Math.max(0, text.length - Math.abs(marginSpacesRight))); 
+                        } else {
+                            text = text + suffixSpace; // Geser ke kiri dgn spasi kanan
+                        }
                     }
                 }
             }
@@ -918,14 +975,13 @@
         }
     });
 
-    // Inisialisasi saat web pertama kali diload
     window.addEventListener('DOMContentLoaded', () => {
-        loadSavedTemplates(); // Load template dari memori
+        loadSavedTemplates();
         document.getElementById('in-desain').dispatchEvent(new Event('change'));
     });
     
     document.querySelectorAll('input, textarea, select').forEach(input => {
-        if(!input.id.startsWith('ed-') && !input.id.startsWith('paper-') && input.id !== 'in-scan-nota' && input.id !== 'in-logo-file') {
+        if(!input.id.startsWith('ed-') && !input.id.startsWith('global-space') && input.id !== 'in-scan-nota' && input.id !== 'in-logo-file') {
             input.addEventListener('input', () => {
                 updateReceipt();
                 if(input.id.includes('wifi')) buatWifiQR(); 
