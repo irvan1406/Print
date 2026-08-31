@@ -215,6 +215,30 @@
         .panel-description { margin: 5px 0 0; color: var(--text-soft); font-size: 12px; line-height: 1.5; }
         .soft-badge { padding: 6px 9px; border: 1px solid var(--accent-border); border-radius: 999px; color: var(--accent-strong); background: var(--accent-soft); font-size: 10px; font-weight: 750; white-space: nowrap; }
 
+        .workflow-steps {
+            margin: -2px 0 18px; padding: 5px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px;
+            border: 1px solid var(--border); border-radius: 14px; background: var(--surface-2);
+        }
+        .workflow-step { min-width: 0; padding: 9px 7px; display: flex; align-items: center; gap: 7px; color: var(--text-soft); font-size: 10px; font-weight: 750; }
+        .workflow-step-number {
+            width: 22px; height: 22px; flex: 0 0 auto; display: grid; place-items: center; border-radius: 8px;
+            color: var(--accent-strong); background: var(--accent-soft); font-size: 9px; font-weight: 850;
+        }
+
+        .template-manager { padding: 15px !important; border-color: var(--accent-border) !important; background: var(--accent-soft) !important; }
+        .template-manager-head { margin-bottom: 10px; display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+        .template-manager-title { color: var(--text) !important; font-size: 12px !important; font-weight: 800 !important; }
+        .template-manager-hint { margin-top: 2px; color: var(--text-soft); font-size: 10px; line-height: 1.4; }
+        .template-select-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 9px; }
+        .template-actions { display: flex; gap: 7px; }
+        .template-action {
+            min-width: 42px; min-height: 43px; padding: 0 11px; display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+            border: 1px solid var(--accent-border); border-radius: 11px; color: var(--accent-strong); background: var(--surface);
+            font-size: 11px; font-weight: 800;
+        }
+        .template-action svg { width: 16px; height: 16px; }
+        .template-action.danger { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 28%, var(--border)); }
+
         #strukForm > div, #standard-form-wrapper > div, #custom-controls {
             border: 1px solid var(--border) !important; border-radius: var(--radius-md) !important;
             background: var(--surface-2) !important; box-shadow: none !important;
@@ -245,6 +269,7 @@
         .wifi-auto-title { color: var(--text); font-size: 12px; font-weight: 800; }
         #wifi-auto-state { margin-top: 2px; color: var(--text-soft); font-size: 11px; white-space: normal; }
         .mini-button { border: 1px solid var(--accent-border); border-radius: 10px; padding: 8px 10px; color: var(--accent-strong); background: var(--surface); font-size: 11px; font-weight: 750; white-space: nowrap; }
+        .mini-actions { display: flex; gap: 7px; }
         .wifi-fields { display: grid; gap: 14px; }
         .field-card { padding: 14px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface-2); }
         .field-card label { display: block; margin-bottom: 7px; }
@@ -274,6 +299,7 @@
             background: linear-gradient(145deg, #172235, #101827) !important; box-shadow: var(--shadow) !important;
         }
         #adv-toolbar button, #adv-toolbar select, #adv-toolbar input { border-radius: 9px !important; }
+        #toolbar-toggle { display: none; }
         #print-area {
             min-height: 480px; border: 1px solid var(--border) !important; border-radius: 0 0 var(--radius-lg) var(--radius-lg) !important;
             background:
@@ -376,12 +402,23 @@
             #app-workspace { display: block; }
             #panel-spbu, #panel-wifi { padding: 18px !important; border-radius: 19px !important; margin-bottom: 16px; }
             .panel-title { font-size: 20px; }
+            .workflow-step { justify-content: center; padding: 8px 4px; }
+            .workflow-step span:last-child { display: none; }
+            .template-select-row { grid-template-columns: minmax(0, 1fr); }
+            .template-actions { display: grid; grid-template-columns: 1fr 1fr; }
+            .template-action { min-height: 40px; }
             #standard-form-wrapper > .grid { grid-template-columns: minmax(0, 1fr) !important; gap: 13px !important; }
             #standard-form-wrapper > .grid > .col-span-2 { grid-column: auto !important; }
             #strukForm > div, #standard-form-wrapper > div { padding: 14px !important; }
             .field-row { grid-template-columns: 1fr; }
+            .wifi-auto-card { align-items: flex-start; flex-direction: column; }
+            .mini-actions { width: 100%; display: grid; grid-template-columns: 1fr 1fr; }
             #preview-panel { position: static; }
             #adv-toolbar { border-radius: 19px 19px 0 0 !important; padding: 11px !important; }
+            #toolbar-toggle { display: inline-flex; align-items: center; gap: 5px; }
+            #adv-toolbar.is-collapsed .advanced-block { display: none !important; }
+            #adv-toolbar.is-collapsed { border-bottom: 1px solid #334155; border-radius: 19px !important; margin-bottom: 10px; }
+            #adv-toolbar.is-collapsed + #print-area { border-top: 1px solid var(--border) !important; border-radius: 19px !important; }
             #adv-toolbar > div { flex-wrap: wrap; }
             #adv-toolbar .lg\:col-span-2 > div { width: 100%; display: grid; grid-template-columns: repeat(2, 1fr); }
             #adv-toolbar .lg\:col-span-2 > div button { min-height: 36px; }
@@ -462,20 +499,44 @@
             <span class="soft-badge">ESC/POS</span>
         </div>
 
+        <div class="workflow-steps" aria-label="Alur membuat struk">
+            <div class="workflow-step"><span class="workflow-step-number">1</span><span>Pilih template</span></div>
+            <div class="workflow-step"><span class="workflow-step-number">2</span><span>Isi transaksi</span></div>
+            <div class="workflow-step"><span class="workflow-step-number">3</span><span>Pratinjau &amp; cetak</span></div>
+        </div>
+
         <form id="strukForm" class="space-y-4 text-sm">
-            <div class="border p-4 rounded bg-green-50 border-green-200">
-                <label class="block font-bold text-green-800 mb-2">Pilih Template (Model Desain)</label>
-                <select id="in-desain" class="w-full border p-2 rounded bg-white text-gray-700 font-bold">
-                    <optgroup label="Template Bawaan">
-                        <option value="1">Model 1 - "Pasti pas" Watudodol</option>
-                        <option value="2">Model 2 - "Pom Sukowidi"</option>
-                        <option value="3">Model 3 - "Pom alasrejo - Alasmalang"</option>
-                        <option value="4">Model 4 - "Pom Farly"</option>
-                        <option value="5">Model 5 - "Terserah"</option>
-                        <option value="custom">Mode Custom (Ketik Bebas)</option>
-                    </optgroup>
-                    <optgroup id="saved-optgroup" label="Template Tersimpan (Custom)"></optgroup>
-                </select>
+            <div class="template-manager">
+                <div class="template-manager-head">
+                    <div>
+                        <label class="template-manager-title" for="in-desain">Template struk</label>
+                        <p class="template-manager-hint">Template bawaan tetap tersedia. Simpan desain sendiri atau hapus template pilihan Anda.</p>
+                    </div>
+                    <span id="template-count" class="soft-badge">0 tersimpan</span>
+                </div>
+                <div class="template-select-row">
+                    <select id="in-desain" class="w-full border p-2 rounded bg-white text-gray-700 font-bold">
+                        <optgroup label="Template Bawaan">
+                            <option value="1">Model 1 · Pasti Pas Watudodol</option>
+                            <option value="2">Model 2 · Pom Sukowidi</option>
+                            <option value="3">Model 3 · Pom Alasrejo–Alasmalang</option>
+                            <option value="4">Model 4 · Pom Farly</option>
+                            <option value="5">Model 5 · Terserah</option>
+                            <option value="custom">Mode Custom · Ketik Bebas</option>
+                        </optgroup>
+                        <optgroup id="saved-optgroup" label="Template Tersimpan"></optgroup>
+                    </select>
+                    <div class="template-actions">
+                        <button class="template-action" type="button" onclick="saveAsTemplate()" title="Simpan sebagai template baru">
+                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M5 4h12l2 2v14H5V4Z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M8 4v6h8V4M8 20v-6h8v6"/></svg>
+                            Simpan
+                        </button>
+                        <button id="btn-delete-template-card" class="template-action danger hidden" type="button" onclick="deleteCurrentTemplate()" title="Hapus template terpilih">
+                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M4 7h16M9 3h6l1 4H8l1-4ZM7 7l1 14h8l1-14M10 11v6M14 11v6"/></svg>
+                            Hapus
+                        </button>
+                    </div>
+                </div>
             </div>
 
             <div class="border p-4 rounded bg-blue-50 border-blue-200">
@@ -555,7 +616,10 @@
                     <div id="wifi-auto-state">Tekan “Ambil jaringan” untuk mendeteksi Wi-Fi aktif.</div>
                 </div>
             </div>
-            <button class="mini-button" type="button" onclick="requestWifiInfo()">Ambil jaringan</button>
+            <div class="mini-actions">
+                <button class="mini-button" type="button" onclick="openNativeWifiSettings()">Pengaturan</button>
+                <button class="mini-button" type="button" onclick="requestWifiInfo()">Deteksi</button>
+            </div>
         </div>
 
         <div class="wifi-fields">
@@ -598,18 +662,18 @@
         
         <div id="adv-toolbar" class="w-full bg-slate-800 text-white p-3 rounded-t-lg shadow-lg no-print flex flex-col gap-3 transition-all duration-300">
             <div class="flex justify-between items-center border-b border-slate-600 pb-2">
-                <div class="font-bold text-sm text-yellow-400 flex items-center gap-2">
+                <div class="font-bold text-sm text-white flex items-center gap-2">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
-                    Editor ESC/POS
+                    Editor lanjutan
                 </div>
                 <div class="flex gap-2">
-                    <button onclick="saveAsTemplate()" class="bg-yellow-600 hover:bg-yellow-500 text-slate-900 px-3 py-1 rounded text-xs shadow font-bold" title="Simpan sebagai template baru">Simpan template</button>
+                    <button id="toolbar-toggle" onclick="toggleAdvancedToolbar()" class="bg-slate-700 hover:bg-slate-600 px-3 py-1 rounded text-xs shadow font-bold" type="button" aria-expanded="true">Sembunyikan</button>
                     <button onclick="editorUndo()" class="bg-slate-600 hover:bg-slate-500 px-2 py-1 rounded text-xs shadow" aria-label="Urungkan">↩</button>
                     <button onclick="editorRedo()" class="bg-slate-600 hover:bg-slate-500 px-2 py-1 rounded text-xs shadow" aria-label="Ulangi">↪</button>
                 </div>
             </div>
 
-            <div class="flex items-center gap-2 bg-slate-700 p-2 rounded">
+            <div class="advanced-block flex items-center gap-2 bg-slate-700 p-2 rounded">
                 <span class="text-[11px] font-bold text-yellow-400">Margin global</span>
                 <span class="text-[10px]">Kiri:</span>
                 <input type="number" id="global-space-left" class="bg-slate-800 w-12 rounded px-1 text-center outline-none border border-slate-500" value="0" oninput="applyGlobalMargin()">
@@ -619,7 +683,7 @@
                 <button id="btn-delete-template" onclick="deleteCurrentTemplate()" class="bg-red-600 hover:bg-red-500 px-3 py-1 rounded shadow text-[10px] font-bold hidden">Hapus</button>
             </div>
 
-            <div id="adv-controls" class="grid grid-cols-1 lg:grid-cols-2 gap-3 text-xs pointer-events-none opacity-50 border-t border-slate-600 pt-3">
+            <div id="adv-controls" class="advanced-block grid grid-cols-1 lg:grid-cols-2 gap-3 text-xs pointer-events-none opacity-50 border-t border-slate-600 pt-3">
                 <div class="flex items-center bg-slate-700 p-2 rounded gap-2 justify-between">
                     <div class="flex gap-1">
                         <button class="px-3 py-1 bg-slate-600 hover:bg-blue-500 rounded font-bold" onclick="applyNativeStyle('textAlign', 'left')" title="Rata kiri">Kiri</button>
@@ -651,7 +715,7 @@
                 </div>
             </div>
             
-            <div class="flex justify-between items-center border-t border-slate-600 pt-2 mt-1">
+            <div class="advanced-block flex justify-between items-center border-t border-slate-600 pt-2 mt-1">
                 <span class="text-xs">Zoom UI: <span id="lbl-zoom">120%</span></span>
                 <input type="range" id="zoom-slider" min="0.5" max="2" step="0.1" value="1.2" class="w-1/2" oninput="changeZoom(this.value)">
             </div>
@@ -1115,7 +1179,7 @@
         fill.style.background = battery !== null && battery <= 20 ? 'var(--danger)' : battery !== null && battery <= 50 ? 'var(--warning)' : 'var(--success)';
 
         const statusAction = document.getElementById('status-action');
-        statusAction.textContent = connected ? 'Terhubung' : 'Hubungkan';
+        statusAction.textContent = connected ? 'Terhubung' : printerState.connecting ? 'Menghubungkan…' : 'Hubungkan';
         statusAction.classList.toggle('is-connected', connected);
 
         const connectButton = document.getElementById('connect-printer-button');
@@ -1128,16 +1192,18 @@
 
     window.updatePrinterStatus = function(name, battery, connected, transport) {
         const payload = parseMaybeJson(name);
+        let connecting = false;
         if (payload && typeof payload === 'object') {
             name = payload.name || payload.printerName || payload.deviceName || '';
             battery = payload.battery ?? payload.batteryLevel ?? battery;
             connected = payload.connected ?? payload.isConnected ?? connected;
             transport = payload.transport || payload.type || transport;
+            connecting = Boolean(payload.connecting);
         }
         const normalizedName = String(name || '').trim();
         const disconnectedName = /terputus|disconnected|tidak terhubung|belum terhubung/i.test(normalizedName);
         printerState.connected = typeof connected === 'boolean' ? connected : Boolean(normalizedName && !disconnectedName);
-        printerState.connecting = false;
+        printerState.connecting = connecting && !printerState.connected;
         printerState.name = printerState.connected ? normalizedName || 'Printer terhubung' : 'Belum terhubung';
         printerState.battery = normalizeBattery(battery);
         printerState.transport = printerState.connected ? (transport || printerState.transport || 'Android Bluetooth') : '';
@@ -1447,8 +1513,11 @@
         autoState.textContent = 'Mendeteksi jaringan aktif…';
         badge.textContent = 'Memeriksa';
         const bridges = [window.AndroidWifi, window.AndroidNetwork, window.AndroidPrinter].filter(Boolean);
+        const methodNames = silent
+            ? ['getCurrentWifiInfo', 'getWifiInfo', 'currentWifi']
+            : ['requestWifiInfo', 'getCurrentWifiInfo', 'getWifiInfo', 'currentWifi'];
         for (const bridge of bridges) {
-            const method = findNativeMethod(bridge, ['getCurrentWifiInfo', 'getWifiInfo', 'requestWifiInfo', 'currentWifi']);
+            const method = findNativeMethod(bridge, methodNames);
             if (!method) continue;
             try {
                 const result = await Promise.resolve(method.fn());
@@ -1466,6 +1535,20 @@
             badge.textContent = navigator.onLine ? 'Manual' : 'Offline';
         }
         if (!silent) await appNotice('Akses Wi-Fi terbatas', 'Android tidak mengizinkan website membaca kata sandi Wi-Fi. Aplikasi dapat mengambil SSID dengan izin lokasi; simpan sandi sekali agar QR berikutnya muncul otomatis.');
+        return false;
+    }
+
+    async function openNativeWifiSettings() {
+        const bridges = [window.AndroidWifi, window.AndroidNetwork, window.AndroidPrinter].filter(Boolean);
+        for (const bridge of bridges) {
+            const method = findNativeMethod(bridge, ['openWifiSettings', 'bukaPengaturanWifi']);
+            if (!method) continue;
+            try {
+                await Promise.resolve(method.fn());
+                return true;
+            } catch (_) {}
+        }
+        await appNotice('Buka pengaturan Wi-Fi', 'Buka Pengaturan Android, sambungkan ke jaringan Wi-Fi, lalu kembali dan tekan Deteksi.');
         return false;
     }
 
@@ -1497,6 +1580,8 @@
             opt.innerText = tpl.name;
             group.appendChild(opt);
         });
+        const count = document.getElementById('template-count');
+        if (count) count.textContent = `${savedTemplates.length} tersimpan`;
     }
 
     async function saveAsTemplate() {
@@ -1580,6 +1665,7 @@
         const isSaved = val.startsWith('saved_');
 
         document.getElementById('btn-delete-template').classList.toggle('hidden', !isSaved);
+        document.getElementById('btn-delete-template-card').classList.toggle('hidden', !isSaved);
         document.getElementById('custom-controls').classList.toggle('hidden', !isCustom);
         document.getElementById('standard-form-wrapper').classList.toggle('hidden', isCustom);
 
@@ -2004,6 +2090,17 @@
         document.getElementById('lbl-zoom').innerText = Math.round(val * 100) + '%';
     }
 
+    function toggleAdvancedToolbar(forceExpanded) {
+        const toolbar = document.getElementById('adv-toolbar');
+        const button = document.getElementById('toolbar-toggle');
+        const shouldCollapse = typeof forceExpanded === 'boolean'
+            ? !forceExpanded
+            : !toolbar.classList.contains('is-collapsed');
+        toolbar.classList.toggle('is-collapsed', shouldCollapse);
+        button.setAttribute('aria-expanded', String(!shouldCollapse));
+        button.textContent = shouldCollapse ? 'Tampilkan alat' : 'Sembunyikan';
+    }
+
     document.addEventListener('click', (e) => {
         if(currentTab !== 'spbu') return;
 
@@ -2216,6 +2313,7 @@
         syncSettingsUI();
         loadSavedTemplates();
         document.getElementById('in-desain').dispatchEvent(new Event('change'));
+        if (window.matchMedia('(max-width: 767px)').matches) toggleAdvancedToolbar(false);
         buatWifiQR();
         requestWifiInfo(true);
         await requestPrinterStatus();
