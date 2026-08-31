@@ -2,8 +2,11 @@
 <html lang="id">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cetak Struk SPBU Pro (Native ESC/POS)</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="description" content="Editor struk SPBU dan generator QR Wi-Fi untuk printer thermal ESC/POS.">
+    <meta name="theme-color" content="#f4f7fb">
+    <meta name="color-scheme" content="light dark">
+    <title>Cetak Pro — Studio Struk & Wi-Fi QR</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
@@ -11,7 +14,7 @@
     <style>
         .receipt-container {
             font-family: 'Courier New', Courier, monospace;
-            width: 57mm; box-sizing: border-box; background: white; color: black;
+            width: var(--receipt-width, 57mm); box-sizing: border-box; background: white; color: black;
             font-size: 11px; line-height: 1.2; padding: 4.5mm 1mm;
             margin: 0 auto; position: relative;
             overflow: hidden;
@@ -54,30 +57,410 @@
             #zoom-container { transform: scale(1) !important; transform-origin: top left !important; width: auto !important; height: auto !important; }
             #model-4 { width: 100%; max-width: 100%; }
         }
+
+        :root {
+            --accent-h: 221;
+            --accent-s: 83%;
+            --accent-l: 55%;
+            --accent: hsl(var(--accent-h) var(--accent-s) var(--accent-l));
+            --accent-strong: hsl(var(--accent-h) 82% 46%);
+            --accent-soft: hsl(var(--accent-h) 92% 96%);
+            --accent-border: hsl(var(--accent-h) 72% 86%);
+            --success: #16a36a;
+            --success-soft: #eafaf3;
+            --danger: #e5484d;
+            --warning: #e99922;
+            --page: #f4f7fb;
+            --surface: #ffffff;
+            --surface-2: #f8fafc;
+            --surface-3: #eef3f8;
+            --text: #172033;
+            --text-soft: #667085;
+            --border: #dde4ee;
+            --shadow: 0 18px 50px rgba(22, 34, 53, .08);
+            --shadow-sm: 0 7px 20px rgba(22, 34, 53, .07);
+            --radius-lg: 22px;
+            --radius-md: 15px;
+            --radius-sm: 11px;
+            color-scheme: light;
+        }
+
+        html[data-theme="dark"] {
+            --accent-soft: hsl(var(--accent-h) 42% 15%);
+            --accent-border: hsl(var(--accent-h) 36% 28%);
+            --page: #0c111b;
+            --surface: #141b27;
+            --surface-2: #192231;
+            --surface-3: #202b3b;
+            --text: #f3f6fb;
+            --text-soft: #9ca9bb;
+            --border: #2c384b;
+            --success-soft: #102b22;
+            --shadow: 0 18px 50px rgba(0, 0, 0, .3);
+            --shadow-sm: 0 7px 20px rgba(0, 0, 0, .22);
+            color-scheme: dark;
+        }
+
+        * { -webkit-tap-highlight-color: transparent; }
+        html { scroll-behavior: smooth; }
+        body.app-shell {
+            margin: 0;
+            min-height: 100vh;
+            padding: 22px 18px calc(96px + env(safe-area-inset-bottom));
+            color: var(--text);
+            background:
+                radial-gradient(circle at 8% -5%, hsl(var(--accent-h) 92% 92% / .75), transparent 31rem),
+                radial-gradient(circle at 96% 8%, hsl(calc(var(--accent-h) + 42) 84% 92% / .55), transparent 27rem),
+                var(--page);
+            font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            transition: background-color .25s ease, color .25s ease;
+        }
+        html[data-theme="dark"] body.app-shell {
+            background:
+                radial-gradient(circle at 8% -5%, hsl(var(--accent-h) 65% 22% / .45), transparent 31rem),
+                radial-gradient(circle at 96% 8%, hsl(calc(var(--accent-h) + 42) 58% 18% / .35), transparent 27rem),
+                var(--page);
+        }
+        button, input, select, textarea { font: inherit; }
+        button { touch-action: manipulation; }
+        button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible {
+            outline: 3px solid hsl(var(--accent-h) 88% 62% / .27);
+            outline-offset: 2px;
+        }
+
+        .app-header {
+            max-width: 1152px;
+            margin: 0 auto 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+        }
+        .app-brand { display: flex; align-items: center; gap: 13px; min-width: 0; }
+        .brand-mark {
+            width: 44px; height: 44px; border-radius: 14px;
+            display: grid; place-items: center; flex: 0 0 auto;
+            color: white;
+            background: linear-gradient(145deg, var(--accent), hsl(calc(var(--accent-h) + 28) 82% 53%));
+            box-shadow: 0 10px 24px hsl(var(--accent-h) 75% 45% / .28);
+        }
+        .brand-mark svg { width: 24px; height: 24px; }
+        .brand-copy { min-width: 0; }
+        .brand-title { margin: 0; font-size: 20px; font-weight: 800; letter-spacing: -.03em; line-height: 1.1; }
+        .brand-subtitle { margin: 4px 0 0; color: var(--text-soft); font-size: 12px; }
+        .header-actions { display: flex; gap: 9px; }
+        .icon-button {
+            width: 42px; height: 42px; border: 1px solid var(--border); border-radius: 13px;
+            display: grid; place-items: center; color: var(--text); background: var(--surface);
+            box-shadow: var(--shadow-sm); transition: transform .18s ease, border-color .18s ease, color .18s ease;
+        }
+        .icon-button:hover { color: var(--accent); border-color: var(--accent-border); transform: translateY(-1px); }
+        .icon-button svg { width: 19px; height: 19px; }
+
+        #status-bar.printer-status {
+            max-width: 1152px; margin: 0 auto 16px; padding: 13px 14px;
+            display: flex; align-items: center; justify-content: space-between; gap: 14px;
+            color: var(--text); background: color-mix(in srgb, var(--surface) 92%, transparent);
+            border: 1px solid var(--border); border-radius: 17px; box-shadow: var(--shadow-sm);
+            backdrop-filter: blur(16px); position: sticky; top: 10px; z-index: 40;
+        }
+        .printer-status-main { min-width: 0; display: flex; align-items: center; gap: 11px; }
+        #status-dot {
+            width: 10px; height: 10px; border-radius: 50%; flex: 0 0 auto; background: var(--danger);
+            box-shadow: 0 0 0 5px color-mix(in srgb, var(--danger) 13%, transparent);
+        }
+        #status-dot.is-connected {
+            background: var(--success);
+            box-shadow: 0 0 0 5px color-mix(in srgb, var(--success) 14%, transparent), 0 0 16px color-mix(in srgb, var(--success) 52%, transparent);
+        }
+        .printer-status-copy { min-width: 0; }
+        .printer-status-label { color: var(--text-soft); font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; }
+        #txt-printer-name { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; font-weight: 750; }
+        .status-right { display: flex; align-items: center; gap: 14px; }
+        .battery-box { display: flex; align-items: center; gap: 8px; }
+        .battery-icon { width: 25px; height: 12px; border: 1.5px solid var(--text-soft); border-radius: 3px; padding: 2px; position: relative; }
+        .battery-icon::after { content: ""; position: absolute; width: 2px; height: 5px; right: -4px; top: 2px; border-radius: 0 2px 2px 0; background: var(--text-soft); }
+        #battery-fill { height: 100%; width: 0; border-radius: 1px; background: var(--success); transition: width .25s ease; }
+        #txt-printer-battery { min-width: 32px; color: var(--text-soft); font-size: 12px; font-weight: 750; }
+        .status-connect {
+            border: 0; border-radius: 11px; padding: 9px 13px; color: white; background: var(--accent);
+            font-size: 12px; font-weight: 750; box-shadow: 0 7px 16px hsl(var(--accent-h) 70% 45% / .22);
+        }
+        .status-connect.is-connected { color: var(--success); background: var(--success-soft); box-shadow: none; }
+
+        .tab-shell {
+            max-width: 1152px; margin: 0 auto 18px; padding: 5px; display: flex; gap: 5px;
+            border: 1px solid var(--border); border-radius: 16px; background: var(--surface); box-shadow: var(--shadow-sm);
+        }
+        .tab-button {
+            flex: 1; min-height: 46px; padding: 10px 14px; border: 0; border-radius: 12px;
+            display: flex; align-items: center; justify-content: center; gap: 9px;
+            color: var(--text-soft); background: transparent; font-size: 13px; font-weight: 750;
+            transition: background .2s ease, color .2s ease, transform .2s ease;
+        }
+        .tab-button svg { width: 17px; height: 17px; }
+        .tab-button.is-active { color: var(--accent-strong); background: var(--accent-soft); box-shadow: inset 0 0 0 1px var(--accent-border); }
+
+        #app-workspace {
+            max-width: 1152px; margin: 0 auto; display: grid;
+            grid-template-columns: minmax(0, 1fr) minmax(380px, 1fr); gap: 22px; align-items: start;
+        }
+        #panel-spbu, #panel-wifi {
+            width: auto !important; padding: 24px !important; color: var(--text); background: var(--surface) !important;
+            border: 1px solid var(--border); border-radius: var(--radius-lg) !important; box-shadow: var(--shadow) !important;
+        }
+        .panel-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; margin-bottom: 20px; }
+        .panel-eyebrow { margin: 0 0 5px; color: var(--accent); font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: .1em; }
+        .panel-title { margin: 0; color: var(--text) !important; font-size: 22px; font-weight: 800; letter-spacing: -.025em; }
+        .panel-description { margin: 5px 0 0; color: var(--text-soft); font-size: 12px; line-height: 1.5; }
+        .soft-badge { padding: 6px 9px; border: 1px solid var(--accent-border); border-radius: 999px; color: var(--accent-strong); background: var(--accent-soft); font-size: 10px; font-weight: 750; white-space: nowrap; }
+
+        #strukForm > div, #standard-form-wrapper > div, #custom-controls {
+            border: 1px solid var(--border) !important; border-radius: var(--radius-md) !important;
+            background: var(--surface-2) !important; box-shadow: none !important;
+        }
+        #strukForm h3 { color: var(--text) !important; border-color: var(--border) !important; font-size: 13px; letter-spacing: -.01em; }
+        #strukForm label, #panel-wifi label { color: var(--text-soft) !important; font-size: 12px; font-weight: 650; line-height: 1.45; }
+        #strukForm input:not([type="range"]):not([type="file"]), #strukForm select, #strukForm textarea,
+        #panel-wifi input:not([type="checkbox"]), #panel-wifi select {
+            min-height: 43px; padding: 10px 12px !important; color: var(--text); background: var(--surface) !important;
+            border: 1px solid var(--border) !important; border-radius: var(--radius-sm) !important;
+            box-shadow: 0 1px 2px rgba(16, 24, 40, .03); transition: border-color .18s ease, box-shadow .18s ease;
+        }
+        #strukForm textarea { min-height: 250px; }
+        #strukForm input:focus, #strukForm select:focus, #strukForm textarea:focus,
+        #panel-wifi input:focus, #panel-wifi select:focus {
+            border-color: var(--accent) !important; box-shadow: 0 0 0 4px hsl(var(--accent-h) 86% 56% / .12); outline: none;
+        }
+        #in-scan-nota { color: var(--text-soft); background: var(--surface) !important; border-color: var(--border) !important; border-radius: var(--radius-sm) !important; }
+        #in-scan-nota::file-selector-button { margin-right: 10px; border: 0; border-radius: 8px; padding: 8px 10px; color: var(--accent-strong); background: var(--accent-soft); font-weight: 750; }
+
+        .wifi-auto-card {
+            margin-bottom: 16px; padding: 14px; display: flex; gap: 12px; align-items: center; justify-content: space-between;
+            border: 1px solid var(--accent-border); border-radius: var(--radius-md); background: var(--accent-soft);
+        }
+        .wifi-auto-copy { min-width: 0; display: flex; align-items: center; gap: 11px; }
+        .wifi-icon { width: 36px; height: 36px; display: grid; place-items: center; flex: 0 0 auto; border-radius: 11px; color: white; background: var(--accent); }
+        .wifi-icon svg { width: 19px; height: 19px; }
+        .wifi-auto-title { color: var(--text); font-size: 12px; font-weight: 800; }
+        #wifi-auto-state { margin-top: 2px; color: var(--text-soft); font-size: 11px; white-space: normal; }
+        .mini-button { border: 1px solid var(--accent-border); border-radius: 10px; padding: 8px 10px; color: var(--accent-strong); background: var(--surface); font-size: 11px; font-weight: 750; white-space: nowrap; }
+        .wifi-fields { display: grid; gap: 14px; }
+        .field-card { padding: 14px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface-2); }
+        .field-card label { display: block; margin-bottom: 7px; }
+        .field-row { display: grid; grid-template-columns: 1fr 135px; gap: 10px; }
+        .password-wrap { position: relative; }
+        .password-wrap input { padding-right: 46px !important; }
+        .password-toggle { position: absolute; right: 7px; top: 50%; transform: translateY(-50%); width: 34px; height: 34px; border: 0; border-radius: 9px; display: grid; place-items: center; color: var(--text-soft); background: transparent; }
+        .password-toggle svg { width: 18px; height: 18px; }
+        .check-row { margin-top: 10px; display: flex; align-items: center; gap: 9px; color: var(--text-soft); font-size: 11px; }
+        .check-row input { width: 17px; height: 17px; accent-color: var(--accent); }
+        .wifi-actions { margin-top: 16px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .qr-placeholder { width: 150px; height: 150px; padding: 18px; display: grid; place-items: center; text-align: center; color: #64748b; border: 2px dashed #cbd5e1; border-radius: 10px; background: #f8fafc; font: 700 10px/1.4 ui-sans-serif, system-ui, sans-serif; }
+
+        .primary-button, .secondary-button, .danger-button {
+            min-height: 43px; border-radius: 12px; padding: 10px 15px; display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+            font-size: 12px; font-weight: 800; transition: transform .18s ease, opacity .18s ease, box-shadow .18s ease;
+        }
+        .primary-button { border: 1px solid var(--accent); color: white; background: var(--accent); box-shadow: 0 8px 18px hsl(var(--accent-h) 70% 45% / .22); }
+        .secondary-button { border: 1px solid var(--border); color: var(--text); background: var(--surface); }
+        .danger-button { border: 1px solid color-mix(in srgb, var(--danger) 30%, var(--border)); color: var(--danger); background: color-mix(in srgb, var(--danger) 7%, var(--surface)); }
+        .primary-button:hover, .secondary-button:hover, .danger-button:hover { transform: translateY(-1px); }
+        .primary-button:disabled, .secondary-button:disabled { opacity: .48; transform: none; box-shadow: none; cursor: not-allowed; }
+
+        #preview-panel { width: auto !important; min-width: 0; position: sticky; top: 84px; }
+        #adv-toolbar {
+            border: 1px solid #334155; border-bottom: 0; border-radius: var(--radius-lg) var(--radius-lg) 0 0 !important;
+            background: linear-gradient(145deg, #172235, #101827) !important; box-shadow: var(--shadow) !important;
+        }
+        #adv-toolbar button, #adv-toolbar select, #adv-toolbar input { border-radius: 9px !important; }
+        #print-area {
+            min-height: 480px; border: 1px solid var(--border) !important; border-radius: 0 0 var(--radius-lg) var(--radius-lg) !important;
+            background:
+                linear-gradient(45deg, rgba(148, 163, 184, .07) 25%, transparent 25%, transparent 75%, rgba(148, 163, 184, .07) 75%),
+                linear-gradient(45deg, rgba(148, 163, 184, .07) 25%, transparent 25%, transparent 75%, rgba(148, 163, 184, .07) 75%),
+                var(--surface-3) !important;
+            background-position: 0 0, 12px 12px !important; background-size: 24px 24px !important;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,.4), var(--shadow-sm) !important;
+        }
+        .receipt-container { box-shadow: 0 18px 42px rgba(15, 23, 42, .19) !important; border: 1px solid #e2e8f0 !important; }
+
+        #print-fab {
+            position: fixed; right: max(22px, env(safe-area-inset-right)); bottom: max(22px, env(safe-area-inset-bottom)); z-index: 45;
+            min-height: 58px; padding: 0 21px; border: 2px solid color-mix(in srgb, white 78%, transparent); border-radius: 18px;
+            display: flex; align-items: center; justify-content: center; gap: 10px; color: white; background: var(--accent);
+            box-shadow: 0 15px 32px hsl(var(--accent-h) 72% 42% / .38); font-size: 13px; font-weight: 850;
+            transition: transform .18s ease, box-shadow .18s ease;
+        }
+        #print-fab:hover { transform: translateY(-2px); box-shadow: 0 19px 38px hsl(var(--accent-h) 72% 42% / .45); }
+        #print-fab:active { transform: scale(.97); }
+        #print-fab svg { width: 22px; height: 22px; }
+
+        #toast-message.app-toast {
+            position: fixed; left: 50%; bottom: max(24px, env(safe-area-inset-bottom)); transform: translate(-50%, 12px);
+            max-width: min(440px, calc(100vw - 32px)); padding: 11px 15px; display: flex; align-items: center; gap: 9px;
+            color: white; background: #172033; border: 1px solid rgba(255,255,255,.12); border-radius: 13px;
+            box-shadow: 0 16px 38px rgba(0,0,0,.24); opacity: 0; pointer-events: none; z-index: 80;
+            font-size: 12px; font-weight: 700; white-space: normal; transition: opacity .2s ease, transform .2s ease;
+        }
+        #toast-message.app-toast.is-visible { opacity: 1; transform: translate(-50%, 0); }
+        #toast-message[data-type="success"] { background: #0c6846; }
+        #toast-message[data-type="error"] { background: #9f2d34; }
+        #toast-message[data-type="warning"] { background: #8a5512; }
+
+        .sheet-backdrop, .dialog-backdrop {
+            position: fixed; inset: 0; z-index: 70; display: grid; place-items: center; padding: 18px;
+            background: rgba(7, 12, 20, .55); backdrop-filter: blur(8px); animation: fade-in .18s ease;
+        }
+        .sheet-backdrop.hidden, .dialog-backdrop.hidden { display: none; }
+        .settings-sheet, .dialog-card {
+            width: min(100%, 520px); max-height: min(88vh, 760px); overflow: auto; color: var(--text); background: var(--surface);
+            border: 1px solid var(--border); border-radius: 24px; box-shadow: 0 28px 90px rgba(0,0,0,.3); animation: sheet-in .22s ease;
+        }
+        .sheet-header, .dialog-header { padding: 19px 20px; display: flex; align-items: flex-start; justify-content: space-between; gap: 15px; border-bottom: 1px solid var(--border); }
+        .sheet-title, .dialog-title { margin: 0; font-size: 18px; font-weight: 850; letter-spacing: -.025em; }
+        .sheet-subtitle, .dialog-message { margin: 4px 0 0; color: var(--text-soft); font-size: 12px; line-height: 1.5; }
+        .sheet-close { width: 36px; height: 36px; border: 1px solid var(--border); border-radius: 11px; color: var(--text-soft); background: var(--surface-2); font-size: 21px; line-height: 1; }
+        .sheet-body { padding: 18px 20px 22px; display: grid; gap: 16px; }
+        .settings-section { padding: 16px; border: 1px solid var(--border); border-radius: 16px; background: var(--surface-2); }
+        .settings-section-title { margin: 0 0 12px; display: flex; align-items: center; justify-content: space-between; color: var(--text); font-size: 12px; font-weight: 850; }
+        .connection-summary { margin-bottom: 13px; padding: 12px; display: flex; align-items: center; gap: 11px; border: 1px solid var(--border); border-radius: 13px; background: var(--surface); }
+        .connection-summary .status-orb { width: 34px; height: 34px; display: grid; place-items: center; border-radius: 11px; color: var(--danger); background: color-mix(in srgb, var(--danger) 9%, var(--surface)); }
+        .connection-summary.is-connected .status-orb { color: var(--success); background: var(--success-soft); }
+        .connection-summary strong { display: block; font-size: 12px; }
+        .connection-summary span { display: block; margin-top: 2px; color: var(--text-soft); font-size: 10px; }
+        .connection-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
+        .setting-row { padding: 10px 0; display: flex; align-items: center; justify-content: space-between; gap: 18px; border-top: 1px solid var(--border); }
+        .setting-row:first-of-type { border-top: 0; }
+        .setting-copy strong { display: block; font-size: 12px; }
+        .setting-copy span { display: block; margin-top: 2px; color: var(--text-soft); font-size: 10px; line-height: 1.4; }
+        .setting-row select { min-height: 36px; padding: 7px 9px; color: var(--text); border: 1px solid var(--border); border-radius: 9px; background: var(--surface); }
+        .switch { position: relative; width: 43px; height: 24px; flex: 0 0 auto; }
+        .switch input { position: absolute; opacity: 0; }
+        .switch-track { position: absolute; inset: 0; border-radius: 99px; background: var(--surface-3); border: 1px solid var(--border); transition: .2s ease; }
+        .switch-track::after { content: ""; position: absolute; width: 18px; height: 18px; left: 2px; top: 2px; border-radius: 50%; background: white; box-shadow: 0 2px 6px rgba(0,0,0,.2); transition: .2s ease; }
+        .switch input:checked + .switch-track { background: var(--accent); border-color: var(--accent); }
+        .switch input:checked + .switch-track::after { transform: translateX(19px); }
+        .theme-segment { padding: 4px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface); }
+        .theme-choice { min-height: 36px; border: 0; border-radius: 9px; color: var(--text-soft); background: transparent; font-size: 11px; font-weight: 750; }
+        .theme-choice.is-active { color: var(--accent-strong); background: var(--accent-soft); }
+        .color-control { margin-top: 13px; display: grid; grid-template-columns: 42px 1fr; gap: 11px; align-items: center; }
+        #theme-color { width: 42px; height: 38px; padding: 3px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); }
+        #theme-hue { width: 100%; accent-color: var(--accent); }
+        .color-presets { margin-top: 10px; display: flex; gap: 8px; }
+        .color-preset { width: 27px; height: 27px; border: 2px solid var(--surface); border-radius: 50%; box-shadow: 0 0 0 1px var(--border); }
+
+        .dialog-card { width: min(100%, 410px); max-height: none; overflow: visible; }
+        .dialog-body { padding: 18px 20px; }
+        #dialog-input-wrap { margin-top: 14px; }
+        #dialog-input { width: 100%; min-height: 44px; padding: 10px 12px; color: var(--text); border: 1px solid var(--border); border-radius: 11px; background: var(--surface-2); }
+        .dialog-actions { padding: 0 20px 20px; display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
+        .dialog-actions.single { grid-template-columns: 1fr; }
+
+        @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes sheet-in { from { opacity: 0; transform: translateY(12px) scale(.985); } to { opacity: 1; transform: translateY(0) scale(1); } }
+
+        @media (max-width: 767px) {
+            body.app-shell { padding: 14px 12px calc(92px + env(safe-area-inset-bottom)); }
+            .app-header { margin-bottom: 13px; }
+            .brand-mark { width: 40px; height: 40px; border-radius: 13px; }
+            .brand-title { font-size: 17px; }
+            .brand-subtitle { display: none; }
+            .icon-button { width: 39px; height: 39px; }
+            #status-bar.printer-status { top: 7px; margin-bottom: 13px; padding: 11px 12px; border-radius: 15px; }
+            .printer-status-label, .battery-box .battery-label { display: none; }
+            .status-right { gap: 10px; }
+            .status-connect { padding: 8px 10px; }
+            .tab-shell { margin-bottom: 14px; }
+            .tab-button { min-height: 43px; padding: 9px 8px; font-size: 12px; }
+            #app-workspace { display: block; }
+            #panel-spbu, #panel-wifi { padding: 18px !important; border-radius: 19px !important; margin-bottom: 16px; }
+            .panel-title { font-size: 20px; }
+            #standard-form-wrapper > .grid { grid-template-columns: minmax(0, 1fr) !important; gap: 13px !important; }
+            #standard-form-wrapper > .grid > .col-span-2 { grid-column: auto !important; }
+            #strukForm > div, #standard-form-wrapper > div { padding: 14px !important; }
+            .field-row { grid-template-columns: 1fr; }
+            #preview-panel { position: static; }
+            #adv-toolbar { border-radius: 19px 19px 0 0 !important; padding: 11px !important; }
+            #adv-toolbar > div { flex-wrap: wrap; }
+            #adv-toolbar .lg\:col-span-2 > div { width: 100%; display: grid; grid-template-columns: repeat(2, 1fr); }
+            #adv-toolbar .lg\:col-span-2 > div button { min-height: 36px; }
+            #print-area { min-height: 420px; padding-bottom: 10rem !important; }
+            #print-fab { right: 15px; bottom: max(15px, env(safe-area-inset-bottom)); width: 58px; min-width: 58px; height: 58px; padding: 0; border-radius: 18px; }
+            #print-fab span { display: none; }
+            #toast-message.app-toast { bottom: calc(82px + env(safe-area-inset-bottom)); }
+            .sheet-backdrop, .dialog-backdrop { align-items: end; padding: 0; }
+            .settings-sheet, .dialog-card { width: 100%; max-height: 92vh; border-radius: 24px 24px 0 0; }
+            .connection-actions, .wifi-actions { grid-template-columns: 1fr; }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; transition-duration: .01ms !important; }
+        }
     </style>
 </head>
-<body class="bg-gray-100 min-h-screen p-4 md:p-8 pb-10">
+<body class="app-shell">
 
-<div id="status-bar" class="max-w-6xl mx-auto bg-slate-900 text-white text-[10px] px-4 py-2 flex justify-between items-center rounded-lg shadow-md mb-4 sticky top-2 z-50">
-    <div class="flex items-center gap-2">
-        <span id="status-dot" class="w-2 h-2 rounded-full bg-red-500"></span>
-        <span id="txt-printer-name" class="font-bold">Printer: Terputus</span>
+<header class="app-header no-print">
+    <div class="app-brand">
+        <div class="brand-mark" aria-hidden="true">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.9" d="M7 8V4h10v4M7 17H5a2 2 0 0 1-2-2v-4a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2h-2M7 14h10v7H7z"/><path stroke-linecap="round" stroke-width="1.9" d="M17 12h.01"/></svg>
+        </div>
+        <div class="brand-copy">
+            <h1 class="brand-title">Cetak Pro</h1>
+            <p class="brand-subtitle">Studio struk &amp; Wi-Fi QR untuk printer thermal</p>
+        </div>
     </div>
-    <div class="flex items-center gap-2">
-        <span class="opacity-70">Baterai:</span>
-        <span id="txt-printer-battery" class="font-bold text-green-400">--%</span>
+    <div class="header-actions">
+        <button id="theme-toggle" class="icon-button" type="button" onclick="toggleTheme()" aria-label="Ganti tema" title="Ganti tema">
+            <svg id="theme-toggle-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 3v2m0 14v2M3 12h2m14 0h2M5.64 5.64l1.42 1.42m9.88 9.88 1.42 1.42m0-12.72-1.42 1.42M7.06 16.94l-1.42 1.42"/><circle cx="12" cy="12" r="4" stroke-width="1.8"/></svg>
+        </button>
+        <button class="icon-button" type="button" onclick="openSettings('printer')" aria-label="Buka pengaturan" title="Pengaturan">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9.6 3.6h4.8l.65 2.08a7.1 7.1 0 0 1 1.55.9l2.12-.46 2.4 4.16-1.46 1.62a7.5 7.5 0 0 1 0 1.8l1.46 1.62-2.4 4.16-2.12-.46a7.1 7.1 0 0 1-1.55.9L14.4 22H9.6l-.65-2.08a7.1 7.1 0 0 1-1.55-.9l-2.12.46-2.4-4.16 1.46-1.62a7.5 7.5 0 0 1 0-1.8l-1.46-1.62 2.4-4.16 2.12.46a7.1 7.1 0 0 1 1.55-.9L9.6 3.6Z"/><circle cx="12" cy="12.8" r="3" stroke-width="1.8"/></svg>
+        </button>
     </div>
-</div>
+</header>
 
-<div class="max-w-6xl mx-auto bg-white flex shadow-sm rounded-lg overflow-hidden mb-6">
-    <button onclick="switchTab('spbu')" id="btn-spbu" class="flex-1 py-3 text-sm font-bold bg-blue-50 text-blue-600 border-b-2 border-blue-600">Struk SPBU</button>
-    <button onclick="switchTab('wifi')" id="btn-wifi" class="flex-1 py-3 text-sm font-bold text-gray-500 hover:bg-gray-50 border-b-2 border-transparent">WiFi Barcode</button>
-</div>
+<section id="status-bar" class="printer-status no-print" aria-live="polite">
+    <div class="printer-status-main">
+        <span id="status-dot" aria-hidden="true"></span>
+        <div class="printer-status-copy">
+            <span class="printer-status-label">Printer thermal</span>
+            <span id="txt-printer-name">Belum terhubung</span>
+        </div>
+    </div>
+    <div class="status-right">
+        <div class="battery-box" title="Baterai printer">
+            <span class="battery-label printer-status-label">Baterai</span>
+            <span class="battery-icon" aria-hidden="true"><span id="battery-fill"></span></span>
+            <span id="txt-printer-battery">—</span>
+        </div>
+        <button id="status-action" class="status-connect" type="button" onclick="openSettings('printer')">Hubungkan</button>
+    </div>
+</section>
 
-<div class="max-w-6xl mx-auto flex flex-col md:flex-row gap-8">
+<nav class="tab-shell no-print" aria-label="Pilih alat cetak">
+    <button onclick="switchTab('spbu')" id="btn-spbu" class="tab-button is-active" type="button" aria-selected="true">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M6 3h12v18l-3-2-3 2-3-2-3 2V3Z"/><path stroke-linecap="round" stroke-width="1.8" d="M9 8h6M9 12h6"/></svg>
+        Struk SPBU
+    </button>
+    <button onclick="switchTab('wifi')" id="btn-wifi" class="tab-button" type="button" aria-selected="false">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M5 8.6a11.5 11.5 0 0 1 14 0M8.2 12a6.5 6.5 0 0 1 7.6 0M11 15.4a2 2 0 0 1 2 0"/><circle cx="12" cy="18.5" r=".75" fill="currentColor" stroke="none"/></svg>
+        Wi-Fi QR
+    </button>
+</nav>
 
-    <div id="panel-spbu" class="w-full md:w-1/2 bg-white p-6 rounded-lg shadow-md no-print">
-        <h2 class="text-2xl font-bold mb-6 text-gray-800">Pengaturan Struk</h2>
+<main id="app-workspace">
+
+    <section id="panel-spbu" class="w-full md:w-1/2 bg-white p-6 rounded-lg shadow-md no-print">
+        <div class="panel-heading">
+            <div>
+                <p class="panel-eyebrow">Editor struk</p>
+                <h2 class="panel-title">Pengaturan Struk</h2>
+                <p class="panel-description">Pilih template, isi transaksi, lalu sesuaikan hasil cetak.</p>
+            </div>
+            <span class="soft-badge">ESC/POS</span>
+        </div>
 
         <form id="strukForm" class="space-y-4 text-sm">
             <div class="border p-4 rounded bg-green-50 border-green-200">
@@ -96,10 +479,10 @@
             </div>
 
             <div class="border p-4 rounded bg-blue-50 border-blue-200">
-                <label class="block font-bold text-blue-800 mb-2">Scan Struk Asli (Fitur Tiru 100%)</label>
+                <label class="block font-bold text-blue-800 mb-2">Impor Foto Struk (OCR)</label>
                 <input type="file" id="in-scan-nota" accept="image/*" class="w-full bg-white p-1 border rounded text-xs">
-                <p class="text-xs text-blue-600 mt-1">*Upload foto nota, sistem membaca otomatis ke Mode Custom.</p>
-                <div id="ocr-status" class="text-xs font-bold mt-2 text-orange-600 hidden animate-pulse">Memproses baca gambar... mohon tunggu...</div>
+                <p class="text-xs text-blue-600 mt-1">Teks akan dibaca ke Mode Custom. Periksa kembali hasilnya sebelum mencetak.</p>
+                <div id="ocr-status" class="text-xs font-bold mt-2 text-orange-600 hidden animate-pulse">Sedang membaca gambar…</div>
             </div>
 
             <div id="custom-controls" class="hidden border p-4 rounded bg-yellow-50 border-yellow-200 space-y-3">
@@ -150,60 +533,105 @@
                 </div>
             </div> 
         </form>
-    </div>
+    </section>
 
-    <div id="panel-wifi" class="w-full md:w-1/2 bg-white p-6 rounded-lg shadow-md no-print hidden">
-        <h2 class="text-2xl font-bold mb-6 text-blue-700">Generator WiFi Barcode</h2>
-        <div class="space-y-5">
-            <div class="bg-blue-50 p-4 border border-blue-200 rounded-lg">
-                <label class="block text-blue-800 text-sm font-bold mb-2">Nama WiFi (SSID)</label>
-                <input type="text" id="wifi-ssid" placeholder="Contoh: RADHEN RIZAL" class="w-full border p-3 rounded font-bold text-lg" oninput="buatWifiQR()">
+    <section id="panel-wifi" class="w-full md:w-1/2 bg-white p-6 rounded-lg shadow-md no-print hidden">
+        <div class="panel-heading">
+            <div>
+                <p class="panel-eyebrow">Berbagi jaringan</p>
+                <h2 class="panel-title">Wi-Fi QR</h2>
+                <p class="panel-description">Ambil jaringan aktif, tampilkan QR, dan cetak langsung.</p>
             </div>
-            <div class="bg-gray-50 p-4 border border-gray-200 rounded-lg">
-                <label class="block text-gray-800 text-sm font-bold mb-2">Password WiFi</label>
-                <input type="text" id="wifi-pass" placeholder="Masukkan kata sandi..." class="w-full border p-3 rounded font-bold text-lg" oninput="buatWifiQR()">
+            <span id="wifi-network-badge" class="soft-badge">Menunggu</span>
+        </div>
+
+        <div class="wifi-auto-card">
+            <div class="wifi-auto-copy">
+                <div class="wifi-icon" aria-hidden="true">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.9" d="M4.8 8.8a11.8 11.8 0 0 1 14.4 0M8 12.2a6.5 6.5 0 0 1 8 0M10.7 15.7a2.2 2.2 0 0 1 2.6 0"/><circle cx="12" cy="18.6" r=".8" fill="currentColor" stroke="none"/></svg>
+                </div>
+                <div>
+                    <div class="wifi-auto-title">Jaringan perangkat</div>
+                    <div id="wifi-auto-state">Tekan “Ambil jaringan” untuk mendeteksi Wi-Fi aktif.</div>
+                </div>
+            </div>
+            <button class="mini-button" type="button" onclick="requestWifiInfo()">Ambil jaringan</button>
+        </div>
+
+        <div class="wifi-fields">
+            <div class="field-card">
+                <label for="wifi-ssid">Nama Wi-Fi (SSID)</label>
+                <div class="field-row">
+                    <input type="text" id="wifi-ssid" placeholder="Nama jaringan" autocomplete="off" oninput="handleWifiInput()">
+                    <select id="wifi-security" aria-label="Keamanan Wi-Fi" onchange="handleWifiInput()">
+                        <option value="WPA">WPA/WPA2</option>
+                        <option value="WEP">WEP</option>
+                        <option value="nopass">Tanpa sandi</option>
+                    </select>
+                </div>
+            </div>
+            <div id="wifi-password-card" class="field-card">
+                <label for="wifi-pass">Kata sandi Wi-Fi</label>
+                <div class="password-wrap">
+                    <input type="password" id="wifi-pass" placeholder="Masukkan sekali, lalu simpan" autocomplete="new-password" oninput="handleWifiInput()">
+                    <button class="password-toggle" type="button" onclick="toggleWifiPassword()" aria-label="Tampilkan kata sandi">
+                        <svg id="wifi-eye-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z"/><circle cx="12" cy="12" r="2.6" stroke-width="1.8"/></svg>
+                    </button>
+                </div>
+                <label class="check-row" for="wifi-remember">
+                    <input type="checkbox" id="wifi-remember" checked onchange="handleWifiInput()">
+                    Simpan profil jaringan di perangkat ini agar tidak perlu mengetik ulang.
+                </label>
             </div>
         </div>
-    </div>
 
-    <div class="w-full md:w-1/2 flex flex-col items-center pt-0 md:pt-4 relative">
+        <div class="wifi-actions">
+            <button class="secondary-button" type="button" onclick="saveWifiProfile(true)">Simpan jaringan</button>
+            <button class="primary-button" type="button" onclick="handleCetakPrint()">
+                <svg width="17" height="17" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.9" d="M7 8V4h10v4M7 17H5a2 2 0 0 1-2-2v-4a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2h-2M7 14h10v7H7z"/></svg>
+                Cetak QR
+            </button>
+        </div>
+    </section>
+
+    <section id="preview-panel" class="w-full md:w-1/2 flex flex-col items-center pt-0 relative">
         
         <div id="adv-toolbar" class="w-full bg-slate-800 text-white p-3 rounded-t-lg shadow-lg no-print flex flex-col gap-3 transition-all duration-300">
             <div class="flex justify-between items-center border-b border-slate-600 pb-2">
                 <div class="font-bold text-sm text-yellow-400 flex items-center gap-2">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
-                    NATIVE ESC/POS EDITOR
+                    Editor ESC/POS
                 </div>
                 <div class="flex gap-2">
-                    <button onclick="saveAsTemplate()" class="bg-yellow-600 hover:bg-yellow-500 text-slate-900 px-3 py-1 rounded text-xs shadow font-bold" title="Simpan sebagai Template Baru">💾 Simpan Template</button>
-                    <button onclick="editorUndo()" class="bg-slate-600 hover:bg-slate-500 px-2 py-1 rounded text-xs shadow">↩</button>
-                    <button onclick="editorRedo()" class="bg-slate-600 hover:bg-slate-500 px-2 py-1 rounded text-xs shadow">↪</button>
+                    <button onclick="saveAsTemplate()" class="bg-yellow-600 hover:bg-yellow-500 text-slate-900 px-3 py-1 rounded text-xs shadow font-bold" title="Simpan sebagai template baru">Simpan template</button>
+                    <button onclick="editorUndo()" class="bg-slate-600 hover:bg-slate-500 px-2 py-1 rounded text-xs shadow" aria-label="Urungkan">↩</button>
+                    <button onclick="editorRedo()" class="bg-slate-600 hover:bg-slate-500 px-2 py-1 rounded text-xs shadow" aria-label="Ulangi">↪</button>
                 </div>
             </div>
 
             <div class="flex items-center gap-2 bg-slate-700 p-2 rounded">
-                <span class="text-[11px] font-bold text-yellow-400">MARGIN GLOBAL (Spasi):</span>
+                <span class="text-[11px] font-bold text-yellow-400">Margin global</span>
                 <span class="text-[10px]">Kiri:</span>
                 <input type="number" id="global-space-left" class="bg-slate-800 w-12 rounded px-1 text-center outline-none border border-slate-500" value="0" oninput="applyGlobalMargin()">
                 <span class="text-[10px]">Kanan:</span>
                 <input type="number" id="global-space-right" class="bg-slate-800 w-12 rounded px-1 text-center outline-none border border-slate-500" value="0" oninput="applyGlobalMargin()">
                 <span class="text-[9px] text-gray-400 ml-1 leading-tight flex-1">*Bisa Minus (-) utk mepet.</span>
-                <button id="btn-delete-template" onclick="deleteCurrentTemplate()" class="bg-red-600 hover:bg-red-500 px-3 py-1 rounded shadow text-[10px] font-bold hidden">🗑 Hapus</button>
+                <button id="btn-delete-template" onclick="deleteCurrentTemplate()" class="bg-red-600 hover:bg-red-500 px-3 py-1 rounded shadow text-[10px] font-bold hidden">Hapus</button>
             </div>
 
             <div id="adv-controls" class="grid grid-cols-1 lg:grid-cols-2 gap-3 text-xs pointer-events-none opacity-50 border-t border-slate-600 pt-3">
                 <div class="flex items-center bg-slate-700 p-2 rounded gap-2 justify-between">
                     <div class="flex gap-1">
-                        <button class="px-3 py-1 bg-slate-600 hover:bg-blue-500 rounded font-bold" onclick="applyNativeStyle('textAlign', 'left')" title="Rata Kiri">Left</button>
-                        <button class="px-3 py-1 bg-slate-600 hover:bg-blue-500 rounded font-bold" onclick="applyNativeStyle('textAlign', 'center')" title="Rata Tengah">Center</button>
-                        <button class="px-3 py-1 bg-slate-600 hover:bg-blue-500 rounded font-bold" onclick="applyNativeStyle('textAlign', 'right')" title="Rata Kanan">Right</button>
+                        <button class="px-3 py-1 bg-slate-600 hover:bg-blue-500 rounded font-bold" onclick="applyNativeStyle('textAlign', 'left')" title="Rata kiri">Kiri</button>
+                        <button class="px-3 py-1 bg-slate-600 hover:bg-blue-500 rounded font-bold" onclick="applyNativeStyle('textAlign', 'center')" title="Rata tengah">Tengah</button>
+                        <button class="px-3 py-1 bg-slate-600 hover:bg-blue-500 rounded font-bold" onclick="applyNativeStyle('textAlign', 'right')" title="Rata kanan">Kanan</button>
                     </div>
                     <div class="w-px h-6 bg-slate-500"></div>
                     <button id="ed-bold" class="px-4 py-1 bg-slate-600 hover:bg-blue-500 rounded font-bold text-lg" onclick="toggleNativeBold(this)">B</button>
                 </div>
 
                 <div class="flex items-center bg-slate-700 p-2 rounded gap-2 justify-between">
-                    <span class="font-bold text-[10px] text-yellow-300">UKURAN (SCALE):</span>
+                    <span class="font-bold text-[10px] text-yellow-300">Ukuran</span>
                     <select id="ed-scale" class="bg-slate-800 text-white rounded px-2 py-1 flex-1 outline-none border border-slate-500" onchange="applyNativeScale(this.value)">
                         <option value="1x1">1x (Normal)</option>
                         <option value="1x2">2x Tinggi (Header)</option>
@@ -213,11 +641,11 @@
                 </div>
 
                 <div class="lg:col-span-2 flex flex-wrap gap-2 items-center bg-slate-700 p-2 rounded justify-between">
-                    <button class="bg-indigo-600 hover:bg-indigo-500 px-3 py-1 rounded shadow text-[11px] font-bold" onclick="toggleDuaKolom()">Kolom Kiri-Kanan (Flex)</button>
+                    <button class="bg-indigo-600 hover:bg-indigo-500 px-3 py-1 rounded shadow text-[11px] font-bold" onclick="toggleDuaKolom()">Kolom kiri–kanan</button>
                     <div class="flex gap-2">
                         <button class="bg-emerald-600 hover:bg-emerald-500 px-3 py-1 rounded shadow text-[11px] font-bold" onclick="editorInsertRow()">+ Sisip Baris</button>
                         <button class="bg-green-600 hover:bg-green-500 px-3 py-1 rounded shadow text-[11px] font-bold" onclick="editorDuplicateRow()">+ Duplikat</button>
-                        <button class="bg-red-600 hover:bg-red-500 px-3 py-1 rounded shadow text-[11px] font-bold" onclick="editorDeleteRow()">🗑 Hapus</button>
+                        <button class="bg-red-600 hover:bg-red-500 px-3 py-1 rounded shadow text-[11px] font-bold" onclick="editorDeleteRow()">Hapus</button>
                         <button class="bg-blue-600 hover:bg-blue-500 px-3 py-1 rounded shadow text-[11px] font-bold" onclick="editorSelectAll()">Blok Semua</button>
                     </div>
                 </div>
@@ -352,34 +780,548 @@
 
             <div id="view-wifi-wrapper" class="hidden w-full">
                 <div class="receipt-container shadow-xl border" style="padding-bottom: 30px;">
-                    <div class="center mb-4" style="font-size: 14px; font-weight: bold;">SCAN UNTUK KONEK WIFI</div>
+                    <div class="center mb-4" style="font-size: 14px; font-weight: bold;">SCAN UNTUK TERHUBUNG</div>
                     <div id="qrcode-box" class="flex justify-center p-2 mb-2 bg-white"></div>
                     <div class="center mt-4 text-sm font-bold">SSID: <span id="wifi-name-display">---</span></div>
+                    <div class="center mt-1" style="font-size: 9px;">Keamanan: <span id="wifi-security-display">WPA/WPA2</span></div>
                 </div>
             </div>
 
         </div>
-    </div>
-</div>
+    </section>
+</main>
 
-<button onclick="handleCetakPrint()" class="fixed bottom-6 right-6 bg-blue-600 hover:bg-blue-700 text-white rounded-full w-16 h-16 flex items-center justify-center shadow-[0_10px_25px_rgba(37,99,235,0.6)] transition-transform active:scale-90 z-50 border-2 border-white" title="Cetak ke Printer Thermal">
-    <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+<button id="print-fab" onclick="handleCetakPrint()" type="button" title="Cetak ke printer thermal">
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
       <path stroke-linecap="round" stroke-linejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
     </svg>
+    <span>Cetak sekarang</span>
 </button>
 
-<div id="toast-message" class="fixed bottom-6 left-1/2 transform -translate-x-1/2 bg-green-800 text-white px-6 py-3 rounded-full shadow-2xl transition-opacity duration-300 opacity-0 pointer-events-none z-50 whitespace-nowrap font-bold text-sm"></div>
+<div id="toast-message" class="app-toast no-print" role="status" aria-live="polite"></div>
+
+<div id="settings-backdrop" class="sheet-backdrop hidden no-print" role="dialog" aria-modal="true" aria-labelledby="settings-title" onclick="handleBackdropClose(event, 'settings-backdrop')">
+    <section class="settings-sheet">
+        <header class="sheet-header">
+            <div>
+                <h2 id="settings-title" class="sheet-title">Pengaturan</h2>
+                <p class="sheet-subtitle">Kelola printer dan tampilan aplikasi.</p>
+            </div>
+            <button class="sheet-close" type="button" onclick="closeSettings()" aria-label="Tutup pengaturan">×</button>
+        </header>
+        <div class="sheet-body">
+            <section id="printer-settings-section" class="settings-section">
+                <h3 class="settings-section-title"><span>Printer thermal</span><span id="settings-transport" class="soft-badge">Otomatis</span></h3>
+                <div id="connection-summary" class="connection-summary">
+                    <div class="status-orb" aria-hidden="true">
+                        <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.9" d="M7 8V4h10v4M7 17H5a2 2 0 0 1-2-2v-4a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2h-2M7 14h10v7H7z"/></svg>
+                    </div>
+                    <div>
+                        <strong id="settings-printer-name">Belum terhubung</strong>
+                        <span id="settings-printer-detail">Pilih printer Bluetooth untuk mulai mencetak.</span>
+                    </div>
+                </div>
+                <div class="connection-actions">
+                    <button id="connect-printer-button" class="primary-button" type="button" onclick="togglePrinterConnection()">Hubungkan printer</button>
+                    <button id="test-printer-button" class="secondary-button" type="button" onclick="testPrinter()" disabled>Tes cetak</button>
+                </div>
+                <div class="setting-row" style="margin-top: 10px;">
+                    <div class="setting-copy"><strong>Lebar kertas</strong><span>Sesuaikan dengan printer 58 mm atau 80 mm.</span></div>
+                    <select id="paper-width" onchange="saveAppSettings()">
+                        <option value="58">58 mm</option>
+                        <option value="80">80 mm</option>
+                    </select>
+                </div>
+                <div class="setting-row">
+                    <div class="setting-copy"><strong>Hubungkan otomatis</strong><span>Coba sambungkan ulang saat aplikasi dibuka.</span></div>
+                    <label class="switch" aria-label="Hubungkan printer otomatis">
+                        <input id="auto-reconnect" type="checkbox" checked onchange="saveAppSettings()"><span class="switch-track"></span>
+                    </label>
+                </div>
+                <div class="setting-row">
+                    <div class="setting-copy"><strong>Baterai asli</strong><span id="battery-support-note">Ditampilkan bila printer atau aplikasi Android mendukung pembacaan baterai.</span></div>
+                    <strong id="settings-battery" style="font-size: 12px; color: var(--text-soft);">—</strong>
+                </div>
+            </section>
+
+            <section id="appearance-settings-section" class="settings-section">
+                <h3 class="settings-section-title">Tampilan</h3>
+                <div class="theme-segment" role="group" aria-label="Mode tampilan">
+                    <button class="theme-choice" type="button" data-theme-choice="system" onclick="setThemeMode('system')">Otomatis</button>
+                    <button class="theme-choice" type="button" data-theme-choice="light" onclick="setThemeMode('light')">Terang</button>
+                    <button class="theme-choice" type="button" data-theme-choice="dark" onclick="setThemeMode('dark')">Gelap</button>
+                </div>
+                <div class="color-control">
+                    <input id="theme-color" type="color" value="#2f6fea" aria-label="Pilih warna tema" oninput="setAccentFromHex(this.value)">
+                    <div>
+                        <div class="setting-copy"><strong>Warna utama</strong><span>Geser untuk memilih warna sendiri.</span></div>
+                        <input id="theme-hue" type="range" min="0" max="360" step="1" value="221" aria-label="Geser warna tema" oninput="setAccentHue(this.value)">
+                    </div>
+                </div>
+                <div class="color-presets" aria-label="Pilihan warna cepat">
+                    <button class="color-preset" type="button" style="background:#2f6fea" onclick="setAccentHue(221)" aria-label="Biru"></button>
+                    <button class="color-preset" type="button" style="background:#7357e8" onclick="setAccentHue(252)" aria-label="Ungu"></button>
+                    <button class="color-preset" type="button" style="background:#0f9f83" onclick="setAccentHue(169)" aria-label="Hijau kebiruan"></button>
+                    <button class="color-preset" type="button" style="background:#d85175" onclick="setAccentHue(343)" aria-label="Merah muda"></button>
+                    <button class="color-preset" type="button" style="background:#e28725" onclick="setAccentHue(31)" aria-label="Oranye"></button>
+                </div>
+            </section>
+
+            <button class="secondary-button" type="button" onclick="window.print()">Cetak melalui menu sistem</button>
+        </div>
+    </section>
+</div>
+
+<div id="dialog-backdrop" class="dialog-backdrop hidden no-print" role="dialog" aria-modal="true" aria-labelledby="dialog-title" onclick="handleBackdropClose(event, 'dialog-backdrop')">
+    <section class="dialog-card">
+        <header class="dialog-header">
+            <div>
+                <h2 id="dialog-title" class="dialog-title">Informasi</h2>
+                <p id="dialog-message" class="dialog-message"></p>
+            </div>
+            <button class="sheet-close" type="button" onclick="resolveDialog(false)" aria-label="Tutup">×</button>
+        </header>
+        <div id="dialog-input-wrap" class="dialog-body hidden">
+            <label id="dialog-input-label" class="printer-status-label" for="dialog-input">Nama</label>
+            <input id="dialog-input" type="text" autocomplete="off">
+        </div>
+        <div id="dialog-actions" class="dialog-actions">
+            <button id="dialog-cancel" class="secondary-button" type="button" onclick="resolveDialog(false)">Batal</button>
+            <button id="dialog-confirm" class="primary-button" type="button" onclick="resolveDialog(true)">Lanjutkan</button>
+        </div>
+    </section>
+</div>
 
 <script>
     let currentTab = 'spbu';
 
-    window.updatePrinterStatus = function(name, battery) {
-        document.getElementById('txt-printer-name').innerText = "Printer: " + name;
-        document.getElementById('txt-printer-battery').innerText = battery + "%";
-        const dot = document.getElementById('status-dot');
-        if(name === "Terputus") dot.className = "w-2 h-2 rounded-full bg-red-500";
-        else dot.className = "w-2 h-2 rounded-full bg-green-500 animate-pulse";
+    function readJsonStorage(key, fallback) {
+        try {
+            const raw = localStorage.getItem(key);
+            return raw ? JSON.parse(raw) : fallback;
+        } catch (_) {
+            return fallback;
+        }
+    }
+
+    const systemThemeQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    const appSettings = Object.assign({
+        themeMode: 'system',
+        accentHue: 221,
+        paperWidth: '58',
+        autoReconnect: true
+    }, readJsonStorage('cetakpro_settings', {}));
+
+    const printerState = {
+        connected: false,
+        connecting: false,
+        name: 'Belum terhubung',
+        battery: null,
+        transport: '',
+        device: null,
+        writeCharacteristic: null,
+        batteryCharacteristic: null
     };
+
+    let dialogResolver = null;
+    let dialogUsesInput = false;
+    let wifiSaveTimer = null;
+
+    function hslToHex(h, s = 83, l = 55) {
+        s /= 100;
+        l /= 100;
+        const k = n => (n + h / 30) % 12;
+        const a = s * Math.min(l, 1 - l);
+        const f = n => l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)));
+        return `#${[f(0), f(8), f(4)].map(v => Math.round(255 * v).toString(16).padStart(2, '0')).join('')}`;
+    }
+
+    function hexToHue(hex) {
+        const clean = String(hex).replace('#', '');
+        if (clean.length !== 6) return appSettings.accentHue;
+        const [r, g, b] = [0, 2, 4].map(i => parseInt(clean.slice(i, i + 2), 16) / 255);
+        const max = Math.max(r, g, b), min = Math.min(r, g, b), delta = max - min;
+        if (!delta) return 0;
+        let hue = max === r ? ((g - b) / delta) % 6 : max === g ? (b - r) / delta + 2 : (r - g) / delta + 4;
+        return Math.round((hue * 60 + 360) % 360);
+    }
+
+    function applyTheme() {
+        const resolved = appSettings.themeMode === 'system' ? (systemThemeQuery.matches ? 'dark' : 'light') : appSettings.themeMode;
+        document.documentElement.dataset.theme = resolved;
+        document.documentElement.style.setProperty('--accent-h', String(appSettings.accentHue));
+        document.querySelector('meta[name="theme-color"]').setAttribute('content', resolved === 'dark' ? '#0c111b' : '#f4f7fb');
+
+        document.querySelectorAll('[data-theme-choice]').forEach(button => {
+            button.classList.toggle('is-active', button.dataset.themeChoice === appSettings.themeMode);
+        });
+        const hueInput = document.getElementById('theme-hue');
+        const colorInput = document.getElementById('theme-color');
+        if (hueInput) hueInput.value = appSettings.accentHue;
+        if (colorInput) colorInput.value = hslToHex(Number(appSettings.accentHue));
+
+        const icon = document.getElementById('theme-toggle-icon');
+        if (icon) {
+            icon.innerHTML = resolved === 'dark'
+                ? '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M20 15.2A8.5 8.5 0 0 1 8.8 4 8.5 8.5 0 1 0 20 15.2Z"/>'
+                : '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 3v2m0 14v2M3 12h2m14 0h2M5.64 5.64l1.42 1.42m9.88 9.88 1.42 1.42m0-12.72-1.42 1.42M7.06 16.94l-1.42 1.42"/><circle cx="12" cy="12" r="4" stroke-width="1.8"/>';
+        }
+    }
+
+    function persistAppSettings() {
+        localStorage.setItem('cetakpro_settings', JSON.stringify(appSettings));
+    }
+
+    function setThemeMode(mode) {
+        appSettings.themeMode = mode;
+        persistAppSettings();
+        applyTheme();
+    }
+
+    function toggleTheme() {
+        const resolved = document.documentElement.dataset.theme;
+        setThemeMode(resolved === 'dark' ? 'light' : 'dark');
+    }
+
+    function setAccentHue(value) {
+        appSettings.accentHue = Math.max(0, Math.min(360, Number(value) || 0));
+        persistAppSettings();
+        applyTheme();
+    }
+
+    function setAccentFromHex(value) {
+        setAccentHue(hexToHue(value));
+    }
+
+    function saveAppSettings() {
+        const paper = document.getElementById('paper-width');
+        const reconnect = document.getElementById('auto-reconnect');
+        if (paper) appSettings.paperWidth = paper.value;
+        if (reconnect) appSettings.autoReconnect = reconnect.checked;
+        persistAppSettings();
+        applyPaperWidth();
+    }
+
+    function applyPaperWidth() {
+        document.documentElement.style.setProperty('--receipt-width', appSettings.paperWidth === '80' ? '79mm' : '57mm');
+    }
+
+    function syncSettingsUI() {
+        const paper = document.getElementById('paper-width');
+        const reconnect = document.getElementById('auto-reconnect');
+        if (paper) paper.value = appSettings.paperWidth;
+        if (reconnect) reconnect.checked = Boolean(appSettings.autoReconnect);
+        applyPaperWidth();
+        applyTheme();
+        renderPrinterState();
+    }
+
+    function openSettings(section = 'printer') {
+        const backdrop = document.getElementById('settings-backdrop');
+        backdrop.classList.remove('hidden');
+        document.body.style.overflow = 'hidden';
+        syncSettingsUI();
+        const target = section === 'appearance' ? document.getElementById('appearance-settings-section') : document.getElementById('printer-settings-section');
+        setTimeout(() => target?.scrollIntoView({ block: 'start', behavior: 'smooth' }), 30);
+    }
+
+    function closeSettings() {
+        document.getElementById('settings-backdrop').classList.add('hidden');
+        document.body.style.overflow = '';
+    }
+
+    function handleBackdropClose(event, id) {
+        if (event.target.id !== id) return;
+        if (id === 'settings-backdrop') closeSettings();
+        else resolveDialog(false);
+    }
+
+    function showAppDialog({ title, message, confirmText = 'OK', cancelText = 'Batal', showCancel = false, input = false, inputLabel = 'Nama', defaultValue = '' }) {
+        if (dialogResolver) dialogResolver(input ? null : false);
+        document.getElementById('dialog-title').textContent = title;
+        document.getElementById('dialog-message').textContent = message;
+        document.getElementById('dialog-confirm').textContent = confirmText;
+        document.getElementById('dialog-cancel').textContent = cancelText;
+        document.getElementById('dialog-cancel').classList.toggle('hidden', !showCancel);
+        document.getElementById('dialog-actions').classList.toggle('single', !showCancel);
+        document.getElementById('dialog-input-wrap').classList.toggle('hidden', !input);
+        document.getElementById('dialog-input-label').textContent = inputLabel;
+        document.getElementById('dialog-input').value = defaultValue;
+        dialogUsesInput = input;
+        document.getElementById('dialog-backdrop').classList.remove('hidden');
+        document.body.style.overflow = 'hidden';
+        setTimeout(() => (input ? document.getElementById('dialog-input') : document.getElementById('dialog-confirm')).focus(), 30);
+        return new Promise(resolve => { dialogResolver = resolve; });
+    }
+
+    function resolveDialog(confirmed) {
+        const resolver = dialogResolver;
+        if (!resolver) return;
+        const value = dialogUsesInput ? (confirmed ? document.getElementById('dialog-input').value.trim() : null) : Boolean(confirmed);
+        dialogResolver = null;
+        document.getElementById('dialog-backdrop').classList.add('hidden');
+        if (document.getElementById('settings-backdrop').classList.contains('hidden')) document.body.style.overflow = '';
+        resolver(value);
+    }
+
+    function appNotice(title, message, confirmText = 'Mengerti') {
+        return showAppDialog({ title, message, confirmText });
+    }
+
+    function appConfirm(title, message, confirmText = 'Lanjutkan', cancelText = 'Batal') {
+        return showAppDialog({ title, message, confirmText, cancelText, showCancel: true });
+    }
+
+    function appPrompt(title, message, defaultValue = '') {
+        return showAppDialog({ title, message, confirmText: 'Simpan', showCancel: true, input: true, inputLabel: 'Nama template', defaultValue });
+    }
+
+    function normalizeBattery(value) {
+        if (value === null || value === undefined || value === '' || value === '--') return null;
+        const parsed = Number(String(value).replace('%', ''));
+        return Number.isFinite(parsed) && parsed >= 0 && parsed <= 100 ? Math.round(parsed) : null;
+    }
+
+    function parseMaybeJson(value) {
+        if (value && typeof value === 'object') return value;
+        if (typeof value !== 'string') return value;
+        try { return JSON.parse(value); } catch (_) { return value; }
+    }
+
+    function renderPrinterState() {
+        const connected = Boolean(printerState.connected);
+        const battery = normalizeBattery(printerState.battery);
+        const name = connected ? (printerState.name || 'Printer terhubung') : 'Belum terhubung';
+        const batteryText = connected ? (battery === null ? 'N/A' : `${battery}%`) : '—';
+
+        document.getElementById('txt-printer-name').textContent = name;
+        document.getElementById('txt-printer-battery').textContent = batteryText;
+        document.getElementById('settings-printer-name').textContent = name;
+        document.getElementById('settings-battery').textContent = batteryText;
+        document.getElementById('settings-transport').textContent = printerState.transport || 'Otomatis';
+        document.getElementById('settings-printer-detail').textContent = connected
+            ? `Terhubung melalui ${printerState.transport || 'aplikasi'}. Siap mencetak.`
+            : (printerState.connecting ? 'Sedang membuka pemilih printer…' : 'Pilih printer Bluetooth untuk mulai mencetak.');
+        document.getElementById('battery-support-note').textContent = battery === null && connected
+            ? 'Printer terhubung, tetapi pembacaan baterai tidak didukung model ini.'
+            : 'Nilai langsung dari printer atau aplikasi Android.';
+
+        const dot = document.getElementById('status-dot');
+        dot.classList.toggle('is-connected', connected);
+        const summary = document.getElementById('connection-summary');
+        summary.classList.toggle('is-connected', connected);
+        const fill = document.getElementById('battery-fill');
+        fill.style.width = battery === null ? '0%' : `${battery}%`;
+        fill.style.background = battery !== null && battery <= 20 ? 'var(--danger)' : battery !== null && battery <= 50 ? 'var(--warning)' : 'var(--success)';
+
+        const statusAction = document.getElementById('status-action');
+        statusAction.textContent = connected ? 'Terhubung' : 'Hubungkan';
+        statusAction.classList.toggle('is-connected', connected);
+
+        const connectButton = document.getElementById('connect-printer-button');
+        connectButton.textContent = printerState.connecting ? 'Menghubungkan…' : connected ? 'Putuskan printer' : 'Hubungkan printer';
+        connectButton.disabled = printerState.connecting;
+        connectButton.classList.toggle('danger-button', connected);
+        connectButton.classList.toggle('primary-button', !connected);
+        document.getElementById('test-printer-button').disabled = !connected || printerState.connecting;
+    }
+
+    window.updatePrinterStatus = function(name, battery, connected, transport) {
+        const payload = parseMaybeJson(name);
+        if (payload && typeof payload === 'object') {
+            name = payload.name || payload.printerName || payload.deviceName || '';
+            battery = payload.battery ?? payload.batteryLevel ?? battery;
+            connected = payload.connected ?? payload.isConnected ?? connected;
+            transport = payload.transport || payload.type || transport;
+        }
+        const normalizedName = String(name || '').trim();
+        const disconnectedName = /terputus|disconnected|tidak terhubung|belum terhubung/i.test(normalizedName);
+        printerState.connected = typeof connected === 'boolean' ? connected : Boolean(normalizedName && !disconnectedName);
+        printerState.connecting = false;
+        printerState.name = printerState.connected ? normalizedName || 'Printer terhubung' : 'Belum terhubung';
+        printerState.battery = normalizeBattery(battery);
+        printerState.transport = printerState.connected ? (transport || printerState.transport || 'Android Bluetooth') : '';
+        renderPrinterState();
+    };
+
+    window.updatePrinterBattery = function(battery) {
+        printerState.battery = normalizeBattery(battery);
+        renderPrinterState();
+    };
+
+    window.onPrinterConnected = function(name, battery, transport) {
+        window.updatePrinterStatus(name, battery, true, transport);
+    };
+
+    window.onPrinterDisconnected = function() {
+        window.updatePrinterStatus('Terputus', null, false);
+    };
+
+    function findNativeMethod(target, names) {
+        if (!target) return null;
+        for (const name of names) {
+            if (typeof target[name] === 'function') return { name, fn: target[name].bind(target) };
+        }
+        return null;
+    }
+
+    async function syncNativePaperWidth() {
+        const method = findNativeMethod(window.AndroidPrinter, ['setPaperWidth', 'aturLebarKertas', 'setLebarKertas']);
+        if (!method) return;
+        try { await Promise.resolve(method.fn(Number(appSettings.paperWidth))); } catch (_) {}
+    }
+
+    async function requestPrinterStatus() {
+        const method = findNativeMethod(window.AndroidPrinter, ['requestPrinterStatus', 'getPrinterStatus', 'statusPrinter', 'getConnectedPrinter', 'cekKoneksiPrinter', 'getStatus']);
+        if (!method) return false;
+        try {
+            const result = parseMaybeJson(await Promise.resolve(method.fn()));
+            if (result && (typeof result === 'object' || typeof result === 'string')) window.updatePrinterStatus(result);
+            return true;
+        } catch (_) {
+            return false;
+        }
+    }
+
+    async function togglePrinterConnection() {
+        if (printerState.connected) await disconnectPrinter();
+        else await connectPrinter();
+    }
+
+    async function connectPrinter() {
+        printerState.connecting = true;
+        renderPrinterState();
+        try {
+            const nativeMethod = findNativeMethod(window.AndroidPrinter, ['connectPrinter', 'pilihPrinter', 'selectPrinter', 'connectBluetooth', 'sambungkanPrinter', 'showPrinterPicker', 'openPrinterSettings', 'bukaPengaturanPrinter']);
+            if (nativeMethod) {
+                printerState.transport = 'Android Bluetooth';
+                const result = parseMaybeJson(await Promise.resolve(nativeMethod.fn()));
+                if (result && (typeof result === 'object' || typeof result === 'string')) window.updatePrinterStatus(result);
+                else {
+                    showToast('Pilih printer pada daftar Bluetooth.', 'info');
+                    setTimeout(requestPrinterStatus, 900);
+                    setTimeout(() => {
+                        if (printerState.connecting) {
+                            printerState.connecting = false;
+                            renderPrinterState();
+                        }
+                    }, 5000);
+                }
+                return;
+            }
+            if (navigator.bluetooth) {
+                await connectWebBluetoothPrinter();
+                return;
+            }
+            printerState.connecting = false;
+            renderPrinterState();
+            await appNotice('Koneksi belum tersedia', 'Buka halaman ini melalui aplikasi Android yang mendukung printer Bluetooth, atau gunakan browser dengan Web Bluetooth.');
+        } catch (error) {
+            printerState.connecting = false;
+            renderPrinterState();
+            if (error?.name !== 'NotFoundError') await appNotice('Printer gagal terhubung', error?.message || 'Periksa Bluetooth dan izin perangkat, lalu coba lagi.');
+        }
+    }
+
+    async function connectWebBluetoothPrinter() {
+        const optionalServices = [
+            'battery_service',
+            '0000ffe0-0000-1000-8000-00805f9b34fb',
+            '0000ff00-0000-1000-8000-00805f9b34fb',
+            '000018f0-0000-1000-8000-00805f9b34fb',
+            '6e400001-b5a3-f393-e0a9-e50e24dcca9e'
+        ];
+        const device = await navigator.bluetooth.requestDevice({ acceptAllDevices: true, optionalServices });
+        const server = await device.gatt.connect();
+        const candidates = [
+            ['0000ffe0-0000-1000-8000-00805f9b34fb', '0000ffe1-0000-1000-8000-00805f9b34fb'],
+            ['0000ff00-0000-1000-8000-00805f9b34fb', '0000ff02-0000-1000-8000-00805f9b34fb'],
+            ['000018f0-0000-1000-8000-00805f9b34fb', '00002af1-0000-1000-8000-00805f9b34fb'],
+            ['6e400001-b5a3-f393-e0a9-e50e24dcca9e', '6e400002-b5a3-f393-e0a9-e50e24dcca9e']
+        ];
+        let writeCharacteristic = null;
+        for (const [serviceUuid, characteristicUuid] of candidates) {
+            try {
+                const service = await server.getPrimaryService(serviceUuid);
+                const characteristic = await service.getCharacteristic(characteristicUuid);
+                if (characteristic.properties.write || characteristic.properties.writeWithoutResponse) {
+                    writeCharacteristic = characteristic;
+                    break;
+                }
+            } catch (_) {}
+        }
+        if (!writeCharacteristic) {
+            device.gatt.disconnect();
+            throw new Error('Printer ini tidak menyediakan kanal BLE ESC/POS. Printer Bluetooth Classic perlu aplikasi Android.');
+        }
+
+        printerState.device = device;
+        printerState.writeCharacteristic = writeCharacteristic;
+        device.addEventListener('gattserverdisconnected', () => window.updatePrinterStatus('Terputus', null, false));
+        let battery = null;
+        try {
+            const batteryService = await server.getPrimaryService('battery_service');
+            const batteryCharacteristic = await batteryService.getCharacteristic('battery_level');
+            printerState.batteryCharacteristic = batteryCharacteristic;
+            const value = await batteryCharacteristic.readValue();
+            battery = value.getUint8(0);
+            await batteryCharacteristic.startNotifications();
+            batteryCharacteristic.addEventListener('characteristicvaluechanged', event => {
+                printerState.battery = event.target.value.getUint8(0);
+                renderPrinterState();
+            });
+        } catch (_) {}
+        window.updatePrinterStatus(device.name || 'Printer BLE', battery, true, 'Web Bluetooth');
+        showToast('Printer berhasil terhubung.', 'success');
+    }
+
+    async function disconnectPrinter() {
+        try {
+            const nativeMethod = findNativeMethod(window.AndroidPrinter, ['disconnectPrinter', 'putuskanPrinter', 'disconnectBluetooth', 'disconnect']);
+            if (nativeMethod) await Promise.resolve(nativeMethod.fn());
+            if (printerState.device?.gatt?.connected) printerState.device.gatt.disconnect();
+        } catch (_) {}
+        printerState.device = null;
+        printerState.writeCharacteristic = null;
+        window.updatePrinterStatus('Terputus', null, false);
+        showToast('Printer diputuskan.', 'info');
+    }
+
+    async function sendWebPrinterBytes(bytes) {
+        const characteristic = printerState.writeCharacteristic;
+        if (!characteristic) throw new Error('Kanal cetak BLE tidak tersedia.');
+        const chunkSize = 120;
+        for (let offset = 0; offset < bytes.length; offset += chunkSize) {
+            const chunk = bytes.slice(offset, offset + chunkSize);
+            if (characteristic.properties.writeWithoutResponse && characteristic.writeValueWithoutResponse) await characteristic.writeValueWithoutResponse(chunk);
+            else await characteristic.writeValue(chunk);
+        }
+    }
+
+    async function testPrinter() {
+        try {
+            const nativeMethod = findNativeMethod(window.AndroidPrinter, ['testPrint', 'cetakTes', 'printTest']);
+            const nativeReceipt = findNativeMethod(window.AndroidPrinter, ['cetakStrukDinamic', 'cetakStrukDynamic', 'printReceipt']);
+            if (nativeMethod) await Promise.resolve(nativeMethod.fn());
+            else if (nativeReceipt) {
+                const testData = JSON.stringify([
+                    { text: 'CETAK PRO', align: 1, bold: 1, width: 2, height: 2 },
+                    { text: 'Printer siap digunakan', align: 1, bold: 0, width: 1, height: 1 },
+                    { text: '', align: 0, bold: 0, width: 1, height: 1 }
+                ]);
+                await syncNativePaperWidth();
+                await Promise.resolve(nativeReceipt.fn(testData, ''));
+            }
+            else if (printerState.writeCharacteristic) {
+                const encoder = new TextEncoder();
+                const bytes = new Uint8Array([27, 64, 27, 97, 1, ...encoder.encode('CETAK PRO\nPrinter siap digunakan\n\n\n'), 27, 97, 0]);
+                await sendWebPrinterBytes(bytes);
+            } else throw new Error('Fitur tes cetak belum didukung aplikasi Android ini.');
+            showToast('Tes cetak dikirim.', 'success');
+        } catch (error) {
+            await appNotice('Tes cetak gagal', error?.message || 'Printer tidak merespons.');
+        }
+    }
 
     function switchTab(tab) {
         currentTab = tab;
@@ -391,25 +1333,146 @@
         
         const btnSpbu = document.getElementById('btn-spbu');
         const btnWifi = document.getElementById('btn-wifi');
-        
-        if(tab === 'spbu') {
-            btnSpbu.className = "flex-1 py-3 text-sm font-bold bg-blue-50 text-blue-600 border-b-2 border-blue-600 transition";
-            btnWifi.className = "flex-1 py-3 text-sm font-bold text-gray-500 hover:bg-gray-50 border-b-2 border-transparent transition";
-        } else {
-            btnWifi.className = "flex-1 py-3 text-sm font-bold bg-blue-50 text-blue-600 border-b-2 border-blue-600 transition";
-            btnSpbu.className = "flex-1 py-3 text-sm font-bold text-gray-500 hover:bg-gray-50 border-b-2 border-transparent transition";
-            buatWifiQR(); 
+        btnSpbu.classList.toggle('is-active', tab === 'spbu');
+        btnWifi.classList.toggle('is-active', tab === 'wifi');
+        btnSpbu.setAttribute('aria-selected', String(tab === 'spbu'));
+        btnWifi.setAttribute('aria-selected', String(tab === 'wifi'));
+        document.querySelector('#print-fab span').textContent = tab === 'wifi' ? 'Cetak QR Wi-Fi' : 'Cetak sekarang';
+        if (tab === 'wifi') {
+            buatWifiQR();
+            if (!document.getElementById('wifi-ssid').value) requestWifiInfo(true);
         }
     }
 
+    function escapeWifiValue(value) {
+        return String(value || '').replace(/([\\;,:"])/g, '\\$1');
+    }
+
     function buatWifiQR() {
-        const ssid = document.getElementById('wifi-ssid').value || "RADHEN RIZAL";
+        const ssid = document.getElementById('wifi-ssid').value.trim();
         const pass = document.getElementById('wifi-pass').value;
+        const security = document.getElementById('wifi-security').value;
         const box = document.getElementById('qrcode-box');
         box.innerHTML = "";
-        const wifiString = `WIFI:S:${ssid};T:WPA;P:${pass};;`;
-        new QRCode(box, { text: wifiString, width: 150, height: 150, colorDark : "#000000", colorLight : "#ffffff" });
-        document.getElementById('wifi-name-display').innerText = ssid;
+        if (!ssid) {
+            const placeholder = document.createElement('div');
+            placeholder.className = 'qr-placeholder';
+            placeholder.textContent = 'Wi-Fi belum terdeteksi';
+            box.appendChild(placeholder);
+            document.getElementById('wifi-name-display').innerText = '—';
+            document.getElementById('wifi-security-display').innerText = security === 'nopass' ? 'Terbuka' : security;
+            document.getElementById('wifi-password-card').classList.toggle('hidden', security === 'nopass');
+            return '';
+        }
+        const wifiString = security === 'nopass'
+            ? `WIFI:S:${escapeWifiValue(ssid)};T:nopass;;`
+            : `WIFI:S:${escapeWifiValue(ssid)};T:${security};P:${escapeWifiValue(pass)};;`;
+        if (typeof QRCode !== 'undefined') new QRCode(box, { text: wifiString, width: 150, height: 150, colorDark: '#000000', colorLight: '#ffffff', correctLevel: QRCode.CorrectLevel?.M });
+        document.getElementById('wifi-name-display').innerText = ssid || '—';
+        document.getElementById('wifi-security-display').innerText = security === 'nopass' ? 'Terbuka' : security;
+        document.getElementById('wifi-password-card').classList.toggle('hidden', security === 'nopass');
+        return wifiString;
+    }
+
+    function handleWifiInput() {
+        buatWifiQR();
+        clearTimeout(wifiSaveTimer);
+        if (document.getElementById('wifi-remember').checked) wifiSaveTimer = setTimeout(() => saveWifiProfile(false), 450);
+    }
+
+    function getWifiProfiles() {
+        return readJsonStorage('cetakpro_wifi_profiles', {});
+    }
+
+    function saveWifiProfile(notify = false) {
+        const ssid = document.getElementById('wifi-ssid').value.trim();
+        if (!ssid) {
+            if (notify) showToast('Nama Wi-Fi belum tersedia.', 'warning');
+            return false;
+        }
+        if (!document.getElementById('wifi-remember').checked) {
+            if (notify) showToast('Aktifkan “Simpan profil jaringan” terlebih dahulu.', 'warning');
+            return false;
+        }
+        const profiles = getWifiProfiles();
+        profiles[ssid] = {
+            password: document.getElementById('wifi-pass').value,
+            security: document.getElementById('wifi-security').value,
+            updatedAt: Date.now()
+        };
+        localStorage.setItem('cetakpro_wifi_profiles', JSON.stringify(profiles));
+        if (notify) showToast('Profil Wi-Fi disimpan di perangkat ini.', 'success');
+        return true;
+    }
+
+    function normalizeWifiSecurity(value) {
+        const normalized = String(value || '').toUpperCase();
+        if (normalized.includes('WEP')) return 'WEP';
+        if (normalized.includes('OPEN') || normalized.includes('NONE') || normalized.includes('NOPASS')) return 'nopass';
+        return 'WPA';
+    }
+
+    function applyWifiInfo(info, password, security) {
+        const payload = parseMaybeJson(info);
+        if (payload && typeof payload === 'object') {
+            info = payload.ssid || payload.name || payload.wifiName || '';
+            password = payload.password ?? payload.passphrase ?? password;
+            security = payload.security || payload.type || security;
+        }
+        const ssid = String(info || '').replace(/^"|"$/g, '').trim();
+        const autoState = document.getElementById('wifi-auto-state');
+        const badge = document.getElementById('wifi-network-badge');
+        if (!ssid || ssid === '<unknown ssid>') {
+            autoState.textContent = 'Wi-Fi aktif, tetapi nama jaringan belum diizinkan oleh Android.';
+            badge.textContent = 'Perlu izin';
+            return false;
+        }
+        document.getElementById('wifi-ssid').value = ssid;
+        const saved = getWifiProfiles()[ssid];
+        document.getElementById('wifi-security').value = normalizeWifiSecurity(security || saved?.security || 'WPA');
+        if (password !== undefined && password !== null && password !== '') document.getElementById('wifi-pass').value = password;
+        else if (saved) document.getElementById('wifi-pass').value = saved.password || '';
+        autoState.textContent = saved || password ? `${ssid} terdeteksi dan QR siap digunakan.` : `${ssid} terdeteksi. Masukkan sandi sekali untuk menyimpan profil.`;
+        badge.textContent = 'Terdeteksi';
+        buatWifiQR();
+        return true;
+    }
+
+    window.updateWifiInfo = applyWifiInfo;
+    window.updateNetworkInfo = applyWifiInfo;
+
+    async function requestWifiInfo(silent = false) {
+        const autoState = document.getElementById('wifi-auto-state');
+        const badge = document.getElementById('wifi-network-badge');
+        autoState.textContent = 'Mendeteksi jaringan aktif…';
+        badge.textContent = 'Memeriksa';
+        const bridges = [window.AndroidWifi, window.AndroidNetwork, window.AndroidPrinter].filter(Boolean);
+        for (const bridge of bridges) {
+            const method = findNativeMethod(bridge, ['getCurrentWifiInfo', 'getWifiInfo', 'requestWifiInfo', 'currentWifi']);
+            if (!method) continue;
+            try {
+                const result = await Promise.resolve(method.fn());
+                if (result !== undefined && result !== null && result !== '' && (typeof result === 'object' || typeof result === 'string')) applyWifiInfo(result);
+                else autoState.textContent = 'Menunggu izin jaringan dari aplikasi Android…';
+                return true;
+            } catch (_) {}
+        }
+        const connectionType = navigator.connection?.type || navigator.connection?.effectiveType;
+        if (connectionType === 'wifi') {
+            autoState.textContent = 'Wi-Fi aktif. Browser tidak diizinkan membaca nama atau sandi jaringan.';
+            badge.textContent = 'Wi-Fi aktif';
+        } else {
+            autoState.textContent = navigator.onLine ? 'Buka melalui aplikasi Android untuk mengambil nama Wi-Fi otomatis.' : 'Perangkat sedang tidak terhubung ke jaringan.';
+            badge.textContent = navigator.onLine ? 'Manual' : 'Offline';
+        }
+        if (!silent) await appNotice('Akses Wi-Fi terbatas', 'Android tidak mengizinkan website membaca kata sandi Wi-Fi. Aplikasi dapat mengambil SSID dengan izin lokasi; simpan sandi sekali agar QR berikutnya muncul otomatis.');
+        return false;
+    }
+
+    function toggleWifiPassword() {
+        const input = document.getElementById('wifi-pass');
+        input.type = input.type === 'password' ? 'text' : 'password';
+        document.querySelector('.password-toggle').setAttribute('aria-label', input.type === 'password' ? 'Tampilkan kata sandi' : 'Sembunyikan kata sandi');
     }
 
     const templates = {
@@ -436,13 +1499,13 @@
         });
     }
 
-    function saveAsTemplate() {
+    async function saveAsTemplate() {
         const activeModel = document.querySelector('.model-view:not(.hidden)');
         if(!activeModel) return;
 
         clearEditorSelection();
 
-        let templateName = prompt("Masukkan Nama untuk Template Baru ini:", "Template Custom " + (savedTemplates.length + 1));
+        let templateName = await appPrompt('Simpan template', 'Beri nama agar template mudah ditemukan kembali.', 'Template Custom ' + (savedTemplates.length + 1));
         if (!templateName) return;
 
         let templateHTML = activeModel.innerHTML;
@@ -485,13 +1548,13 @@
         document.getElementById('in-desain').value = 'saved_' + (savedTemplates.length - 1);
         document.getElementById('in-desain').dispatchEvent(new Event('change'));
 
-        showToast('✅ Template & Data "' + templateName + '" berhasil disimpan!');
+        showToast('Template “' + templateName + '” berhasil disimpan.', 'success');
     }
 
-    function deleteCurrentTemplate() {
+    async function deleteCurrentTemplate() {
         const val = document.getElementById('in-desain').value;
         if (val.startsWith('saved_')) {
-            if(confirm("Yakin ingin menghapus template ini permanen?")) {
+            if(await appConfirm('Hapus template?', 'Template ini akan dihapus dari perangkat dan tidak dapat dipulihkan.', 'Hapus', 'Batal')) {
                 const index = parseInt(val.split('_')[1]);
                 savedTemplates.splice(index, 1);
                 localStorage.setItem('notaku_templates', JSON.stringify(savedTemplates));
@@ -500,7 +1563,7 @@
                 document.getElementById('in-desain').value = '1';
                 document.getElementById('in-desain').dispatchEvent(new Event('change'));
                 
-                showToast('🗑️ Template berhasil dihapus!');
+                showToast('Template berhasil dihapus.', 'success');
             }
         }
     }
@@ -620,13 +1683,22 @@
         if (!file) return;
         const status = document.getElementById('ocr-status');
         status.classList.remove('hidden');
-        Tesseract.recognize(file, 'ind', { logger: m => console.log(m) }).then(({ data: { text } }) => {
+        Tesseract.recognize(file, 'ind', {
+            logger: progress => {
+                if (typeof progress.progress === 'number') status.textContent = `Sedang membaca gambar… ${Math.round(progress.progress * 100)}%`;
+            }
+        }).then(({ data: { text } }) => {
             document.getElementById('in-desain').value = 'custom';
             document.getElementById('in-desain').dispatchEvent(new Event('change'));
             document.getElementById('in-custom-text').value = text;
             updateReceipt();
             status.classList.add('hidden');
-            showToast('✅ Berhasil memindai teks nota!');
+            status.textContent = 'Sedang membaca gambar…';
+            showToast('Teks struk berhasil dibaca.', 'success');
+        }).catch(() => {
+            status.classList.add('hidden');
+            status.textContent = 'Sedang membaca gambar…';
+            appNotice('Foto belum dapat dibaca', 'Gunakan foto yang terang, lurus, dan tidak buram, lalu coba lagi.');
         });
     });
 
@@ -688,27 +1760,94 @@
         }
     }
 
+    function concatBytes(parts) {
+        const normalized = parts.map(part => part instanceof Uint8Array ? part : new Uint8Array(part));
+        const length = normalized.reduce((sum, part) => sum + part.length, 0);
+        const output = new Uint8Array(length);
+        let offset = 0;
+        normalized.forEach(part => { output.set(part, offset); offset += part.length; });
+        return output;
+    }
+
+    function buildEscPosTextBytes(printData) {
+        const encoder = new TextEncoder();
+        const parts = [new Uint8Array([27, 64])];
+        printData.forEach(line => {
+            const width = Math.max(1, Math.min(2, Number(line.width) || 1));
+            const height = Math.max(1, Math.min(2, Number(line.height) || 1));
+            const size = (width - 1) * 16 + (height - 1);
+            parts.push(new Uint8Array([27, 97, Number(line.align) || 0, 27, 69, line.bold ? 1 : 0, 29, 33, size]));
+            parts.push(encoder.encode(String(line.text ?? '')));
+            parts.push(new Uint8Array([10]));
+        });
+        parts.push(new Uint8Array([27, 69, 0, 29, 33, 0, 27, 97, 0, 10, 10, 10]));
+        return concatBytes(parts);
+    }
+
+    function buildEscPosQrBytes(qrText, ssid) {
+        const encoder = new TextEncoder();
+        const data = encoder.encode(qrText);
+        const storeLength = data.length + 3;
+        const pL = storeLength & 255;
+        const pH = (storeLength >> 8) & 255;
+        const qrSize = appSettings.paperWidth === '80' ? 7 : 5;
+        return concatBytes([
+            [27, 64, 27, 97, 1],
+            encoder.encode('SCAN UNTUK TERHUBUNG\n\n'),
+            [29, 40, 107, 4, 0, 49, 65, 50, 0],
+            [29, 40, 107, 3, 0, 49, 67, qrSize],
+            [29, 40, 107, 3, 0, 49, 69, 49],
+            [29, 40, 107, pL, pH, 49, 80, 48], data,
+            [29, 40, 107, 3, 0, 49, 81, 48],
+            encoder.encode(`\nSSID: ${ssid}\n\n\n`),
+            [27, 97, 0]
+        ]);
+    }
+
     // ==============================================================
-    // ENGINE NATIVE: EKSTRAKTOR TEKS KE JSON ESC/POS 
+    // ENGINE NATIVE: EKSTRAKTOR TEKS KE JSON ESC/POS
     // ==============================================================
-    function handleCetakPrint() {
+    async function handleCetakPrint() {
         clearEditorSelection();
 
         if(currentTab === 'wifi') {
-            const ssid = document.getElementById('wifi-ssid').value || "RADHEN RIZAL";
+            const ssid = document.getElementById('wifi-ssid').value.trim();
             const pass = document.getElementById('wifi-pass').value;
-            const qrString = `WIFI:S:${ssid};T:WPA;P:${pass};;`;
-            if (typeof AndroidPrinter !== 'undefined' && AndroidPrinter.cetakWifi) {
-                AndroidPrinter.cetakWifi(ssid, qrString);
-                showToast('🖨️ Mencetak Barcode WiFi...');
-            } else {
-                alert('⚠️ Harap jalankan dari aplikasi Android Anda.');
+            const security = document.getElementById('wifi-security').value;
+            if (!ssid) {
+                showToast('Nama Wi-Fi belum tersedia.', 'warning');
+                document.getElementById('wifi-ssid').focus();
+                return;
+            }
+            if (security !== 'nopass' && !pass) {
+                showToast('Masukkan kata sandi Wi-Fi terlebih dahulu.', 'warning');
+                document.getElementById('wifi-pass').focus();
+                return;
+            }
+            const qrString = buatWifiQR();
+            saveWifiProfile(false);
+            try {
+                const nativeMethod = findNativeMethod(window.AndroidPrinter, ['cetakWifi', 'printWifiQr', 'printWifiQR']);
+                if (nativeMethod) {
+                    await syncNativePaperWidth();
+                    await Promise.resolve(nativeMethod.fn(ssid, qrString));
+                }
+                else if (printerState.writeCharacteristic) await sendWebPrinterBytes(buildEscPosQrBytes(qrString, ssid));
+                else {
+                    openSettings('printer');
+                    showToast('Hubungkan printer sebelum mencetak.', 'warning');
+                    return;
+                }
+                showToast('QR Wi-Fi dikirim ke printer.', 'success');
+            } catch (error) {
+                await appNotice('Cetak QR gagal', error?.message || 'Printer tidak merespons.');
             }
             return;
         }
 
         let activeModelElement = document.querySelector('.model-view:not(.hidden)');
-        showToast('🔄 Memproses Cetak Teks Native Asli...');
+        if (!activeModelElement) return;
+        showToast('Menyiapkan struk untuk dicetak…', 'info');
 
         let printData = [];
         
@@ -732,7 +1871,8 @@
             let sx = parseInt(child.dataset.sx) || 1;
             let sy = parseInt(child.dataset.sy) || 1;
 
-            let maxLen = sx >= 2 ? 16 : 32; 
+            const baseColumns = appSettings.paperWidth === '80' ? 48 : 32;
+            let maxLen = sx >= 2 ? Math.floor(baseColumns / 2) : baseColumns;
 
             if (child.tagName === 'BR' || child.classList.contains('spacer')) {
                 printData.push({ text: "", align: 0, bold: 0, width: 1, height: 1 });
@@ -779,21 +1919,33 @@
             }
         }
 
-        let jsonPayload = JSON.stringify(printData);
-
-        if (typeof AndroidPrinter !== 'undefined' && AndroidPrinter.cetakStrukDinamic) {
-            AndroidPrinter.cetakStrukDinamic(jsonPayload, ""); 
-        } else {
-            console.log("Data Native siap dikirim:", printData);
-            alert("⚠️ Harap update Aplikasi Android Anda untuk mendukung Native JSON.");
+        const jsonPayload = JSON.stringify(printData);
+        try {
+            const nativeMethod = findNativeMethod(window.AndroidPrinter, ['cetakStrukDinamic', 'cetakStrukDynamic', 'printReceipt']);
+            if (nativeMethod) {
+                await syncNativePaperWidth();
+                await Promise.resolve(nativeMethod.fn(jsonPayload, ''));
+            }
+            else if (printerState.writeCharacteristic) await sendWebPrinterBytes(buildEscPosTextBytes(printData));
+            else {
+                openSettings('printer');
+                showToast('Hubungkan printer sebelum mencetak.', 'warning');
+                return;
+            }
+            showToast('Struk dikirim ke printer.', 'success');
+        } catch (error) {
+            await appNotice('Cetak struk gagal', error?.message || 'Printer tidak merespons. Periksa koneksi lalu coba lagi.');
         }
     }
 
-    function showToast(message) {
+    let toastTimer = null;
+    function showToast(message, type = 'info') {
         const toast = document.getElementById('toast-message');
-        toast.innerText = message;
-        toast.classList.remove('opacity-0');
-        setTimeout(() => toast.classList.add('opacity-0'), 3000);
+        toast.textContent = message;
+        toast.dataset.type = type;
+        toast.classList.add('is-visible');
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(() => toast.classList.remove('is-visible'), 3200);
     }
 
     // ==========================================
@@ -1060,18 +2212,50 @@
         }
     });
 
-    window.addEventListener('DOMContentLoaded', () => {
+    window.addEventListener('DOMContentLoaded', async () => {
+        syncSettingsUI();
         loadSavedTemplates();
         document.getElementById('in-desain').dispatchEvent(new Event('change'));
+        buatWifiQR();
+        requestWifiInfo(true);
+        await requestPrinterStatus();
+        if (appSettings.autoReconnect && !printerState.connected) {
+            const reconnect = findNativeMethod(window.AndroidPrinter, ['autoConnect', 'reconnectPrinter', 'hubungkanOtomatis']);
+            if (reconnect) {
+                try {
+                    const result = parseMaybeJson(await Promise.resolve(reconnect.fn()));
+                    if (result && (typeof result === 'object' || typeof result === 'string')) window.updatePrinterStatus(result);
+                    else setTimeout(requestPrinterStatus, 900);
+                } catch (_) {}
+            }
+        }
     });
     
-    document.querySelectorAll('input, textarea, select').forEach(input => {
+    document.querySelectorAll('#strukForm input, #strukForm textarea, #strukForm select').forEach(input => {
         if(!input.id.startsWith('ed-') && !input.id.startsWith('global-space') && input.id !== 'in-scan-nota' && input.id !== 'in-logo-file') {
             input.addEventListener('input', () => {
                 updateReceipt();
-                if(input.id.includes('wifi')) buatWifiQR(); 
             });
         }
+    });
+
+    document.addEventListener('keydown', event => {
+        if (event.key === 'Escape') {
+            if (!document.getElementById('dialog-backdrop').classList.contains('hidden')) resolveDialog(false);
+            else if (!document.getElementById('settings-backdrop').classList.contains('hidden')) closeSettings();
+        }
+        if (event.key === 'Enter' && dialogResolver && document.activeElement?.id === 'dialog-input') {
+            event.preventDefault();
+            resolveDialog(true);
+        }
+    });
+
+    systemThemeQuery.addEventListener?.('change', () => {
+        if (appSettings.themeMode === 'system') applyTheme();
+    });
+
+    window.addEventListener('online', () => {
+        if (currentTab === 'wifi') requestWifiInfo(true);
     });
 </script>
 </body>
