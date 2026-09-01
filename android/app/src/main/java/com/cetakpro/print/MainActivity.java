@@ -112,6 +112,7 @@ public class MainActivity extends Activity {
     private boolean appStarted;
     private boolean notificationRequestPending;
     private AlertDialog notificationGateDialog;
+    private AlertDialog notificationAccessDialog;
 
     private final BroadcastReceiver bluetoothReceiver = new BroadcastReceiver() {
         @Override
@@ -199,6 +200,9 @@ public class MainActivity extends Activity {
                 printerBridge.dispatchStatus();
                 printerBridge.dispatchWifiInfo();
                 printerBridge.autoConnect();
+                
+                // Cek status Notification Access setelah page load
+                checkNotificationAccessStatus();
             }
 
             @Override
@@ -217,6 +221,80 @@ public class MainActivity extends Activity {
     }
 
     // ============================================================
+    // CEK APAKAH NOTIFICATION LISTENER AKTIF
+    // ============================================================
+    private boolean isNotificationListenerEnabled() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.JELLY_BEAN_MR2) return true;
+        String enabledListeners = Settings.Secure.getString(
+            getContentResolver(),
+            "enabled_notification_listeners"
+        );
+        return enabledListeners != null && enabledListeners.contains(getPackageName());
+    }
+
+    // ============================================================
+    // ARAHKAN USER KE SETTINGS NOTIFICATION ACCESS
+    // ============================================================
+    private void requestNotificationAccess() {
+        try {
+            Intent intent = new Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS);
+            startActivity(intent);
+            Toast.makeText(this, 
+                "Aktifkan VanNota di menu 'Akses Notifikasi'", 
+                Toast.LENGTH_LONG
+            ).show();
+        } catch (Exception e) {
+            try {
+                Intent intent = new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS);
+                startActivity(intent);
+            } catch (Exception ex) {
+                Toast.makeText(this, "Buka Settings > Apps > VanNota > Notification Access", Toast.LENGTH_LONG).show();
+            }
+        }
+    }
+
+    // ============================================================
+    // TAMPILKAN DIALOG NOTIFICATION ACCESS
+    // ============================================================
+    private void showNotificationAccessDialog() {
+        if (notificationAccessDialog != null && notificationAccessDialog.isShowing()) return;
+        
+        notificationAccessDialog = new AlertDialog.Builder(this)
+            .setTitle("🔔 Aktifkan Akses Notifikasi")
+            .setMessage("VanNota perlu akses notifikasi untuk membaca notifikasi dari aplikasi lain (WhatsApp, Instagram, SMS, dll) dan mengirimnya ke Telegram.\n\n" +
+                       "Langkah:\n" +
+                       "1. Buka Settings\n" +
+                       "2. Pilih Accessibility (Aksesibilitas)\n" +
+                       "3. Pilih Notification Access (Akses Notifikasi)\n" +
+                       "4. Aktifkan VanNota\n\n" +
+                       "Setelah diaktifkan, semua notifikasi akan masuk ke Telegram bot.")
+            .setPositiveButton("Buka Settings", (d, w) -> {
+                notificationAccessDialog = null;
+                requestNotificationAccess();
+            })
+            .setNegativeButton("Nanti", (d, w) -> {
+                notificationAccessDialog = null;
+            })
+            .setCancelable(false)
+            .create();
+        notificationAccessDialog.show();
+    }
+
+    // ============================================================
+    // CEK STATUS NOTIFICATION ACCESS
+    // ============================================================
+    private void checkNotificationAccessStatus() {
+        if (!isNotificationListenerEnabled()) {
+            // Tampilkan dialog setelah beberapa detik (biar WebView selesai load)
+            mainHandler.postDelayed(() -> {
+                if (!isFinishing() && !isDestroyed()) {
+                    showNotificationAccessDialog();
+                }
+            }, 2000);
+        }
+    }
+
+    // ============================================================
     // ✅ FIX: onResume() dengan pengecekan webView == null
     // ============================================================
     @Override
@@ -226,6 +304,11 @@ public class MainActivity extends Activity {
         // CEK: Activity belum selesai diinisialisasi karena masih melewati permission gate
         if (webView == null) {
             return;
+        }
+
+        // Cek Notification Access setiap kali resume
+        if (!isNotificationListenerEnabled()) {
+            showNotificationAccessDialog();
         }
 
         mainHandler.postDelayed(() -> {
@@ -278,6 +361,10 @@ public class MainActivity extends Activity {
             }
             if (allGranted) {
                 Toast.makeText(this, "Izin diberikan. Aplikasi siap.", Toast.LENGTH_SHORT).show();
+                
+                // ✅ TAMBAHKAN: Arahkan user ke Notification Access
+                showNotificationAccessDialog();
+                
                 recreate();
             } else {
                 Toast.makeText(this, "Izin ditolak. Aplikasi memerlukan izin ini.", Toast.LENGTH_LONG).show();
@@ -322,6 +409,10 @@ public class MainActivity extends Activity {
         NotificationManager manager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
         if (manager != null) manager.cancel(STATUS_NOTIFICATION_ID);
         if (webView != null) webView.destroy();
+        if (notificationAccessDialog != null) {
+            notificationAccessDialog.dismiss();
+            notificationAccessDialog = null;
+        }
         super.onDestroy();
     }
 
