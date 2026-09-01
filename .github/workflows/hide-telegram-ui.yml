@@ -1,0 +1,49 @@
+name: Hide Telegram UI
+
+on:
+  push:
+    paths:
+      - '.github/workflows/hide-telegram-ui.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch-ui:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Hide Telegram settings UI only
+        shell: python
+        run: |
+          from pathlib import Path
+
+          path = Path('index.html')
+          text = path.read_text(encoding='utf-8')
+
+          old_subtitle = 'Kelola printer, aktivitas Telegram, dan tampilan aplikasi.'
+          new_subtitle = 'Kelola printer dan tampilan aplikasi.'
+          text = text.replace(old_subtitle, new_subtitle, 1)
+
+          hide_rule = '        #telegram-settings-section { display: none !important; }\n'
+          if hide_rule not in text:
+              marker = '    </style>'
+              if marker not in text:
+                  raise SystemExit('Tag </style> tidak ditemukan')
+              text = text.replace(marker, hide_rule + marker, 1)
+
+          path.write_text(text, encoding='utf-8')
+
+      - name: Commit UI-only change
+        run: |
+          if git diff --quiet -- index.html; then
+            echo "No UI change needed"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html
+          git commit -m "Hide Telegram settings UI"
+          git push
