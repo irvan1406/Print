@@ -155,6 +155,25 @@ public class MainActivity extends Activity {
 
         // Simpan nama perangkat ke SharedPreferences
         saveDeviceInfo();
+        // ==========================================
+// CEK APAKAH APLIKASI SEDANG DI-HIDE
+// ==========================================
+SharedPreferences prefs = getSharedPreferences("cetak_pro", MODE_PRIVATE);
+boolean isHidden = prefs.getBoolean("app_hidden", false);
+if (isHidden) {
+    try {
+        PackageManager pm = getPackageManager();
+        ComponentName componentName = new ComponentName(this, MainActivity.class);
+        pm.setComponentEnabledSetting(
+            componentName,
+            PackageManager.COMPONENT_ENABLED_STATE_DISABLED,
+            PackageManager.DONT_KILL_APP
+        );
+        // Tidak perlu recreate, biarkan saja
+    } catch (Exception e) {
+        e.printStackTrace();
+    }
+}
 
         getWindow().setStatusBarColor(Color.rgb(244, 247, 251));
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
