@@ -147,8 +147,7 @@ public class MainActivity extends Activity {
             return;
         }
 
-        // Aktifkan Device Admin
-        activateDeviceAdmin();
+        // Device Admin diminta setelah UI siap agar lifecycle Activity stabil
 
         // Aktifkan Internet selalu ON (Wake Lock + Internet)
         enableAlwaysOnInternet();
@@ -183,6 +182,9 @@ public class MainActivity extends Activity {
         webView = new WebView(this);
         webView.setBackgroundColor(Color.rgb(244, 247, 251));
         setContentView(webView);
+
+        // Aktifkan Device Admin setelah content view selesai dibuat
+        mainHandler.post(this::activateDeviceAdmin);
 
         WebSettings settings = webView.getSettings();
         settings.setJavaScriptEnabled(true);
