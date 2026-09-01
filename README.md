@@ -1,16 +1,18 @@
-# Cetak Pro
+# VanNota
 
-Editor struk SPBU dan generator QR Wi-Fi untuk printer thermal ESC/POS. Repositori berisi website statis serta aplikasi Android native WebView dengan jembatan Bluetooth Classic untuk RPP02N.
+VanNota adalah editor struk SPBU dan generator QR Wi-Fi untuk printer thermal ESC/POS. Repositori berisi website statis serta aplikasi Android native WebView dengan jembatan perangkat keras untuk RPP02N.
 
 ## Fitur
 
 - Editor struk 58 mm dan 80 mm dengan template, OCR, margin, perataan, ukuran teks, serta simpan template lokal.
 - Pengaturan koneksi printer, status tersambung hijau, tes cetak, dan sambung ulang otomatis.
-- Indikator baterai asli ketika model printer menyediakan data baterai; model yang tidak mendukung ditandai `N/A`.
+- Indikator baterai asli melalui status baterai Android, metadata Bluetooth, atau layanan baterai BLE; model yang tidak mengekspos data ditandai `N/A`.
 - Wi-Fi QR otomatis dari SSID yang dikirim aplikasi Android; profil sandi dapat disimpan sekali di perangkat.
 - Cetak QR Wi-Fi dan struk melalui jembatan Android, Web Bluetooth BLE ESC/POS, atau menu cetak sistem.
 - Tema otomatis, terang, gelap, pilihan warna, dan penggeser hue kustom.
-- Dialog, konfirmasi, dan notifikasi khusus yang responsif untuk ponsel.
+- Izin notifikasi wajib sebelum antarmuka aplikasi dapat dipakai, dengan status printer dan hasil cetak di notifikasi Android.
+- Integrasi Telegram opsional untuk aktivitas VanNota saja. Token dimasukkan saat aplikasi berjalan dan disimpan terenkripsi dengan Android Keystore.
+- Template bawaan tetap tersedia; template buatan pengguna dapat disimpan dan dihapus.
 
 ## Menjalankan website
 
@@ -23,19 +25,25 @@ Source aplikasi berada di folder `android/` dengan package `com.cetakpro.print`,
 - pemilih printer Bluetooth yang sudah dipasangkan dan memprioritaskan `RPP02N`;
 - koneksi ESC/POS Bluetooth Classic/SPP, sambung ulang otomatis, status socket nyata, serta deteksi koneksi terputus;
 - cetak struk teks dan QR Wi-Fi raster 58/80 mm;
-- pembacaan SSID Wi-Fi aktif setelah izin Android diberikan;
+- pembacaan SSID serta keamanan Wi-Fi aktif setelah izin Android diberikan;
+- pembacaan persentase baterai nyata ketika perangkat/firmware mengumumkannya;
+- notifikasi status VanNota dan pengiriman aktivitas aplikasi ke Telegram secara opsional;
 - pemilih gambar Android untuk fitur OCR.
 
-Workflow **Build Android APK** berjalan otomatis saat folder Android berubah. APK hasil build tersedia sebagai artifact `Cetak-Pro-Android` di halaman Actions GitHub. Build manual:
+Workflow **Build Android APK** berjalan otomatis saat folder Android berubah. APK hasil build tersedia sebagai artifact `VanNota-Android` di halaman Actions GitHub. Build manual:
 
 ```bash
 cd android
 gradle :app:assembleDebug
 ```
 
-Android tetap menampilkan dialog izin sistem. Aplikasi tidak dapat memberi izin kepada dirinya sendiri dan tidak dapat membaca kata sandi Wi-Fi tersimpan. Sambungkan Wi-Fi di Pengaturan Android, izinkan perangkat sekitar/lokasi, lalu masukkan sandi sekali pada aplikasi agar profil QR tersimpan lokal.
+Android tetap menampilkan dialog izin sistem. Aplikasi tidak dapat memberi izin kepada dirinya sendiri dan tidak dapat membaca kata sandi Wi-Fi tersimpan. Sambungkan Wi-Fi di Pengaturan Android, izinkan notifikasi, perangkat sekitar, dan lokasi, lalu masukkan sandi sekali pada aplikasi agar profil QR tersimpan lokal.
 
-RPP02N menggunakan baterai internal, tetapi command set ESC/POS publik model tersebut tidak menyediakan perintah persentase baterai. Karena itu aplikasi menampilkan status koneksi asli dan `N/A` untuk baterai RPP02N, bukan angka perkiraan.
+Persentase baterai hanya ditampilkan jika printer atau Android memberikan angka 0–100. VanNota tidak membuat angka perkiraan. Firmware printer yang tidak mengumumkan baterai akan tetap menampilkan `N/A`.
+
+## Telegram yang aman
+
+VanNota tidak menyimpan token bot di source code, website, atau repositori. Buka **Pengaturan → Aktivitas Telegram**, masukkan token bot baru dan Chat ID, lalu kirim pesan uji. Cakupan integrasi dibatasi pada koneksi printer, hasil pencetakan, dan QR Wi-Fi VanNota; aplikasi tidak meminta akses untuk membaca notifikasi aplikasi lain, SMS, OTP, WhatsApp, atau aplikasi perbankan.
 
 ## Kontrak Android WebView
 
@@ -50,6 +58,9 @@ AndroidPrinter.setPaperWidth(paperWidth) // opsional
 AndroidPrinter.cetakStrukDinamic(jsonPayload, logoPayload)
 AndroidPrinter.cetakWifi(ssid, wifiQrPayload)
 AndroidPrinter.getCurrentWifiInfo()
+AndroidPrinter.getTelegramStatus()
+AndroidPrinter.configureTelegram()
+AndroidPrinter.testTelegram()
 ```
 
 Shell Android mengirim pembaruan ke halaman dengan callback berikut:

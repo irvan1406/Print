@@ -14,5 +14,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "CetakPro"
+rootProject.name = "VanNota"
 include(":app")

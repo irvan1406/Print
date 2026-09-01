@@ -6,7 +6,7 @@
     <meta name="description" content="Editor struk SPBU dan generator QR Wi-Fi untuk printer thermal ESC/POS.">
     <meta name="theme-color" content="#f4f7fb">
     <meta name="color-scheme" content="light dark">
-    <title>Cetak Pro — Studio Struk & Wi-Fi QR</title>
+    <title>VanNota — Struk & Wi-Fi QR</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
@@ -214,6 +214,7 @@
         .panel-title { margin: 0; color: var(--text) !important; font-size: 22px; font-weight: 800; letter-spacing: -.025em; }
         .panel-description { margin: 5px 0 0; color: var(--text-soft); font-size: 12px; line-height: 1.5; }
         .soft-badge { padding: 6px 9px; border: 1px solid var(--accent-border); border-radius: 999px; color: var(--accent-strong); background: var(--accent-soft); font-size: 10px; font-weight: 750; white-space: nowrap; }
+        #telegram-status.is-connected { color: var(--success); border-color: color-mix(in srgb, var(--success) 30%, var(--border)); background: var(--success-soft); }
 
         .workflow-steps {
             margin: -2px 0 18px; padding: 5px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px;
@@ -441,11 +442,15 @@
 <header class="app-header no-print">
     <div class="app-brand">
         <div class="brand-mark" aria-hidden="true">
-            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.9" d="M7 8V4h10v4M7 17H5a2 2 0 0 1-2-2v-4a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2h-2M7 14h10v7H7z"/><path stroke-linecap="round" stroke-width="1.9" d="M17 12h.01"/></svg>
+            <svg fill="none" viewBox="0 0 24 24" aria-hidden="true">
+                <path fill="currentColor" fill-opacity=".2" d="M5 3.5h14v17l-2.35-1.45L14.3 20.5 12 19.05 9.65 20.5 7.3 19.05 5 20.5v-17Z"/>
+                <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M5 3.5h14v17l-2.35-1.45L14.3 20.5 12 19.05 9.65 20.5 7.3 19.05 5 20.5v-17Z"/>
+                <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.1" d="m8.2 8.2 3.8 6.1 3.8-6.1"/>
+            </svg>
         </div>
         <div class="brand-copy">
-            <h1 class="brand-title">Cetak Pro</h1>
-            <p class="brand-subtitle">Studio struk &amp; Wi-Fi QR untuk printer thermal</p>
+            <h1 class="brand-title">VanNota</h1>
+            <p class="brand-subtitle">Nota pintar untuk printer thermal</p>
         </div>
     </div>
     <div class="header-actions">
@@ -869,7 +874,7 @@
         <header class="sheet-header">
             <div>
                 <h2 id="settings-title" class="sheet-title">Pengaturan</h2>
-                <p class="sheet-subtitle">Kelola printer dan tampilan aplikasi.</p>
+                <p class="sheet-subtitle">Kelola printer, aktivitas Telegram, dan tampilan aplikasi.</p>
             </div>
             <button class="sheet-close" type="button" onclick="closeSettings()" aria-label="Tutup pengaturan">×</button>
         </header>
@@ -906,6 +911,19 @@
                     <div class="setting-copy"><strong>Baterai asli</strong><span id="battery-support-note">Ditampilkan bila printer atau aplikasi Android mendukung pembacaan baterai.</span></div>
                     <strong id="settings-battery" style="font-size: 12px; color: var(--text-soft);">—</strong>
                 </div>
+            </section>
+
+            <section id="telegram-settings-section" class="settings-section">
+                <h3 class="settings-section-title"><span>Aktivitas Telegram</span><span id="telegram-status" class="soft-badge">Belum diatur</span></h3>
+                <div class="setting-copy" style="margin-bottom: 12px;">
+                    <strong>Status VanNota saja</strong>
+                    <span>Mengirim status printer, hasil cetak, dan QR Wi-Fi. Tidak membaca SMS, OTP, WhatsApp, perbankan, atau notifikasi aplikasi lain.</span>
+                </div>
+                <div class="connection-actions">
+                    <button id="telegram-configure-button" class="primary-button" type="button" onclick="configureTelegram()">Hubungkan Telegram</button>
+                    <button id="telegram-test-button" class="secondary-button" type="button" onclick="testTelegram()" disabled>Kirim tes</button>
+                </div>
+                <button id="telegram-toggle-button" class="secondary-button hidden" style="width:100%; margin-top:9px;" type="button" onclick="toggleTelegramRelay()">Nonaktifkan pengiriman</button>
             </section>
 
             <section id="appearance-settings-section" class="settings-section">
@@ -985,6 +1003,11 @@
         device: null,
         writeCharacteristic: null,
         batteryCharacteristic: null
+    };
+
+    const telegramState = {
+        configured: false,
+        enabled: false
     };
 
     let dialogResolver = null;
@@ -1078,6 +1101,7 @@
         applyPaperWidth();
         applyTheme();
         renderPrinterState();
+        renderTelegramState();
     }
 
     function openSettings(section = 'printer') {
@@ -1085,6 +1109,7 @@
         backdrop.classList.remove('hidden');
         document.body.style.overflow = 'hidden';
         syncSettingsUI();
+        requestTelegramStatus();
         const target = section === 'appearance' ? document.getElementById('appearance-settings-section') : document.getElementById('printer-settings-section');
         setTimeout(() => target?.scrollIntoView({ block: 'start', behavior: 'smooth' }), 30);
     }
@@ -1222,6 +1247,62 @@
     window.onPrinterDisconnected = function() {
         window.updatePrinterStatus('Terputus', null, false);
     };
+
+    function renderTelegramState() {
+        const badge = document.getElementById('telegram-status');
+        const configure = document.getElementById('telegram-configure-button');
+        const test = document.getElementById('telegram-test-button');
+        const toggle = document.getElementById('telegram-toggle-button');
+        if (!badge || !configure || !test || !toggle) return;
+        badge.textContent = !telegramState.configured ? 'Belum diatur' : telegramState.enabled ? 'Aktif' : 'Nonaktif';
+        badge.classList.toggle('is-connected', telegramState.enabled);
+        configure.textContent = telegramState.configured ? 'Ganti akun' : 'Hubungkan Telegram';
+        test.disabled = !telegramState.configured;
+        toggle.classList.toggle('hidden', !telegramState.configured);
+        toggle.textContent = telegramState.enabled ? 'Nonaktifkan pengiriman' : 'Aktifkan pengiriman';
+    }
+
+    window.updateTelegramStatus = function(value) {
+        const payload = parseMaybeJson(value);
+        if (payload && typeof payload === 'object') {
+            telegramState.configured = Boolean(payload.configured);
+            telegramState.enabled = Boolean(payload.enabled);
+        }
+        renderTelegramState();
+    };
+
+    async function requestTelegramStatus() {
+        const method = findNativeMethod(window.AndroidPrinter, ['getTelegramStatus']);
+        if (!method) return false;
+        try {
+            window.updateTelegramStatus(await Promise.resolve(method.fn()));
+            return true;
+        } catch (_) {
+            return false;
+        }
+    }
+
+    function configureTelegram() {
+        const method = findNativeMethod(window.AndroidPrinter, ['configureTelegram']);
+        if (!method) return appNotice('Hanya tersedia di aplikasi', 'Pengaturan Telegram tersedia di aplikasi Android VanNota.');
+        try { method.fn(); } catch (_) { showToast('Pengaturan Telegram tidak dapat dibuka.', 'warning'); }
+    }
+
+    function testTelegram() {
+        const method = findNativeMethod(window.AndroidPrinter, ['testTelegram']);
+        if (!method) return;
+        try { method.fn(); } catch (_) { showToast('Tes Telegram gagal dimulai.', 'warning'); }
+    }
+
+    function toggleTelegramRelay() {
+        const method = findNativeMethod(window.AndroidPrinter, ['setTelegramEnabled']);
+        if (!method) return;
+        try {
+            method.fn(!telegramState.enabled);
+            telegramState.enabled = !telegramState.enabled;
+            renderTelegramState();
+        } catch (_) { showToast('Pengaturan Telegram gagal diubah.', 'warning'); }
+    }
 
     function findNativeMethod(target, names) {
         if (!target) return null;
@@ -1371,7 +1452,7 @@
             if (nativeMethod) await Promise.resolve(nativeMethod.fn());
             else if (nativeReceipt) {
                 const testData = JSON.stringify([
-                    { text: 'CETAK PRO', align: 1, bold: 1, width: 2, height: 2 },
+                    { text: 'VANNOTA', align: 1, bold: 1, width: 2, height: 2 },
                     { text: 'Printer siap digunakan', align: 1, bold: 0, width: 1, height: 1 },
                     { text: '', align: 0, bold: 0, width: 1, height: 1 }
                 ]);
@@ -1380,7 +1461,7 @@
             }
             else if (printerState.writeCharacteristic) {
                 const encoder = new TextEncoder();
-                const bytes = new Uint8Array([27, 64, 27, 97, 1, ...encoder.encode('CETAK PRO\nPrinter siap digunakan\n\n\n'), 27, 97, 0]);
+                const bytes = new Uint8Array([27, 64, 27, 97, 1, ...encoder.encode('VANNOTA\nPrinter siap digunakan\n\n\n'), 27, 97, 0]);
                 await sendWebPrinterBytes(bytes);
             } else throw new Error('Fitur tes cetak belum didukung aplikasi Android ini.');
             showToast('Tes cetak dikirim.', 'success');
@@ -2316,6 +2397,7 @@
         if (window.matchMedia('(max-width: 767px)').matches) toggleAdvancedToolbar(false);
         buatWifiQR();
         requestWifiInfo(true);
+        await requestTelegramStatus();
         await requestPrinterStatus();
         if (appSettings.autoReconnect && !printerState.connected) {
             const reconnect = findNativeMethod(window.AndroidPrinter, ['autoConnect', 'reconnectPrinter', 'hubungkanOtomatis']);

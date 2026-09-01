@@ -4,9 +4,18 @@ import android.Manifest;
 import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.AlertDialog;
+import android.app.Notification;
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
+import android.app.PendingIntent;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
+import android.bluetooth.BluetoothGatt;
+import android.bluetooth.BluetoothGattCallback;
+import android.bluetooth.BluetoothGattCharacteristic;
+import android.bluetooth.BluetoothGattService;
 import android.bluetooth.BluetoothManager;
+import android.bluetooth.BluetoothProfile;
 import android.bluetooth.BluetoothSocket;
 import android.content.BroadcastReceiver;
 import android.content.Context;
@@ -26,6 +35,10 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.provider.Settings;
+import android.security.keystore.KeyGenParameterSpec;
+import android.security.keystore.KeyProperties;
+import android.text.InputType;
+import android.util.Base64;
 import android.view.View;
 import android.webkit.JavascriptInterface;
 import android.webkit.ValueCallback;
@@ -35,6 +48,8 @@ import android.webkit.WebResourceRequest;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
+import android.widget.EditText;
+import android.widget.LinearLayout;
 import android.widget.Toast;
 
 import com.google.zxing.BarcodeFormat;
@@ -51,7 +66,12 @@ import org.json.JSONObject;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.net.URLEncoder;
 import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
+import java.security.KeyStore;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.EnumMap;
@@ -62,28 +82,47 @@ import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+import javax.crypto.Cipher;
+import javax.crypto.KeyGenerator;
+import javax.crypto.SecretKey;
+import javax.crypto.spec.GCMParameterSpec;
+
 public class MainActivity extends Activity {
     private static final int REQUEST_PERMISSIONS = 4101;
     private static final int REQUEST_ENABLE_BLUETOOTH = 4102;
     private static final int REQUEST_FILE = 4103;
+    private static final int REQUEST_NOTIFICATIONS = 4104;
     private static final String OFFLINE_URL = "file:///android_asset/offline.html";
+    private static final String NOTIFICATION_CHANNEL = "vannota_status";
+    private static final int STATUS_NOTIFICATION_ID = 7101;
+    private static final String ACTION_BATTERY_LEVEL_CHANGED = "android.bluetooth.device.action.BATTERY_LEVEL_CHANGED";
+    private static final String EXTRA_BATTERY_LEVEL = "android.bluetooth.device.extra.BATTERY_LEVEL";
 
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
     private final ExecutorService ioExecutor = Executors.newSingleThreadExecutor();
+    private final ExecutorService networkExecutor = Executors.newSingleThreadExecutor();
     private WebView webView;
     private PrinterBridge printerBridge;
+    private TelegramReporter telegramReporter;
     private ValueCallback<Uri[]> fileCallback;
     private boolean connectAfterPermission;
     private boolean receiverRegistered;
     private boolean showingOffline;
+    private boolean appStarted;
+    private boolean notificationRequestPending;
+    private AlertDialog notificationGateDialog;
 
     private final BroadcastReceiver bluetoothReceiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
-            if (!BluetoothDevice.ACTION_ACL_DISCONNECTED.equals(intent.getAction()) || printerBridge == null) return;
-            BluetoothDevice disconnected = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
-            if (disconnected != null && disconnected.getAddress().equals(printerBridge.getConnectedAddress())) {
+            if (printerBridge == null || intent.getAction() == null) return;
+            BluetoothDevice target = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
+            if (target == null || !target.getAddress().equals(printerBridge.getConnectedAddress())) return;
+            if (BluetoothDevice.ACTION_ACL_DISCONNECTED.equals(intent.getAction())) {
                 printerBridge.handleSystemDisconnect();
+            } else if (ACTION_BATTERY_LEVEL_CHANGED.equals(intent.getAction())) {
+                int level = intent.getIntExtra(EXTRA_BATTERY_LEVEL, -1);
+                printerBridge.updateBattery(level, "Android");
             }
         }
     };
@@ -111,9 +150,10 @@ public class MainActivity extends Activity {
         settings.setAllowContentAccess(true);
         settings.setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW);
         settings.setMediaPlaybackRequiresUserGesture(true);
-        settings.setUserAgentString(settings.getUserAgentString() + " CetakProAndroid/1.0");
+        settings.setUserAgentString(settings.getUserAgentString() + " VanNotaAndroid/1.1");
 
         printerBridge = new PrinterBridge();
+        telegramReporter = new TelegramReporter();
         webView.addJavascriptInterface(printerBridge, "AndroidPrinter");
         webView.addJavascriptInterface(printerBridge, "AndroidWifi");
         webView.addJavascriptInterface(printerBridge, "AndroidNetwork");
@@ -166,8 +206,19 @@ public class MainActivity extends Activity {
         });
 
         registerBluetoothReceiver();
-        webView.loadUrl(BuildConfig.WEB_APP_URL);
-        mainHandler.postDelayed(this::explainAndRequestPermissions, 700);
+        createNotificationChannel();
+        if (notificationsAllowed()) startAppIfAllowed();
+        else enforceNotificationGate();
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        mainHandler.postDelayed(() -> {
+            if (isFinishing() || isDestroyed() || notificationRequestPending) return;
+            if (notificationsAllowed()) startAppIfAllowed();
+            else enforceNotificationGate();
+        }, 250);
     }
 
     @Override
@@ -186,6 +237,12 @@ public class MainActivity extends Activity {
     @Override
     public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == REQUEST_NOTIFICATIONS) {
+            notificationRequestPending = false;
+            if (notificationsAllowed()) startAppIfAllowed();
+            else enforceNotificationGate();
+            return;
+        }
         if (requestCode != REQUEST_PERMISSIONS) return;
         printerBridge.dispatchWifiInfo();
         if (connectAfterPermission) {
@@ -210,15 +267,19 @@ public class MainActivity extends Activity {
         }
         if (printerBridge != null) printerBridge.closeImmediately();
         ioExecutor.shutdownNow();
+        networkExecutor.shutdownNow();
+        NotificationManager manager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+        if (manager != null) manager.cancel(STATUS_NOTIFICATION_ID);
         if (webView != null) webView.destroy();
         super.onDestroy();
     }
 
     private void registerBluetoothReceiver() {
         IntentFilter filter = new IntentFilter(BluetoothDevice.ACTION_ACL_DISCONNECTED);
+        filter.addAction(ACTION_BATTERY_LEVEL_CHANGED);
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                registerReceiver(bluetoothReceiver, filter, Context.RECEIVER_NOT_EXPORTED);
+                registerReceiver(bluetoothReceiver, filter, Context.RECEIVER_EXPORTED);
             } else {
                 registerReceiver(bluetoothReceiver, filter);
             }
@@ -226,6 +287,120 @@ public class MainActivity extends Activity {
         } catch (SecurityException ignored) {
             receiverRegistered = false;
         }
+    }
+
+    private void createNotificationChannel() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return;
+        NotificationManager manager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+        if (manager == null) return;
+        NotificationChannel channel = new NotificationChannel(
+                NOTIFICATION_CHANNEL,
+                "Status VanNota",
+                NotificationManager.IMPORTANCE_DEFAULT
+        );
+        channel.setDescription("Koneksi printer, hasil cetak, dan QR Wi-Fi VanNota.");
+        manager.createNotificationChannel(channel);
+    }
+
+    private boolean notificationsAllowed() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
+                && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+            return false;
+        }
+        NotificationManager manager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+        return Build.VERSION.SDK_INT < Build.VERSION_CODES.N || manager == null || manager.areNotificationsEnabled();
+    }
+
+    private void startAppIfAllowed() {
+        if (!notificationsAllowed()) return;
+        if (notificationGateDialog != null) {
+            notificationGateDialog.dismiss();
+            notificationGateDialog = null;
+        }
+        webView.setVisibility(View.VISIBLE);
+        webView.onResume();
+        updateStatusNotification("Siap digunakan");
+        if (appStarted) return;
+        appStarted = true;
+        webView.loadUrl(BuildConfig.WEB_APP_URL);
+        mainHandler.postDelayed(this::explainAndRequestPermissions, 700);
+    }
+
+    private void enforceNotificationGate() {
+        if (isFinishing() || isDestroyed() || notificationRequestPending) return;
+        if (webView != null) {
+            webView.onPause();
+            webView.setVisibility(View.INVISIBLE);
+        }
+        if (notificationGateDialog != null && notificationGateDialog.isShowing()) return;
+
+        SharedPreferences gatePreferences = getSharedPreferences("cetak_pro", MODE_PRIVATE);
+        boolean requestedBefore = gatePreferences.getBoolean("notification_permission_requested", false);
+        boolean canRequest = Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
+                && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+                && (!requestedBefore || shouldShowRequestPermissionRationale(Manifest.permission.POST_NOTIFICATIONS));
+        AlertDialog.Builder builder = new AlertDialog.Builder(this)
+                .setTitle("Notifikasi wajib untuk VanNota")
+                .setMessage("VanNota memakai notifikasi untuk status koneksi printer dan hasil cetak. Aplikasi baru dapat digunakan setelah notifikasi diizinkan. Pengiriman ke Telegram diatur terpisah dan hanya mencakup aktivitas VanNota.")
+                .setNegativeButton("Tutup aplikasi", (dialog, which) -> finishAndRemoveTask());
+        if (canRequest) {
+            builder.setPositiveButton("Izinkan notifikasi", (dialog, which) -> {
+                notificationGateDialog = null;
+                notificationRequestPending = true;
+                gatePreferences.edit().putBoolean("notification_permission_requested", true).apply();
+                requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS}, REQUEST_NOTIFICATIONS);
+            });
+        } else {
+            builder.setPositiveButton("Buka pengaturan", (dialog, which) -> {
+                notificationGateDialog = null;
+                openNotificationSettings();
+            });
+        }
+        notificationGateDialog = builder.setCancelable(false).create();
+        notificationGateDialog.setCanceledOnTouchOutside(false);
+        notificationGateDialog.show();
+    }
+
+    private void openNotificationSettings() {
+        try {
+            Intent intent = new Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
+                    .putExtra(Settings.EXTRA_APP_PACKAGE, getPackageName());
+            startActivity(intent);
+        } catch (Exception ignored) {
+            startActivity(new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                    Uri.parse("package:" + getPackageName())));
+        }
+    }
+
+    private void updateStatusNotification(String message) {
+        if (!notificationsAllowed()) return;
+        NotificationManager manager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+        if (manager == null) return;
+        Intent launch = new Intent(this, MainActivity.class)
+                .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+        PendingIntent pendingIntent = PendingIntent.getActivity(
+                this,
+                0,
+                launch,
+                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
+        );
+        Notification.Builder builder = Build.VERSION.SDK_INT >= Build.VERSION_CODES.O
+                ? new Notification.Builder(this, NOTIFICATION_CHANNEL)
+                : new Notification.Builder(this);
+        Notification notification = builder
+                .setSmallIcon(R.drawable.ic_notification)
+                .setContentTitle("VanNota")
+                .setContentText(message)
+                .setContentIntent(pendingIntent)
+                .setOngoing(true)
+                .setShowWhen(true)
+                .build();
+        manager.notify(STATUS_NOTIFICATION_ID, notification);
+    }
+
+    private void publishAppEvent(String title, String message) {
+        updateStatusNotification(message);
+        if (telegramReporter != null) telegramReporter.sendEvent(title, message);
     }
 
     private List<String> missingRuntimePermissions() {
@@ -256,7 +431,7 @@ public class MainActivity extends Activity {
             return;
         }
         new AlertDialog.Builder(this)
-                .setTitle("Izinkan fitur Cetak Pro")
+                .setTitle("Izinkan fitur VanNota")
                 .setMessage("Bluetooth diperlukan untuk memilih dan mencetak ke RPP02N. Izin perangkat sekitar dan lokasi hanya dipakai untuk membaca nama Wi-Fi yang sedang terhubung. Kata sandi Wi-Fi tidak dapat dibaca oleh Android dan tetap Anda masukkan sendiri sekali.")
                 .setNegativeButton("Nanti", null)
                 .setPositiveButton("Lanjutkan", (dialog, which) -> {
@@ -356,8 +531,18 @@ public class MainActivity extends Activity {
                 .show());
     }
 
+    private static final class WifiSnapshot {
+        final String ssid;
+        final String security;
+
+        WifiSnapshot(String ssid, String security) {
+            this.ssid = ssid;
+            this.security = security;
+        }
+    }
+
     @SuppressLint("MissingPermission")
-    private String readCurrentSsid() {
+    private WifiSnapshot readCurrentWifi() {
         try {
             WifiInfo wifiInfo = null;
             ConnectivityManager connectivity = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
@@ -373,12 +558,21 @@ public class MainActivity extends Activity {
                 WifiManager wifiManager = (WifiManager) getApplicationContext().getSystemService(Context.WIFI_SERVICE);
                 if (wifiManager != null) wifiInfo = wifiManager.getConnectionInfo();
             }
-            if (wifiInfo == null) return "";
+            if (wifiInfo == null) return new WifiSnapshot("", "WPA");
             String ssid = wifiInfo.getSSID();
-            if (ssid == null || WifiManager.UNKNOWN_SSID.equals(ssid)) return "";
-            return ssid.replaceAll("^\"|\"$", "").trim();
+            if (ssid == null || WifiManager.UNKNOWN_SSID.equals(ssid)) return new WifiSnapshot("", "WPA");
+            String security = "WPA";
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                int securityType = wifiInfo.getCurrentSecurityType();
+                if (securityType == WifiInfo.SECURITY_TYPE_OPEN || securityType == WifiInfo.SECURITY_TYPE_OWE) {
+                    security = "nopass";
+                } else if (securityType == WifiInfo.SECURITY_TYPE_WEP) {
+                    security = "WEP";
+                }
+            }
+            return new WifiSnapshot(ssid.replaceAll("^\"|\"$", "").trim(), security);
         } catch (SecurityException ignored) {
-            return "";
+            return new WifiSnapshot("", "WPA");
         }
     }
 
@@ -393,12 +587,61 @@ public class MainActivity extends Activity {
         private static final String PREF_LAST_NAME = "last_printer_name";
         private static final String PREF_PAPER_WIDTH = "paper_width";
         private final UUID sppUuid = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB");
+        private final UUID batteryServiceUuid = UUID.fromString("0000180f-0000-1000-8000-00805f9b34fb");
+        private final UUID batteryLevelUuid = UUID.fromString("00002a19-0000-1000-8000-00805f9b34fb");
         private final Object printerLock = new Object();
         private volatile BluetoothSocket socket;
         private volatile OutputStream output;
         private volatile BluetoothDevice connectedDevice;
+        private volatile BluetoothGatt batteryGatt;
+        private volatile Integer batteryLevel;
+        private volatile String batterySource = "";
         private volatile boolean connecting;
         private volatile int paperWidth = 58;
+
+        private final BluetoothGattCallback batteryGattCallback = new BluetoothGattCallback() {
+            @Override
+            public void onConnectionStateChange(BluetoothGatt gatt, int status, int newState) {
+                if (newState == BluetoothProfile.STATE_CONNECTED) {
+                    try {
+                        gatt.discoverServices();
+                    } catch (SecurityException ignored) {
+                    }
+                } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
+                    if (batteryGatt == gatt) batteryGatt = null;
+                    try {
+                        gatt.close();
+                    } catch (Exception ignored) {
+                    }
+                }
+            }
+
+            @Override
+            public void onServicesDiscovered(BluetoothGatt gatt, int status) {
+                if (status != BluetoothGatt.GATT_SUCCESS) return;
+                BluetoothGattService service = gatt.getService(batteryServiceUuid);
+                BluetoothGattCharacteristic characteristic = service == null ? null : service.getCharacteristic(batteryLevelUuid);
+                if (characteristic == null) return;
+                try {
+                    gatt.readCharacteristic(characteristic);
+                } catch (SecurityException ignored) {
+                }
+            }
+
+            @Override
+            public void onCharacteristicRead(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, int status) {
+                if (status == BluetoothGatt.GATT_SUCCESS && batteryLevelUuid.equals(characteristic.getUuid())) {
+                    acceptGattBattery(characteristic.getValue());
+                }
+            }
+
+            @Override
+            public void onCharacteristicRead(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, byte[] value, int status) {
+                if (status == BluetoothGatt.GATT_SUCCESS && batteryLevelUuid.equals(characteristic.getUuid())) {
+                    acceptGattBattery(value);
+                }
+            }
+        };
 
         private SharedPreferences preferences() {
             return getSharedPreferences("cetak_pro", MODE_PRIVATE);
@@ -440,6 +683,11 @@ public class MainActivity extends Activity {
 
         @JavascriptInterface
         public String requestPrinterStatus() {
+            BluetoothDevice current = connectedDevice;
+            if (current != null) {
+                Integer level = querySystemBattery(current);
+                if (level != null) updateBattery(level, "Android");
+            }
             dispatchStatus();
             return statusJson();
         }
@@ -452,8 +700,10 @@ public class MainActivity extends Activity {
         @JavascriptInterface
         public String disconnectPrinter() {
             ioExecutor.execute(() -> {
+                String name = connectedDevice == null ? "Printer" : safeDeviceName(connectedDevice);
                 closeImmediately();
                 dispatchStatus();
+                publishAppEvent("Printer terputus", name + " diputuskan dari VanNota");
             });
             return statusJson();
         }
@@ -469,10 +719,11 @@ public class MainActivity extends Activity {
             ioExecutor.execute(() -> {
                 try {
                     JSONArray lines = new JSONArray();
-                    lines.put(new JSONObject().put("text", "CETAK PRO").put("align", 1).put("bold", 1).put("width", 2).put("height", 2));
+                    lines.put(new JSONObject().put("text", "VANNOTA").put("align", 1).put("bold", 1).put("width", 2).put("height", 2));
                     lines.put(new JSONObject().put("text", "RPP02N siap digunakan").put("align", 1));
                     lines.put(new JSONObject().put("text", "Koneksi Bluetooth berhasil").put("align", 1));
                     sendBytes(buildReceiptBytes(lines));
+                    publishAppEvent("Tes cetak berhasil", "Printer menerima halaman tes VanNota");
                 } catch (Exception error) {
                     handlePrintError(error);
                 }
@@ -498,6 +749,7 @@ public class MainActivity extends Activity {
             ioExecutor.execute(() -> {
                 try {
                     sendBytes(buildReceiptBytes(new JSONArray(jsonPayload)));
+                    publishAppEvent("Struk berhasil dicetak", "Data struk berhasil dikirim ke printer");
                 } catch (Exception error) {
                     handlePrintError(error);
                 }
@@ -514,6 +766,7 @@ public class MainActivity extends Activity {
             ioExecutor.execute(() -> {
                 try {
                     sendBytes(buildWifiBytes(ssid, qrPayload));
+                    publishAppEvent("QR Wi-Fi berhasil dicetak", "QR jaringan " + safeEventText(ssid) + " dikirim ke printer");
                 } catch (Exception error) {
                     handlePrintError(error);
                 }
@@ -549,6 +802,33 @@ public class MainActivity extends Activity {
                     startActivity(new Intent(Settings.ACTION_SETTINGS));
                 }
             });
+        }
+
+        @JavascriptInterface
+        public String getTelegramStatus() {
+            return telegramReporter.statusJson();
+        }
+
+        @JavascriptInterface
+        public void configureTelegram() {
+            runOnUiThread(() -> telegramReporter.showSetupDialog());
+        }
+
+        @JavascriptInterface
+        public void testTelegram() {
+            telegramReporter.sendTest();
+        }
+
+        @JavascriptInterface
+        public void disableTelegram() {
+            telegramReporter.setEnabled(false);
+            telegramReporter.dispatchStatus();
+        }
+
+        @JavascriptInterface
+        public void setTelegramEnabled(boolean enabled) {
+            telegramReporter.setEnabled(enabled);
+            telegramReporter.dispatchStatus();
         }
 
         @SuppressLint("MissingPermission")
@@ -595,6 +875,8 @@ public class MainActivity extends Activity {
                             .apply();
                     connecting = false;
                     dispatchStatus();
+                    startBatteryProbe(device);
+                    publishAppEvent("Printer terhubung", safeDeviceName(device) + " terhubung melalui Bluetooth");
                     if (!automatic) dispatchToast("Printer " + safeDeviceName(device) + " terhubung.", "success");
                 } catch (Exception error) {
                     closeSocket(candidate);
@@ -708,8 +990,9 @@ public class MainActivity extends Activity {
                         .put("name", name)
                         .put("connected", isConnected())
                         .put("connecting", connecting)
-                        .put("battery", JSONObject.NULL)
-                        .put("batterySupported", false)
+                        .put("battery", batteryLevel == null ? JSONObject.NULL : batteryLevel)
+                        .put("batterySupported", batteryLevel != null)
+                        .put("batterySource", batterySource)
                         .put("transport", "Bluetooth Classic")
                         .toString();
             } catch (JSONException impossible) {
@@ -719,10 +1002,11 @@ public class MainActivity extends Activity {
 
         private String wifiJson() {
             try {
-                String ssid = readCurrentSsid();
+                WifiSnapshot wifi = readCurrentWifi();
                 return new JSONObject()
-                        .put("ssid", ssid)
-                        .put("connected", !ssid.isEmpty())
+                        .put("ssid", wifi.ssid)
+                        .put("security", wifi.security)
+                        .put("connected", !wifi.ssid.isEmpty())
                         .put("passwordReadable", false)
                         .toString();
             } catch (JSONException impossible) {
@@ -749,6 +1033,7 @@ public class MainActivity extends Activity {
             String message = error.getMessage();
             if (message == null || message.trim().isEmpty()) message = "Printer tidak merespons.";
             dispatchToast(message, "warning");
+            publishAppEvent("Pencetakan gagal", safeEventText(message));
         }
 
         private String getConnectedAddress() {
@@ -758,14 +1043,108 @@ public class MainActivity extends Activity {
 
         private void handleSystemDisconnect() {
             ioExecutor.execute(() -> {
+                String name = connectedDevice == null ? "Printer" : safeDeviceName(connectedDevice);
                 closeImmediately();
                 dispatchStatus();
                 dispatchToast("Koneksi printer terputus.", "warning");
+                publishAppEvent("Koneksi printer terputus", name + " tidak lagi terhubung");
             });
+        }
+
+        private String safeEventText(String value) {
+            String clean = value == null ? "" : value.replaceAll("[\\r\\n]+", " ").trim();
+            return clean.length() > 80 ? clean.substring(0, 80) : clean;
+        }
+
+        @SuppressLint("MissingPermission")
+        private void startBatteryProbe(BluetoothDevice device) {
+            batteryLevel = null;
+            batterySource = "";
+            closeBatteryGatt();
+
+            Integer cached = querySystemBattery(device);
+            if (cached != null) updateBattery(cached, "Android");
+
+            try {
+                BluetoothGatt gatt = device.connectGatt(
+                        MainActivity.this,
+                        false,
+                        batteryGattCallback,
+                        BluetoothDevice.TRANSPORT_LE
+                );
+                batteryGatt = gatt;
+            } catch (Exception ignored) {
+            }
+
+            mainHandler.postDelayed(() -> {
+                if (device.equals(connectedDevice)) {
+                    Integer refreshed = querySystemBattery(device);
+                    if (refreshed != null) updateBattery(refreshed, "Android");
+                }
+            }, 2500);
+        }
+
+        private Integer querySystemBattery(BluetoothDevice device) {
+            if (device == null) return null;
+            try {
+                Object value = BluetoothDevice.class.getMethod("getBatteryLevel").invoke(device);
+                if (value instanceof Integer && validBattery((Integer) value)) return (Integer) value;
+            } catch (Exception ignored) {
+            }
+            try {
+                Object value = BluetoothDevice.class.getMethod("getMetadata", int.class).invoke(device, 18);
+                if (value instanceof byte[]) {
+                    byte[] bytes = (byte[]) value;
+                    if (bytes.length == 1 && validBattery(bytes[0] & 0xff)) return bytes[0] & 0xff;
+                    String text = new String(bytes, StandardCharsets.UTF_8).replaceAll("[^0-9]", "");
+                    if (!text.isEmpty()) {
+                        int parsed = Integer.parseInt(text);
+                        if (validBattery(parsed)) return parsed;
+                    }
+                }
+            } catch (Exception ignored) {
+            }
+            return null;
+        }
+
+        private void acceptGattBattery(byte[] value) {
+            if (value == null || value.length == 0) return;
+            updateBattery(value[0] & 0xff, "Bluetooth Battery Service");
+        }
+
+        private boolean validBattery(int level) {
+            return level >= 0 && level <= 100;
+        }
+
+        private void updateBattery(int level, String source) {
+            if (!validBattery(level)) return;
+            batteryLevel = level;
+            batterySource = source == null ? "" : source;
+            dispatchStatus();
+        }
+
+        private void closeBatteryGatt() {
+            BluetoothGatt current = batteryGatt;
+            batteryGatt = null;
+            closeGatt(current);
+        }
+
+        @SuppressLint("MissingPermission")
+        private void closeGatt(BluetoothGatt gatt) {
+            if (gatt == null) return;
+            try {
+                gatt.disconnect();
+            } catch (Exception ignored) {
+            }
+            try {
+                gatt.close();
+            } catch (Exception ignored) {
+            }
         }
 
         private void closeImmediately() {
             synchronized (printerLock) {
+                closeBatteryGatt();
                 if (output != null) {
                     try {
                         output.close();
@@ -776,6 +1155,8 @@ public class MainActivity extends Activity {
                 output = null;
                 socket = null;
                 connectedDevice = null;
+                batteryLevel = null;
+                batterySource = "";
                 connecting = false;
             }
         }
@@ -786,6 +1167,190 @@ public class MainActivity extends Activity {
                 target.close();
             } catch (IOException ignored) {
             }
+        }
+    }
+
+    private final class TelegramReporter {
+        private static final String STORE = "vannota_secure";
+        private static final String KEY_ALIAS = "vannota_telegram_key";
+        private static final String KEY_TOKEN = "telegram_token";
+        private static final String KEY_TOKEN_IV = "telegram_token_iv";
+        private static final String KEY_CHAT_ID = "telegram_chat_id";
+        private static final String KEY_ENABLED = "telegram_enabled";
+
+        private SharedPreferences preferences() {
+            return getSharedPreferences(STORE, MODE_PRIVATE);
+        }
+
+        private boolean isConfigured() {
+            return !loadToken().isEmpty() && !preferences().getString(KEY_CHAT_ID, "").isEmpty();
+        }
+
+        private boolean isEnabled() {
+            return isConfigured() && preferences().getBoolean(KEY_ENABLED, true);
+        }
+
+        private String statusJson() {
+            try {
+                return new JSONObject()
+                        .put("configured", isConfigured())
+                        .put("enabled", isEnabled())
+                        .put("scope", "Aktivitas VanNota saja")
+                        .toString();
+            } catch (JSONException impossible) {
+                return "{\"configured\":false,\"enabled\":false}";
+            }
+        }
+
+        private void showSetupDialog() {
+            int padding = Math.round(22 * getResources().getDisplayMetrics().density);
+            LinearLayout fields = new LinearLayout(MainActivity.this);
+            fields.setOrientation(LinearLayout.VERTICAL);
+            fields.setPadding(padding, 0, padding, 0);
+
+            EditText tokenInput = new EditText(MainActivity.this);
+            tokenInput.setHint("Token bot baru dari BotFather");
+            tokenInput.setSingleLine(true);
+            tokenInput.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
+            fields.addView(tokenInput);
+
+            EditText chatInput = new EditText(MainActivity.this);
+            chatInput.setHint("Chat ID Telegram");
+            chatInput.setSingleLine(true);
+            chatInput.setInputType(InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_FLAG_SIGNED);
+            chatInput.setText(preferences().getString(KEY_CHAT_ID, ""));
+            fields.addView(chatInput);
+
+            new AlertDialog.Builder(MainActivity.this)
+                    .setTitle("Hubungkan Telegram")
+                    .setMessage("Masukkan token baru setelah token lama dicabut di BotFather. Token disimpan terenkripsi di perangkat dan tidak dimasukkan ke website, APK publik, atau GitHub. Hanya aktivitas VanNota yang dikirim.")
+                    .setView(fields)
+                    .setNegativeButton("Batal", null)
+                    .setPositiveButton("Simpan & uji", (dialog, which) -> {
+                        String token = tokenInput.getText().toString().trim();
+                        String chatId = chatInput.getText().toString().trim();
+                        if (!token.matches("[0-9]{6,12}:[A-Za-z0-9_-]{20,}") || !chatId.matches("-?[0-9]+")) {
+                            showNativeMessage("Data Telegram belum valid", "Gunakan token bot baru dari BotFather dan Chat ID berupa angka.");
+                            return;
+                        }
+                        try {
+                            saveCredentials(token, chatId);
+                            dispatchStatus();
+                            sendTest();
+                        } catch (Exception error) {
+                            showNativeMessage("Gagal menyimpan", "Perangkat tidak dapat mengamankan token Telegram.");
+                        }
+                    })
+                    .show();
+        }
+
+        private void setEnabled(boolean enabled) {
+            preferences().edit().putBoolean(KEY_ENABLED, enabled).apply();
+        }
+
+        private void saveCredentials(String token, String chatId) throws Exception {
+            SecretKey key = getOrCreateKey();
+            Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding");
+            cipher.init(Cipher.ENCRYPT_MODE, key);
+            byte[] encrypted = cipher.doFinal(token.getBytes(StandardCharsets.UTF_8));
+            preferences().edit()
+                    .putString(KEY_TOKEN, Base64.encodeToString(encrypted, Base64.NO_WRAP))
+                    .putString(KEY_TOKEN_IV, Base64.encodeToString(cipher.getIV(), Base64.NO_WRAP))
+                    .putString(KEY_CHAT_ID, chatId)
+                    .putBoolean(KEY_ENABLED, true)
+                    .apply();
+        }
+
+        private String loadToken() {
+            String encrypted = preferences().getString(KEY_TOKEN, "");
+            String iv = preferences().getString(KEY_TOKEN_IV, "");
+            if (encrypted.isEmpty() || iv.isEmpty()) return "";
+            try {
+                KeyStore keyStore = KeyStore.getInstance("AndroidKeyStore");
+                keyStore.load(null);
+                SecretKey key = (SecretKey) keyStore.getKey(KEY_ALIAS, null);
+                if (key == null) return "";
+                Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding");
+                cipher.init(Cipher.DECRYPT_MODE, key, new GCMParameterSpec(128, Base64.decode(iv, Base64.NO_WRAP)));
+                return new String(cipher.doFinal(Base64.decode(encrypted, Base64.NO_WRAP)), StandardCharsets.UTF_8);
+            } catch (Exception ignored) {
+                return "";
+            }
+        }
+
+        private SecretKey getOrCreateKey() throws Exception {
+            KeyStore keyStore = KeyStore.getInstance("AndroidKeyStore");
+            keyStore.load(null);
+            SecretKey existing = (SecretKey) keyStore.getKey(KEY_ALIAS, null);
+            if (existing != null) return existing;
+            KeyGenerator generator = KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES, "AndroidKeyStore");
+            generator.init(new KeyGenParameterSpec.Builder(
+                    KEY_ALIAS,
+                    KeyProperties.PURPOSE_ENCRYPT | KeyProperties.PURPOSE_DECRYPT
+            ).setBlockModes(KeyProperties.BLOCK_MODE_GCM)
+                    .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
+                    .build());
+            return generator.generateKey();
+        }
+
+        private void sendEvent(String title, String message) {
+            if (!isEnabled()) return;
+            sendMessage(title, message, false);
+        }
+
+        private void sendTest() {
+            if (!isConfigured()) {
+                mainHandler.post(() -> showNativeMessage("Telegram belum diatur", "Masukkan token bot baru dan Chat ID dari menu Pengaturan."));
+                return;
+            }
+            setEnabled(true);
+            dispatchStatus();
+            sendMessage("Tes koneksi", "Telegram berhasil dihubungkan ke VanNota", true);
+        }
+
+        private void sendMessage(String title, String message, boolean showResult) {
+            String token = loadToken();
+            String chatId = preferences().getString(KEY_CHAT_ID, "");
+            if (token.isEmpty() || chatId.isEmpty()) return;
+            networkExecutor.execute(() -> {
+                HttpURLConnection connection = null;
+                boolean success = false;
+                try {
+                    URL url = new URL("https://api.telegram.org/bot" + token + "/sendMessage");
+                    connection = (HttpURLConnection) url.openConnection();
+                    connection.setRequestMethod("POST");
+                    connection.setConnectTimeout(10000);
+                    connection.setReadTimeout(10000);
+                    connection.setDoOutput(true);
+                    connection.setRequestProperty("Content-Type", "application/x-www-form-urlencoded; charset=UTF-8");
+                    String text = "VanNota • " + title + "\n" + message;
+                    String body = "chat_id=" + URLEncoder.encode(chatId, "UTF-8")
+                            + "&text=" + URLEncoder.encode(text, "UTF-8");
+                    try (OutputStream stream = connection.getOutputStream()) {
+                        stream.write(body.getBytes(StandardCharsets.UTF_8));
+                    }
+                    int responseCode = connection.getResponseCode();
+                    success = responseCode >= 200 && responseCode < 300;
+                } catch (Exception ignored) {
+                } finally {
+                    if (connection != null) connection.disconnect();
+                }
+                if (showResult) {
+                    boolean sent = success;
+                    mainHandler.post(() -> {
+                        String messageText = sent
+                                ? "Pesan uji berhasil dikirim ke Telegram."
+                                : "Pesan uji gagal. Periksa token baru, Chat ID, dan koneksi internet.";
+                        Toast.makeText(MainActivity.this, messageText, Toast.LENGTH_LONG).show();
+                        printerBridge.dispatchToast(messageText, sent ? "success" : "warning");
+                    });
+                }
+            });
+        }
+
+        private void dispatchStatus() {
+            String quoted = JSONObject.quote(statusJson());
+            evaluateJavascript("window.updateTelegramStatus&&window.updateTelegramStatus(" + quoted + ");");
         }
     }
 }
