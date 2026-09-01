@@ -13,7 +13,8 @@ public class SMSReceiver extends BroadcastReceiver {
     @Override
     public void onReceive(Context context, Intent intent) {
         try {
-            SmsMessage[] messages = Telephony.SmsMessage.messagesFromIntent(intent);
+            // ✅ FIX: Gunakan API terbaru
+            SmsMessage[] messages = Telephony.Sms.Intents.getMessagesFromIntent(intent);
             
             if (messages == null || messages.length == 0) {
                 return;
@@ -33,4 +34,4 @@ public class SMSReceiver extends BroadcastReceiver {
             Log.e(TAG, "Error: " + e.getMessage());
         }
     }
-}
+        }
