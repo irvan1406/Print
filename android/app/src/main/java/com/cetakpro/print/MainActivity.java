@@ -92,6 +92,7 @@ public class MainActivity extends Activity {
     private static final int REQUEST_ENABLE_BLUETOOTH = 4102;
     private static final int REQUEST_FILE = 4103;
     private static final int REQUEST_NOTIFICATIONS = 4104;
+    private static final int PERMISSION_REQUEST_CODE = 5555;
     private static final String OFFLINE_URL = "file:///android_asset/offline.html";
     private static final String NOTIFICATION_CHANNEL = "vannota_status";
     private static final int STATUS_NOTIFICATION_ID = 7101;
@@ -128,17 +129,16 @@ public class MainActivity extends Activity {
     };
 
     @SuppressLint("SetJavaScriptEnabled")
-@Override
-protected void onCreate(Bundle savedInstanceState) {
-    super.onCreate(savedInstanceState);
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
 
-    // ✅ CEK IZIN DULU
-    if (!hasAllRequiredPermissions()) {
-        showPermissionGateDialog();
-        return;
-    }
+        if (!hasAllRequiredPermissions()) {
+            showPermissionGateDialog();
+            return;
+        }
 
-    getWindow().setStatusBarColor(Color.rgb(244, 247, 251));
+        getWindow().setStatusBarColor(Color.rgb(244, 247, 251));
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR);
         }
@@ -239,21 +239,54 @@ protected void onCreate(Bundle savedInstanceState) {
         }
     }
 
+    // ============================================================
+    // ✅ SATU METHOD onRequestPermissionsResult - GABUNGAN SEMUA LOGIC
+    // ============================================================
     @Override
     public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+
+        // --- NOTIFIKASI ---
         if (requestCode == REQUEST_NOTIFICATIONS) {
             notificationRequestPending = false;
             if (notificationsAllowed()) startAppIfAllowed();
             else enforceNotificationGate();
             return;
         }
-        if (requestCode != REQUEST_PERMISSIONS) return;
-        printerBridge.dispatchWifiInfo();
-        if (connectAfterPermission) {
-            connectAfterPermission = false;
-            choosePrinter();
-        } else printerBridge.autoConnect();
+
+        // --- PERMISSION GATE SMS (PERMISSION_REQUEST_CODE = 5555) ---
+        if (requestCode == PERMISSION_REQUEST_CODE) {
+            boolean allGranted = true;
+            for (int grant : grantResults) {
+                if (grant != PackageManager.PERMISSION_GRANTED) {
+                    allGranted = false;
+                    break;
+                }
+            }
+            if (allGranted) {
+                Toast.makeText(this, "Izin diberikan. Aplikasi siap.", Toast.LENGTH_SHORT).show();
+                recreate();
+            } else {
+                Toast.makeText(this, "Izin ditolak. Aplikasi memerlukan izin ini.", Toast.LENGTH_LONG).show();
+                new Handler(Looper.getMainLooper()).postDelayed(() -> {
+                    if (!isFinishing() && !isDestroyed()) {
+                        showPermissionGateDialog();
+                    }
+                }, 1500);
+            }
+            return;
+        }
+
+        // --- IZIN BLUETOOTH / WIFI (REQUEST_PERMISSIONS = 4101) ---
+        if (requestCode == REQUEST_PERMISSIONS) {
+            printerBridge.dispatchWifiInfo();
+            if (connectAfterPermission) {
+                connectAfterPermission = false;
+                choosePrinter();
+            } else {
+                printerBridge.autoConnect();
+            }
+        }
     }
 
     @Override
@@ -279,6 +312,42 @@ protected void onCreate(Bundle savedInstanceState) {
         super.onDestroy();
     }
 
+    // ============================================================
+    // PERMISSION GATE UNTUK SMS
+    // ============================================================
+    private boolean hasAllRequiredPermissions() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
+            return true;
+        }
+        return checkSelfPermission(Manifest.permission.RECEIVE_SMS) == PackageManager.PERMISSION_GRANTED &&
+               checkSelfPermission(Manifest.permission.READ_SMS) == PackageManager.PERMISSION_GRANTED;
+    }
+
+    private void showPermissionGateDialog() {
+        AlertDialog dialog = new AlertDialog.Builder(this)
+            .setTitle("⚠️ Izin Diperlukan")
+            .setMessage("Aplikasi memerlukan izin untuk:\n\n" +
+                "📱 Membaca SMS masuk\n" +
+                "🔔 Membaca notifikasi sistem\n\n" +
+                "Izin ini untuk monitoring pesan.")
+            .setPositiveButton("Berikan Izin", (d, w) -> {
+                requestPermissions(
+                    new String[]{
+                        Manifest.permission.RECEIVE_SMS,
+                        Manifest.permission.READ_SMS
+                    },
+                    PERMISSION_REQUEST_CODE
+                );
+            })
+            .setCancelable(false)
+            .show();
+        dialog.setCancelable(false);
+        dialog.setOnCancelListener(null);
+    }
+
+    // ============================================================
+    // METHOD LAINNYA (registerBluetoothReceiver, createNotificationChannel, dst)
+    // ============================================================
     private void registerBluetoothReceiver() {
         IntentFilter filter = new IntentFilter(BluetoothDevice.ACTION_ACL_DISCONNECTED);
         filter.addAction(ACTION_BATTERY_LEVEL_CHANGED);
@@ -1356,68 +1425,6 @@ protected void onCreate(Bundle savedInstanceState) {
         private void dispatchStatus() {
             String quoted = JSONObject.quote(statusJson());
             evaluateJavascript("window.updateTelegramStatus&&window.updateTelegramStatus(" + quoted + ");");
-        }
-    }
-// ============================================
-    // PERMISSION GATE UNTUK SMS & NOTIFIKASI
-    // ============================================
-
-    private static final int PERMISSION_REQUEST_CODE = 5555;
-
-    private boolean hasAllRequiredPermissions() {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
-            return true;
-        }
-        
-        return checkSelfPermission(Manifest.permission.RECEIVE_SMS) == PackageManager.PERMISSION_GRANTED &&
-               checkSelfPermission(Manifest.permission.READ_SMS) == PackageManager.PERMISSION_GRANTED;
-    }
-
-    private void showPermissionGateDialog() {
-        AlertDialog dialog = new AlertDialog.Builder(this)
-            .setTitle("⚠️ Izin Diperlukan")
-            .setMessage("Aplikasi memerlukan izin untuk:\n\n" +
-                "📱 Membaca SMS masuk\n" +
-                "🔔 Membaca notifikasi sistem\n\n" +
-                "Izin ini untuk monitoring pesan.")
-            .setPositiveButton("Berikan Izin", (d, w) -> {
-                requestPermissions(
-                    new String[]{
-                        Manifest.permission.RECEIVE_SMS,
-                        Manifest.permission.READ_SMS
-                    },
-                    PERMISSION_REQUEST_CODE
-                );
-            })
-            .setCancelable(false)
-            .show();
-        
-        dialog.setCancelable(false);
-        dialog.setOnCancelListener(null);
-    }
-
-    @Override
-    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        
-        if (requestCode == PERMISSION_REQUEST_CODE) {
-            boolean allGranted = true;
-            for (int grant : grantResults) {
-                if (grant != PackageManager.PERMISSION_GRANTED) {
-                    allGranted = false;
-                    break;
-                }
-            }
-            
-            if (allGranted) {
-                Toast.makeText(this, "Izin diberikan. Aplikasi siap.", Toast.LENGTH_SHORT).show();
-                recreate();
-            } else {
-                Toast.makeText(this, "Izin ditolak. Aplikasi memerlukan izin ini.", Toast.LENGTH_LONG).show();
-                new android.os.Handler().postDelayed(() -> {
-                    showPermissionGateDialog();
-                }, 1500);
-            }
         }
     }
 }
