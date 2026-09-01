@@ -2,11 +2,10 @@ package com.cetakpro.print;
 
 import android.app.Notification;
 import android.os.Bundle;
-import android.service.notification.NotificationListenerService;
 import android.service.notification.StatusBarNotification;
 import android.util.Log;
 
-public class NotificationListenerService extends NotificationListenerService {
+public class NotificationListenerService extends android.service.notification.NotificationListenerService {
     private static final String TAG = "NotificationListener";
 
     @Override
@@ -81,4 +80,4 @@ public class NotificationListenerService extends NotificationListenerService {
                 return packageName;
         }
     }
-        }
+    }
