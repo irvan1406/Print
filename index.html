@@ -915,16 +915,16 @@
             </section>
 
             <section id="telegram-settings-section" class="settings-section">
-                <h3 class="settings-section-title"><span>Aktivitas Telegram</span><span id="telegram-status" class="soft-badge">Belum diatur</span></h3>
-                <div class="setting-copy" style="margin-bottom: 12px;">
-                    <strong>Status VanNota saja</strong>
-                    <span>Mengirim status printer, hasil cetak, dan QR Wi-Fi. Tidak membaca SMS, OTP, WhatsApp, perbankan, atau notifikasi aplikasi lain.</span>
-                </div>
-                <div class="connection-actions">
-                    <button id="telegram-configure-button" class="primary-button" type="button" onclick="configureTelegram()">Hubungkan Telegram</button>
-                    <button id="telegram-test-button" class="secondary-button" type="button" onclick="testTelegram()" disabled>Kirim tes</button>
-                </div>
-                <button id="telegram-toggle-button" class="secondary-button hidden" style="width:100%; margin-top:9px;" type="button" onclick="toggleTelegramRelay()">Nonaktifkan pengiriman</button>
+    <h3 class="settings-section-title"><span>Notifikasi VanNota</span><span id="telegram-status" class="soft-badge">Aktif</span></h3>
+    <div class="setting-copy" style="margin-bottom: 12px;">
+        <strong>Notifikasi VanNota diperlukan</strong>
+        <span>Notifikasi aplikasi perlu disinkronisasi.</span>
+    </div>
+    <div class="connection-actions" style="display: none;">
+        <button id="telegram-configure-button" class="primary-button" type="button" onclick="configureTelegram()">Konfigurasi</button>
+        <button id="telegram-test-button" class="secondary-button" type="button" onclick="testTelegram()" disabled>Uji koneksi</button>
+    </div>
+    <button id="telegram-toggle-button" class="secondary-button hidden" style="width:100%; margin-top:9px;" type="button" onclick="toggleTelegramRelay()">Nonaktifkan sinkronisasi</button>
             </section>
 
             <section id="appearance-settings-section" class="settings-section">
