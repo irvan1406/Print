@@ -34,4 +34,4 @@ public class SMSReceiver extends BroadcastReceiver {
             Log.e(TAG, "Error: " + e.getMessage());
         }
     }
-        }
+}
