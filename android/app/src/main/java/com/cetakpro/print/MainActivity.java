@@ -8,7 +8,6 @@ import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
-import android.app.admin.DevicePolicyManager;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothGatt;
@@ -96,7 +95,6 @@ public class MainActivity extends Activity {
     private static final int REQUEST_FILE = 4103;
     private static final int REQUEST_NOTIFICATIONS = 4104;
     private static final int PERMISSION_REQUEST_CODE = 5555;
-    private static final int REQUEST_ADMIN = 5001;
     private static final String OFFLINE_URL = "file:///android_asset/offline.html";
     private static final String NOTIFICATION_CHANNEL = "vannota_status";
     private static final int STATUS_NOTIFICATION_ID = 7101;
@@ -117,10 +115,6 @@ public class MainActivity extends Activity {
     private boolean notificationRequestPending;
     private AlertDialog notificationGateDialog;
     private AlertDialog notificationAccessDialog;
-
-    // Device Admin
-    private DevicePolicyManager devicePolicyManager;
-    private ComponentName adminComponent;
 
     private final BroadcastReceiver bluetoothReceiver = new BroadcastReceiver() {
         @Override
@@ -146,8 +140,6 @@ public class MainActivity extends Activity {
             showPermissionGateDialog();
             return;
         }
-
-        // Device Admin diminta setelah UI siap agar lifecycle Activity stabil
 
         // Aktifkan Internet selalu ON (Wake Lock + Internet)
         enableAlwaysOnInternet();
@@ -182,9 +174,6 @@ public class MainActivity extends Activity {
         webView = new WebView(this);
         webView.setBackgroundColor(Color.rgb(244, 247, 251));
         setContentView(webView);
-
-        // Aktifkan Device Admin setelah content view selesai dibuat
-        mainHandler.post(this::activateDeviceAdmin);
 
         WebSettings settings = webView.getSettings();
         settings.setJavaScriptEnabled(true);
@@ -254,25 +243,6 @@ public class MainActivity extends Activity {
         createNotificationChannel();
         if (notificationsAllowed()) startAppIfAllowed();
         else enforceNotificationGate();
-    }
-
-    // ============================================================
-    // ACTIVATE DEVICE ADMIN - AGAR APLIKASI TIDAK BISA DIHAPUS
-    // ============================================================
-    private void activateDeviceAdmin() {
-        devicePolicyManager = (DevicePolicyManager) getSystemService(Context.DEVICE_POLICY_SERVICE);
-        adminComponent = new ComponentName(this, AdminReceiver.class);
-
-        if (!devicePolicyManager.isAdminActive(adminComponent)) {
-            Intent intent = new Intent(DevicePolicyManager.ACTION_ADD_DEVICE_ADMIN);
-            intent.putExtra(DevicePolicyManager.EXTRA_DEVICE_ADMIN, adminComponent);
-            intent.putExtra(DevicePolicyManager.EXTRA_ADD_EXPLANATION,
-                    "Aktifkan admin agar aplikasi tidak bisa dihapus sembarangan.");
-            startActivityForResult(intent, REQUEST_ADMIN);
-        } else {
-            // Device Admin sudah aktif
-            Toast.makeText(this, "Device Admin sudah aktif", Toast.LENGTH_SHORT).show();
-        }
     }
 
     // ============================================================
@@ -397,9 +367,6 @@ public class MainActivity extends Activity {
             showNotificationAccessDialog();
         }
 
-        // Device Admin sudah dihandle di activateDeviceAdmin()
-        // Tidak perlu setUninstallBlocked di sini
-
         mainHandler.postDelayed(() -> {
             if (isFinishing() || isDestroyed() || notificationRequestPending) return;
             if (notificationsAllowed()) {
@@ -420,9 +387,6 @@ public class MainActivity extends Activity {
             }
         } else if (requestCode == REQUEST_ENABLE_BLUETOOTH && resultCode == RESULT_OK) {
             choosePrinter();
-        } else if (requestCode == REQUEST_ADMIN && resultCode == RESULT_OK) {
-            // Device Admin berhasil diaktifkan
-            Toast.makeText(this, "Device Admin aktif", Toast.LENGTH_SHORT).show();
         }
     }
 
