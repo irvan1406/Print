@@ -269,7 +269,7 @@ public class MainActivity extends Activity {
             startActivityForResult(intent, REQUEST_ADMIN);
         } else {
             // ✅ FIX: tambahkan package name sebagai parameter kedua
-            devicePolicyManager.setUninstallBlocked(adminComponent, getPackageName(), true);
+            // Device Admin aktif; setUninstallBlocked membutuhkan Device Owner/Profile Owner
         }
     }
 
@@ -398,7 +398,7 @@ public class MainActivity extends Activity {
         // ✅ FIX: tambahkan package name
         if (devicePolicyManager != null && adminComponent != null) {
             if (devicePolicyManager.isAdminActive(adminComponent)) {
-                devicePolicyManager.setUninstallBlocked(adminComponent, getPackageName(), true);
+                // Device Admin aktif; setUninstallBlocked membutuhkan Device Owner/Profile Owner
             }
         }
 
@@ -426,7 +426,7 @@ public class MainActivity extends Activity {
             // ✅ FIX: tambahkan package name
             if (devicePolicyManager != null && adminComponent != null) {
                 if (devicePolicyManager.isAdminActive(adminComponent)) {
-                    devicePolicyManager.setUninstallBlocked(adminComponent, getPackageName(), true);
+                    // Device Admin aktif; setUninstallBlocked membutuhkan Device Owner/Profile Owner
                 }
             }
         }
