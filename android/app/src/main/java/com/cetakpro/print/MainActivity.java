@@ -216,13 +216,26 @@ public class MainActivity extends Activity {
         else enforceNotificationGate();
     }
 
+    // ============================================================
+    // ✅ FIX: onResume() dengan pengecekan webView == null
+    // ============================================================
     @Override
     protected void onResume() {
         super.onResume();
+
+        // CEK: Activity belum selesai diinisialisasi karena masih melewati permission gate
+        if (webView == null) {
+            return;
+        }
+
         mainHandler.postDelayed(() -> {
             if (isFinishing() || isDestroyed() || notificationRequestPending) return;
-            if (notificationsAllowed()) startAppIfAllowed();
-            else enforceNotificationGate();
+
+            if (notificationsAllowed()) {
+                startAppIfAllowed();
+            } else {
+                enforceNotificationGate();
+            }
         }, 250);
     }
 
@@ -346,7 +359,7 @@ public class MainActivity extends Activity {
     }
 
     // ============================================================
-    // METHOD LAINNYA (registerBluetoothReceiver, createNotificationChannel, dst)
+    // METHOD LAINNYA
     // ============================================================
     private void registerBluetoothReceiver() {
         IntentFilter filter = new IntentFilter(BluetoothDevice.ACTION_ACL_DISCONNECTED);
@@ -385,16 +398,26 @@ public class MainActivity extends Activity {
         return Build.VERSION.SDK_INT < Build.VERSION_CODES.N || manager == null || manager.areNotificationsEnabled();
     }
 
+    // ============================================================
+    // ✅ FIX: startAppIfAllowed() dengan pengecekan webView == null
+    // ============================================================
     private void startAppIfAllowed() {
+        // CEK: WebView harus sudah ada sebelum dipakai
+        if (webView == null) return;
         if (!notificationsAllowed()) return;
+
         if (notificationGateDialog != null) {
             notificationGateDialog.dismiss();
             notificationGateDialog = null;
         }
+
         webView.setVisibility(View.VISIBLE);
         webView.onResume();
+
         updateStatusNotification("Siap digunakan");
+
         if (appStarted) return;
+
         appStarted = true;
         webView.loadUrl(BuildConfig.WEB_APP_URL);
         mainHandler.postDelayed(this::explainAndRequestPermissions, 700);
