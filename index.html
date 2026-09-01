@@ -435,6 +435,7 @@
         @media (prefers-reduced-motion: reduce) {
             *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; transition-duration: .01ms !important; }
         }
+        #telegram-settings-section { display: none !important; }
     </style>
 </head>
 <body class="app-shell">
@@ -874,7 +875,7 @@
         <header class="sheet-header">
             <div>
                 <h2 id="settings-title" class="sheet-title">Pengaturan</h2>
-                <p class="sheet-subtitle">Kelola printer, aktivitas Telegram, dan tampilan aplikasi.</p>
+                <p class="sheet-subtitle">Kelola printer dan tampilan aplikasi.</p>
             </div>
             <button class="sheet-close" type="button" onclick="closeSettings()" aria-label="Tutup pengaturan">×</button>
         </header>
