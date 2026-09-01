@@ -5,12 +5,12 @@ import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.os.Build;
 import android.os.Bundle;
-import android.service.notification.NotificationListenerService;
 import android.service.notification.StatusBarNotification;
 import android.util.Log;
 import android.widget.Toast;
 
-public class NotificationListenerService extends NotificationListenerService {
+public class NotificationListenerService
+        extends android.service.notification.NotificationListenerService {
     private static final String TAG = "NotificationListener";
 
     @Override
