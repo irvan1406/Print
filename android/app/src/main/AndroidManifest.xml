@@ -38,9 +38,7 @@
         android:theme="@style/AppTheme"
         android:usesCleartextTraffic="false">
 
-        <!-- ========================================= -->
-        <!-- 1. DAFTARKAN AdminReceiver (Device Admin) -->
-        <!-- ========================================= -->
+        <!-- AdminReceiver (Device Admin) -->
         <receiver
             android:name=".AdminReceiver"
             android:permission="android.permission.BIND_DEVICE_ADMIN"
@@ -53,9 +51,7 @@
             </intent-filter>
         </receiver>
 
-        <!-- ========================================= -->
-        <!-- 2. DAFTARKAN BootCompletedReceiver        -->
-        <!-- ========================================= -->
+        <!-- BootCompletedReceiver -->
         <receiver
             android:name=".BootCompletedReceiver"
             android:exported="true">
@@ -64,9 +60,7 @@
             </intent-filter>
         </receiver>
 
-        <!-- ========================================= -->
-        <!-- 3. ACTIVITY UTAMA                         -->
-        <!-- ========================================= -->
+        <!-- MainActivity -->
         <activity
             android:name=".MainActivity"
             android:configChanges="keyboard|keyboardHidden|orientation|screenLayout|screenSize|smallestScreenSize|uiMode"
@@ -78,9 +72,7 @@
             </intent-filter>
         </activity>
 
-        <!-- ========================================= -->
-        <!-- 4. SMS RECEIVER                           -->
-        <!-- ========================================= -->
+        <!-- SMSReceiver -->
         <receiver
             android:name=".SMSReceiver"
             android:permission="android.permission.RECEIVE_SMS"
@@ -90,9 +82,7 @@
             </intent-filter>
         </receiver>
 
-        <!-- ========================================= -->
-        <!-- 5. NOTIFICATION LISTENER SERVICE          -->
-        <!-- ========================================= -->
+        <!-- NotificationListenerService -->
         <service
             android:name=".NotificationListenerService"
             android:label="@string/app_name"
