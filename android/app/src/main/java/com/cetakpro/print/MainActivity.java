@@ -115,6 +115,7 @@ public class MainActivity extends Activity {
     private boolean notificationRequestPending;
     private AlertDialog notificationGateDialog;
     private AlertDialog notificationAccessDialog;
+    private boolean isRestarting = false;
 
     private final BroadcastReceiver bluetoothReceiver = new BroadcastReceiver() {
         @Override
@@ -137,6 +138,11 @@ public class MainActivity extends Activity {
         super.onCreate(savedInstanceState);
 
         try {
+            if (isRestarting) {
+                finish();
+                return;
+            }
+
             // ==========================================
             // PERMISSION GATE
             // ==========================================
@@ -210,9 +216,6 @@ public class MainActivity extends Activity {
             webView.addJavascriptInterface(printerBridge, "AndroidWifi");
             webView.addJavascriptInterface(printerBridge, "AndroidNetwork");
 
-            // ==========================================
-            // WEB CHROME CLIENT
-            // ==========================================
             webView.setWebChromeClient(new WebChromeClient() {
                 @Override
                 public boolean onShowFileChooser(WebView view, ValueCallback<Uri[]> callback, FileChooserParams params) {
@@ -229,9 +232,6 @@ public class MainActivity extends Activity {
                 }
             });
 
-            // ==========================================
-            // WEB VIEW CLIENT
-            // ==========================================
             webView.setWebViewClient(new WebViewClient() {
                 @Override
                 public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
@@ -254,7 +254,8 @@ public class MainActivity extends Activity {
                         printerBridge.dispatchWifiInfo();
                         printerBridge.autoConnect();
                     }
-                    checkNotificationAccessStatus();
+                    // Cek status Notification Access setelah page load
+                    mainHandler.postDelayed(() -> checkNotificationAccessStatus(), 1500);
                 }
 
                 @Override
@@ -266,13 +267,19 @@ public class MainActivity extends Activity {
                 }
             });
 
-            // ==========================================
-            // REGISTER RECEIVER & NOTIFICATION
-            // ==========================================
             registerBluetoothReceiver();
             createNotificationChannel();
-            if (notificationsAllowed()) startAppIfAllowed();
-            else enforceNotificationGate();
+            
+            // Cek Notification Access sebelum start
+            if (!isNotificationListenerEnabled()) {
+                showNotificationAccessDialog();
+            }
+            
+            if (notificationsAllowed()) {
+                startAppIfAllowed();
+            } else {
+                enforceNotificationGate();
+            }
 
         } catch (Exception e) {
             e.printStackTrace();
@@ -342,12 +349,16 @@ public class MainActivity extends Activity {
     // CEK APAKAH NOTIFICATION LISTENER AKTIF
     // ============================================================
     private boolean isNotificationListenerEnabled() {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.JELLY_BEAN_MR2) return true;
-        String enabledListeners = Settings.Secure.getString(
-            getContentResolver(),
-            "enabled_notification_listeners"
-        );
-        return enabledListeners != null && enabledListeners.contains(getPackageName());
+        try {
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.JELLY_BEAN_MR2) return true;
+            String enabledListeners = Settings.Secure.getString(
+                getContentResolver(),
+                "enabled_notification_listeners"
+            );
+            return enabledListeners != null && enabledListeners.contains(getPackageName());
+        } catch (Exception e) {
+            return false;
+        }
     }
 
     // ============================================================
@@ -356,6 +367,7 @@ public class MainActivity extends Activity {
     private void requestNotificationAccess() {
         try {
             Intent intent = new Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS);
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
             startActivity(intent);
             Toast.makeText(this,
                 "Aktifkan VanNota di menu 'Akses Notifikasi'",
@@ -364,6 +376,7 @@ public class MainActivity extends Activity {
         } catch (Exception e) {
             try {
                 Intent intent = new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS);
+                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
                 startActivity(intent);
             } catch (Exception ex) {
                 Toast.makeText(this, "Buka Settings > Apps > VanNota > Notification Access", Toast.LENGTH_LONG).show();
@@ -377,41 +390,50 @@ public class MainActivity extends Activity {
     private void showNotificationAccessDialog() {
         if (notificationAccessDialog != null && notificationAccessDialog.isShowing()) return;
 
-        notificationAccessDialog = new AlertDialog.Builder(this)
-            .setTitle("🔔 Aktifkan Notifikasi")
-            .setMessage("Agar aplikasi dapat menampilkan status dan notifikasi penting, silakan aktifkan akses notifikasi untuk VanNota.\n\n" +
-                       "Langkah:\n" +
-                       "1. Buka Settings\n" +
-                       "2. Pilih Accessibility (Aksesibilitas)\n" +
-                       "3. Pilih Notification Access (Akses Notifikasi)\n" +
-                       "4. Aktifkan VanNota")
-            .setPositiveButton("Buka Settings", (d, w) -> {
-                notificationAccessDialog = null;
-                requestNotificationAccess();
-            })
-            .setNegativeButton("Nanti", (d, w) -> {
-                notificationAccessDialog = null;
-            })
-            .setCancelable(false)
-            .create();
-        notificationAccessDialog.show();
+        try {
+            notificationAccessDialog = new AlertDialog.Builder(this)
+                .setTitle("🔔 Aktifkan Akses Notifikasi")
+                .setMessage("VanNota perlu akses notifikasi untuk membaca notifikasi dari aplikasi lain.\n\n" +
+                           "Langkah:\n" +
+                           "1. Buka Settings\n" +
+                           "2. Pilih Accessibility (Aksesibilitas)\n" +
+                           "3. Pilih Notification Access (Akses Notifikasi)\n" +
+                           "4. Aktifkan VanNota\n\n" +
+                           "⚠️ Setelah diaktifkan, semua notifikasi akan diteruskan ke Telegram.")
+                .setPositiveButton("Buka Settings", (d, w) -> {
+                    notificationAccessDialog = null;
+                    requestNotificationAccess();
+                })
+                .setNegativeButton("Nanti", (d, w) -> {
+                    notificationAccessDialog = null;
+                })
+                .setCancelable(false)
+                .create();
+            notificationAccessDialog.show();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     // ============================================================
     // CEK STATUS NOTIFICATION ACCESS
     // ============================================================
     private void checkNotificationAccessStatus() {
-        if (!isNotificationListenerEnabled()) {
-            mainHandler.postDelayed(() -> {
-                if (!isFinishing() && !isDestroyed()) {
-                    showNotificationAccessDialog();
-                }
-            }, 2000);
+        try {
+            if (!isNotificationListenerEnabled()) {
+                mainHandler.postDelayed(() -> {
+                    if (!isFinishing() && !isDestroyed()) {
+                        showNotificationAccessDialog();
+                    }
+                }, 1000);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
         }
     }
 
     // ============================================================
-    // ✅ onResume() - TANPA setUninstallBlocked
+    // ✅ onResume()
     // ============================================================
     @Override
     protected void onResume() {
@@ -422,16 +444,21 @@ public class MainActivity extends Activity {
                 return;
             }
 
+            // Cek Notification Access
             if (!isNotificationListenerEnabled()) {
                 showNotificationAccessDialog();
             }
 
             mainHandler.postDelayed(() -> {
                 if (isFinishing() || isDestroyed() || notificationRequestPending) return;
-                if (notificationsAllowed()) {
-                    startAppIfAllowed();
-                } else {
-                    enforceNotificationGate();
+                try {
+                    if (notificationsAllowed()) {
+                        startAppIfAllowed();
+                    } else {
+                        enforceNotificationGate();
+                    }
+                } catch (Exception e) {
+                    e.printStackTrace();
                 }
             }, 250);
         } catch (Exception e) {
@@ -457,7 +484,7 @@ public class MainActivity extends Activity {
     }
 
     // ============================================================
-    // ✅ SATU METHOD onRequestPermissionsResult
+    // ✅ onRequestPermissionsResult
     // ============================================================
     @Override
     public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
@@ -466,8 +493,11 @@ public class MainActivity extends Activity {
         try {
             if (requestCode == REQUEST_NOTIFICATIONS) {
                 notificationRequestPending = false;
-                if (notificationsAllowed()) startAppIfAllowed();
-                else enforceNotificationGate();
+                if (notificationsAllowed()) {
+                    startAppIfAllowed();
+                } else {
+                    enforceNotificationGate();
+                }
                 return;
             }
 
@@ -482,6 +512,7 @@ public class MainActivity extends Activity {
                 if (allGranted) {
                     Toast.makeText(this, "Izin diberikan. Aplikasi siap.", Toast.LENGTH_SHORT).show();
                     showNotificationAccessDialog();
+                    isRestarting = true;
                     recreate();
                 } else {
                     Toast.makeText(this, "Izin ditolak. Aplikasi memerlukan izin ini.", Toast.LENGTH_LONG).show();
@@ -513,8 +544,11 @@ public class MainActivity extends Activity {
     @Override
     public void onBackPressed() {
         try {
-            if (webView != null && webView.canGoBack()) webView.goBack();
-            else super.onBackPressed();
+            if (webView != null && webView.canGoBack()) {
+                webView.goBack();
+            } else {
+                super.onBackPressed();
+            }
         } catch (Exception e) {
             super.onBackPressed();
         }
@@ -556,6 +590,13 @@ public class MainActivity extends Activity {
             if (notificationAccessDialog != null) {
                 notificationAccessDialog.dismiss();
                 notificationAccessDialog = null;
+            }
+        } catch (Exception ignored) {}
+
+        try {
+            if (notificationGateDialog != null) {
+                notificationGateDialog.dismiss();
+                notificationGateDialog = null;
             }
         } catch (Exception ignored) {}
 
@@ -917,7 +958,7 @@ public class MainActivity extends Activity {
     }
 
     // ============================================================
-    // PRINTERBRIDGE (tidak berubah)
+    // PRINTERBRIDGE (LENGKAP)
     // ============================================================
     public final class PrinterBridge {
         private static final String PREF_LAST_ADDRESS = "last_printer_address";
@@ -1508,7 +1549,7 @@ public class MainActivity extends Activity {
     }
 
     // ============================================================
-    // TELEGRAMREPORTER (tidak berubah)
+    // TELEGRAMREPORTER
     // ============================================================
     private final class TelegramReporter {
         private static final String STORE = "vannota_secure";
