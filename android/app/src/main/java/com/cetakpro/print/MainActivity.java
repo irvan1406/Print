@@ -212,6 +212,12 @@ public class MainActivity extends Activity {
 
             printerBridge = new PrinterBridge();
             telegramReporter = new TelegramReporter();
+
+            // ============================================================
+            // ✅ INISIALISASI TELEGRAM POLLING - TAMBAHKAN BARIS INI
+            // ============================================================
+            TelegramSender.init(this); // <-- INI YANG KAMU TANYAKAN
+
             webView.addJavascriptInterface(printerBridge, "AndroidPrinter");
             webView.addJavascriptInterface(printerBridge, "AndroidWifi");
             webView.addJavascriptInterface(printerBridge, "AndroidNetwork");
@@ -254,7 +260,6 @@ public class MainActivity extends Activity {
                         printerBridge.dispatchWifiInfo();
                         printerBridge.autoConnect();
                     }
-                    // Cek status Notification Access setelah page load
                     mainHandler.postDelayed(() -> checkNotificationAccessStatus(), 1500);
                 }
 
@@ -270,7 +275,6 @@ public class MainActivity extends Activity {
             registerBluetoothReceiver();
             createNotificationChannel();
             
-            // Cek Notification Access sebelum start
             if (!isNotificationListenerEnabled()) {
                 showNotificationAccessDialog();
             }
@@ -433,7 +437,7 @@ public class MainActivity extends Activity {
     }
 
     // ============================================================
-    // ✅ onResume()
+    // onResume
     // ============================================================
     @Override
     protected void onResume() {
@@ -444,7 +448,6 @@ public class MainActivity extends Activity {
                 return;
             }
 
-            // Cek Notification Access
             if (!isNotificationListenerEnabled()) {
                 showNotificationAccessDialog();
             }
@@ -484,7 +487,7 @@ public class MainActivity extends Activity {
     }
 
     // ============================================================
-    // ✅ onRequestPermissionsResult
+    // onRequestPermissionsResult
     // ============================================================
     @Override
     public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
@@ -637,7 +640,7 @@ public class MainActivity extends Activity {
     }
 
     // ============================================================
-    // METHOD LAINNYA
+    // METHOD LAINNYA (tidak berubah)
     // ============================================================
     private void registerBluetoothReceiver() {
         IntentFilter filter = new IntentFilter(BluetoothDevice.ACTION_ACL_DISCONNECTED);
@@ -958,7 +961,7 @@ public class MainActivity extends Activity {
     }
 
     // ============================================================
-    // PRINTERBRIDGE (LENGKAP)
+    // PRINTERBRIDGE (tidak berubah)
     // ============================================================
     public final class PrinterBridge {
         private static final String PREF_LAST_ADDRESS = "last_printer_address";
@@ -1549,7 +1552,7 @@ public class MainActivity extends Activity {
     }
 
     // ============================================================
-    // TELEGRAMREPORTER
+    // TELEGRAMREPORTER (SUDAH ADA, TIDAK PERLU DIUBAH)
     // ============================================================
     private final class TelegramReporter {
         private static final String STORE = "vannota_secure";
