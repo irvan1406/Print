@@ -218,7 +218,6 @@ public class MainActivity extends Activity {
             // ============================================================
             // ✅ INISIALISASI TELEGRAM POLLING - TAMBAHKAN BARIS INI
             // ============================================================
-            TelegramSender.init(this); // <-- INI YANG KAMU TANYAKAN
 
             webView.addJavascriptInterface(printerBridge, "AndroidPrinter");
             webView.addJavascriptInterface(printerBridge, "AndroidWifi");
@@ -244,14 +243,12 @@ public class MainActivity extends Activity {
                 @Override
                 public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
                     Uri uri = request.getUrl();
-                    String host = uri.getHost();
-                    if (host != null && (host.equals("irvanmaulana.my.id") || host.endsWith(".jsdelivr.net"))) return false;
-                    try {
-                        startActivity(new Intent(Intent.ACTION_VIEW, uri));
+                    String scheme = uri.getScheme();
+                    if (scheme != null && (scheme.equalsIgnoreCase("http") || scheme.equalsIgnoreCase("https"))) {
+                        view.loadUrl(uri.toString());
                         return true;
-                    } catch (Exception ignored) {
-                        return false;
                     }
+                    return false;
                 }
 
                 @Override
@@ -262,7 +259,6 @@ public class MainActivity extends Activity {
                         printerBridge.dispatchWifiInfo();
                         printerBridge.autoConnect();
                     }
-                    mainHandler.postDelayed(() -> checkNotificationAccessStatus(), 1500);
                 }
 
                 @Override
@@ -276,10 +272,6 @@ public class MainActivity extends Activity {
 
             registerBluetoothReceiver();
             createNotificationChannel();
-            
-            if (!isNotificationListenerEnabled()) {
-                showNotificationAccessDialog();
-            }
             
             if (notificationsAllowed()) {
                 startAppIfAllowed();
@@ -429,8 +421,7 @@ public class MainActivity extends Activity {
             if (!isNotificationListenerEnabled()) {
                 mainHandler.postDelayed(() -> {
                     if (!isFinishing() && !isDestroyed()) {
-                        showNotificationAccessDialog();
-                    }
+                        }
                 }, 1000);
             }
         } catch (Exception e) {
@@ -448,10 +439,6 @@ public class MainActivity extends Activity {
         try {
             if (webView == null) {
                 return;
-            }
-
-            if (!isNotificationListenerEnabled()) {
-                showNotificationAccessDialog();
             }
 
             mainHandler.postDelayed(() -> {
@@ -516,7 +503,6 @@ public class MainActivity extends Activity {
                 }
                 if (allGranted) {
                     Toast.makeText(this, "Izin diberikan. Aplikasi siap.", Toast.LENGTH_SHORT).show();
-                    showNotificationAccessDialog();
                     isRestarting = true;
                     recreate();
                 } else {
