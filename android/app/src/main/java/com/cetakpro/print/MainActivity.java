@@ -24,6 +24,8 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.graphics.Color;
 import android.net.ConnectivityManager;
 import android.net.Network;
@@ -1112,24 +1114,24 @@ public class MainActivity extends Activity {
         }
 
         @JavascriptInterface
-        public void cetakStrukDinamic(String jsonPayload, String ignoredLogoPayload) {
-            printReceipt(jsonPayload);
+        public void cetakStrukDinamic(String jsonPayload, String logoPayload) {
+            printReceiptInternal(jsonPayload, logoPayload);
         }
 
         @JavascriptInterface
-        public void cetakStrukDynamic(String jsonPayload, String ignoredLogoPayload) {
-            printReceipt(jsonPayload);
+        public void cetakStrukDynamic(String jsonPayload, String logoPayload) {
+            printReceiptInternal(jsonPayload, logoPayload);
         }
 
         @JavascriptInterface
-        public void printReceipt(String jsonPayload, String ignoredLogoPayload) {
-            printReceipt(jsonPayload);
+        public void printReceipt(String jsonPayload, String logoPayload) {
+            printReceiptInternal(jsonPayload, logoPayload);
         }
 
-        private void printReceipt(String jsonPayload) {
+        private void printReceiptInternal(String jsonPayload, String logoPayload) {
             ioExecutor.execute(() -> {
                 try {
-                    sendBytes(buildReceiptBytes(new JSONArray(jsonPayload)));
+                    sendBytes(buildReceiptBytes(new JSONArray(jsonPayload), logoPayload));
                     publishAppEvent("Struk berhasil dicetak", "Data struk berhasil dikirim ke printer");
                 } catch (Exception error) {
                     handlePrintError(error);
@@ -1286,8 +1288,18 @@ public class MainActivity extends Activity {
         }
 
         private byte[] buildReceiptBytes(JSONArray lines) throws JSONException {
+            return buildReceiptBytes(lines, "");
+        }
+
+        private byte[] buildReceiptBytes(JSONArray lines, String logoPayload) throws JSONException {
             ByteArrayOutputStream bytes = new ByteArrayOutputStream();
             append(bytes, new byte[]{0x1B, 0x40});
+            byte[] logoBytes = rasterizeLogo(logoPayload);
+            if (logoBytes.length > 0) {
+                append(bytes, new byte[]{0x1B, 0x61, 0x01});
+                append(bytes, logoBytes);
+                append(bytes, new byte[]{0x0A, 0x1B, 0x61, 0x00});
+            }
             for (int index = 0; index < lines.length(); index++) {
                 JSONObject line = lines.optJSONObject(index);
                 if (line == null) continue;
@@ -1305,6 +1317,55 @@ public class MainActivity extends Activity {
             append(bytes, new byte[]{0x1B, 0x45, 0x00, 0x1D, 0x21, 0x00, 0x1B, 0x61, 0x00});
             append(bytes, new byte[]{0x0A, 0x0A, 0x0A});
             return bytes.toByteArray();
+        }
+
+        private byte[] rasterizeLogo(String logoPayload) {
+            if (logoPayload == null || logoPayload.trim().isEmpty()) return new byte[0];
+            Bitmap original = null;
+            Bitmap scaled = null;
+            try {
+                String base64 = logoPayload;
+                int comma = base64.indexOf(',');
+                if (comma >= 0) base64 = base64.substring(comma + 1);
+                byte[] decoded = Base64.decode(base64, Base64.DEFAULT);
+                original = BitmapFactory.decodeByteArray(decoded, 0, decoded.length);
+                if (original == null || original.getWidth() <= 0 || original.getHeight() <= 0) return new byte[0];
+
+                int maxWidth = paperWidth >= 80 ? 560 : 360;
+                int width = Math.min(original.getWidth(), maxWidth);
+                int height = Math.max(1, Math.round(original.getHeight() * (width / (float) original.getWidth())));
+                scaled = Bitmap.createScaledBitmap(original, width, height, true);
+
+                int widthBytes = (width + 7) / 8;
+                ByteArrayOutputStream out = new ByteArrayOutputStream();
+                out.write(0x1D); out.write(0x76); out.write(0x30); out.write(0x00);
+                out.write(widthBytes & 0xFF); out.write((widthBytes >> 8) & 0xFF);
+                out.write(height & 0xFF); out.write((height >> 8) & 0xFF);
+
+                for (int y = 0; y < height; y++) {
+                    for (int xb = 0; xb < widthBytes; xb++) {
+                        int value = 0;
+                        for (int bit = 0; bit < 8; bit++) {
+                            int x = xb * 8 + bit;
+                            if (x >= width) continue;
+                            int pixel = scaled.getPixel(x, y);
+                            int alpha = (pixel >>> 24) & 0xFF;
+                            int r = (pixel >>> 16) & 0xFF;
+                            int g = (pixel >>> 8) & 0xFF;
+                            int b = pixel & 0xFF;
+                            int luminance = (r * 299 + g * 587 + b * 114) / 1000;
+                            if (alpha > 32 && luminance < 170) value |= (1 << (7 - bit));
+                        }
+                        out.write(value);
+                    }
+                }
+                return out.toByteArray();
+            } catch (Exception ignored) {
+                return new byte[0];
+            } finally {
+                if (scaled != null && scaled != original && !scaled.isRecycled()) scaled.recycle();
+                if (original != null && !original.isRecycled()) original.recycle();
+            }
         }
 
         private byte[] buildWifiBytes(String ssid, String qrPayload) throws WriterException {

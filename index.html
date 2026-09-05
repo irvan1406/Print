@@ -552,6 +552,16 @@
                 <div id="ocr-status" class="text-xs font-bold mt-2 text-orange-600 hidden animate-pulse">Sedang membaca gambar…</div>
             </div>
 
+            <div class="border p-4 rounded bg-gray-50 border-gray-200">
+                <label class="block font-bold text-gray-700 mb-2">Logo Struk</label>
+                <input type="file" id="in-logo-file" accept="image/png,image/jpeg,image/webp" class="w-full bg-white p-1 border rounded text-xs">
+                <div id="logo-upload-preview" class="hidden mt-3 text-center">
+                    <img id="logo-upload-preview-img" alt="Preview logo" style="display:inline-block;max-width:120px;max-height:70px;object-fit:contain;">
+                    <div class="mt-2"><button type="button" class="template-action danger" onclick="clearReceiptLogo()">Hapus logo</button></div>
+                </div>
+                <p class="text-xs text-gray-500 mt-1">PNG/JPG/WebP. Logo akan tampil di pratinjau dan dicetak hitam-putih pada printer thermal.</p>
+            </div>
+
             <div id="custom-controls" class="hidden border p-4 rounded bg-yellow-50 border-yellow-200 space-y-3">
                 <h3 class="font-bold text-yellow-800 border-b pb-1 text-sm">Mode Custom (Teks Mentah)</h3>
                 <div>
@@ -1818,6 +1828,7 @@
         }
         
         updateReceipt();
+        renderReceiptLogo();
     });
 
     // ==========================================
@@ -1868,6 +1879,57 @@
             status.textContent = 'Sedang membaca gambar…';
             appNotice('Foto belum dapat dibaca', 'Gunakan foto yang terang, lurus, dan tidak buram, lalu coba lagi.');
         });
+    });
+
+    let receiptLogoDataUrl = '';
+
+    function renderReceiptLogo() {
+        document.querySelectorAll('.uploaded-logo-container').forEach(el => el.remove());
+        const preview = document.getElementById('logo-upload-preview');
+        const previewImg = document.getElementById('logo-upload-preview-img');
+        if (preview && previewImg) {
+            preview.classList.toggle('hidden', !receiptLogoDataUrl);
+            previewImg.src = receiptLogoDataUrl || '';
+        }
+        if (!receiptLogoDataUrl) return;
+        const activeModel = document.querySelector('.model-view:not(.hidden)');
+        if (!activeModel) return;
+        const box = document.createElement('div');
+        box.className = 'center logo-display-container uploaded-logo-container';
+        box.style.marginBottom = '6px';
+        const img = document.createElement('img');
+        img.src = receiptLogoDataUrl;
+        img.alt = 'Logo struk';
+        img.style.display = 'inline-block';
+        img.style.maxWidth = '75%';
+        img.style.maxHeight = '70px';
+        img.style.objectFit = 'contain';
+        box.appendChild(img);
+        activeModel.insertBefore(box, activeModel.firstChild);
+    }
+
+    function clearReceiptLogo() {
+        receiptLogoDataUrl = '';
+        const input = document.getElementById('in-logo-file');
+        if (input) input.value = '';
+        renderReceiptLogo();
+    }
+
+    document.getElementById('in-logo-file')?.addEventListener('change', function(e) {
+        const file = e.target.files && e.target.files[0];
+        if (!file) return;
+        if (!file.type.startsWith('image/')) {
+            showToast('File logo harus berupa gambar.', 'warning');
+            return;
+        }
+        const reader = new FileReader();
+        reader.onload = () => {
+            receiptLogoDataUrl = String(reader.result || '');
+            renderReceiptLogo();
+            showToast('Logo berhasil dimuat.', 'success');
+        };
+        reader.onerror = () => showToast('Logo gagal dibaca.', 'warning');
+        reader.readAsDataURL(file);
     });
 
     function updateReceipt() {
@@ -2029,6 +2091,7 @@
         for (let i = 0; i < children.length; i++) {
             const child = children[i];
             if (child.classList.contains('hidden') || child.style.display === 'none') continue;
+            if (child.classList.contains('uploaded-logo-container')) continue;
 
             let align = 0; 
             if (child.style.textAlign === 'center' || child.classList.contains('center')) align = 1;
@@ -2092,7 +2155,7 @@
             const nativeMethod = findNativeMethod(window.AndroidPrinter, ['cetakStrukDinamic', 'cetakStrukDynamic', 'printReceipt']);
             if (nativeMethod) {
                 await syncNativePaperWidth();
-                await Promise.resolve(nativeMethod.fn(jsonPayload, ''));
+                await Promise.resolve(nativeMethod.fn(jsonPayload, receiptLogoDataUrl || ''));
             }
             else if (printerState.writeCharacteristic) await sendWebPrinterBytes(buildEscPosTextBytes(printData));
             else {
