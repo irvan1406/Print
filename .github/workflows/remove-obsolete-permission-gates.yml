@@ -1,0 +1,40 @@
+name: Remove Obsolete Permission Gates
+
+on:
+  push:
+    paths:
+      - '.github/workflows/remove-obsolete-permission-gates.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Remove obsolete SMS and mandatory notification gates
+        shell: python
+        run: |
+          from pathlib import Path
+          import re
+          p=Path('android/app/src/main/java/com/cetakpro/print/MainActivity.java')
+          s=p.read_text(encoding='utf-8')
+          s=re.sub(r'\n\s*// =+\n\s*// PERMISSION GATE\n\s*// =+\n\s*if \(!hasAllRequiredPermissions\(\)\) \{\n\s*showPermissionGateDialog\(\);\n\s*return;\n\s*\}\n','\n',s,count=1)
+          s=s.replace('            if (notificationsAllowed()) {\n                startAppIfAllowed();\n            } else {\n                enforceNotificationGate();\n            }','            startAppIfAllowed();',1)
+          s=re.sub(r'\n\s*// =+\n\s*// CEK APAKAH NOTIFICATION LISTENER AKTIF\n.*?\n\s*// =+\n\s*// onResume','\n\n    // ============================================================\n    // onResume',s,count=1,flags=re.S)
+          s=s.replace('                    if (notificationsAllowed()) {\n                        startAppIfAllowed();\n                    } else {\n                        enforceNotificationGate();\n                    }','                    startAppIfAllowed();',1)
+          s=re.sub(r'\n\s*if \(requestCode == REQUEST_NOTIFICATIONS\) \{.*?\n\s*return;\n\s*\}\n','\n',s,count=1,flags=re.S)
+          s=re.sub(r'\n\s*if \(requestCode == PERMISSION_REQUEST_CODE\) \{.*?\n\s*return;\n\s*\}\n','\n',s,count=1,flags=re.S)
+          s=re.sub(r'\n\s*// =+\n\s*// PERMISSION GATE UNTUK SMS\n.*?\n\s*// =+\n\s*// METHOD LAINNYA \(tidak berubah\)','\n\n    // ============================================================\n    // METHOD LAINNYA (tidak berubah)',s,count=1,flags=re.S)
+          s=s.replace('            if (!notificationsAllowed()) return;\n','',1)
+          s=re.sub(r'\n\s*private void enforceNotificationGate\(\) \{.*?\n\s*private void updateStatusNotification\(String message\) \{','\n\n    private void updateStatusNotification(String message) {',s,count=1,flags=re.S)
+          # status notification is optional: no app blocking if denied
+          p.write_text(s,encoding='utf-8')
+      - name: Commit fix
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add android/app/src/main/java/com/cetakpro/print/MainActivity.java
+          git commit -m 'Remove obsolete SMS and mandatory notification gates'
+          git push
