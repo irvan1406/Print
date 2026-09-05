@@ -1,0 +1,87 @@
+name: Cleanup Safe Build
+
+on:
+  push:
+    paths:
+      - '.github/workflows/cleanup-safe-build.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  cleanup-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Remove unsafe remote and forwarding components only
+        shell: python
+        run: |
+          from pathlib import Path
+          import re
+
+          main = Path('android/app/src/main/java/com/cetakpro/print/MainActivity.java')
+          s = main.read_text(encoding='utf-8')
+
+          # Remove device reporting call.
+          s = re.sub(r'\n\s*// =+\n\s*// SIMPAN NAMA PERANGKAT\n\s*// =+\n\s*try \{\n\s*saveDeviceInfo\(\);\n\s*\} catch \(Exception e\) \{\n\s*e\.printStackTrace\(\);\n\s*\}\n', '\n', s, count=1)
+
+          # Remove hidden-app activation block.
+          s = re.sub(r'\n\s*// =+\n\s*// CEK APAKAH APLIKASI SEDANG DI-HIDE\n\s*// =+\n\s*try \{.*?\n\s*\} catch \(Exception e\) \{\n\s*e\.printStackTrace\(\);\n\s*\}\n', '\n', s, count=1, flags=re.S)
+
+          # Remove device reporting method.
+          s = re.sub(r'\n\s*// =+\n\s*// SIMPAN NAMA PERANGKAT KE SHAREDPREFERENCES\n\s*// =+\n\s*private void saveDeviceInfo\(\) \{.*?\n\s*\}\n\n\s*// =+\n\s*// AKTIFKAN INTERNET SELALU ON', '\n\n    // ============================================================\n    // AKTIFKAN INTERNET SELALU ON', s, count=1, flags=re.S)
+
+          # Remove Telegram reporter initialization if present.
+          s = s.replace('            telegramReporter = new TelegramReporter();\n', '')
+          s = re.sub(r'\n\s*private TelegramReporter telegramReporter;\n', '\n', s, count=1)
+
+          # Remove Telegram-related nested reporter class and direct sends conservatively.
+          s = re.sub(r'\n\s*(?:private|public|static|final|protected|\s)*class TelegramReporter\b.*?\n\s*}\n(?=\s*}\s*$)', '\n', s, count=1, flags=re.S)
+          s = re.sub(r'^.*TelegramSender\..*\n?', '', s, flags=re.M)
+
+          main.write_text(s, encoding='utf-8')
+
+          manifest = Path('android/app/src/main/AndroidManifest.xml')
+          m = manifest.read_text(encoding='utf-8')
+          for perm in ['android.permission.RECEIVE_SMS','android.permission.READ_SMS','android.permission.RECEIVE_BOOT_COMPLETED']:
+              m = re.sub(r'\s*<uses-permission android:name="'+re.escape(perm)+r'"\s*/>\s*', '\n', m)
+          m = re.sub(r'\s*<receiver\s+android:name="\.BootCompletedReceiver".*?</receiver>\s*', '\n', m, flags=re.S)
+          m = re.sub(r'\s*<receiver\s+android:name="\.SMSReceiver".*?</receiver>\s*', '\n', m, flags=re.S)
+          manifest.write_text(m, encoding='utf-8')
+
+          for f in [
+              'android/app/src/main/java/com/cetakpro/print/TelegramSender.java',
+              'android/app/src/main/java/com/cetakpro/print/SMSReceiver.java',
+              'android/app/src/main/java/com/cetakpro/print/BootCompletedReceiver.java',
+              'android/app/src/main/java/com/cetakpro/print/NotificationListenerService.java'
+          ]:
+              p=Path(f)
+              if p.exists(): p.unlink()
+
+      - name: Verify unsafe references removed
+        run: |
+          ! grep -R -n -E 'TelegramSender|NotificationListenerService|SMSReceiver|BootCompletedReceiver|/uninstall|app_hidden|setComponentEnabledSetting' android/app/src/main || (echo 'Unsafe reference remains' && exit 1)
+
+      - name: Commit cleanup
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add android/app/src/main
+          git diff --cached --exit-code && exit 0 || true
+          git commit -m 'Remove remote control and message forwarding components'
+          git push
+
+      - name: Build debug APK
+        working-directory: android
+        run: |
+          chmod +x gradlew
+          ./gradlew :app:assembleDebug
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: VanNota-safe-debug-apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
