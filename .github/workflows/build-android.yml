@@ -45,4 +45,4 @@ jobs:
           path: android/app/build/outputs/apk/debug/VanNota.apk
           if-no-files-found: error
 
-# rebuild after obsolete permission gate cleanup
+# rebuild after logo sizing and WYSIWYG receipt fix
