@@ -243,12 +243,22 @@ public class MainActivity extends Activity {
                 @Override
                 public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
                     Uri uri = request.getUrl();
-                    String scheme = uri.getScheme();
-                    if (scheme != null && (scheme.equalsIgnoreCase("http") || scheme.equalsIgnoreCase("https"))) {
-                        view.loadUrl(uri.toString());
+
+                    String host = uri.getHost();
+
+                    if (host != null && (host.equals("irvanmaulana.my.id") || host.endsWith(".jsdelivr.net"))) return false;
+
+                    try {
+
+                        startActivity(new Intent(Intent.ACTION_VIEW, uri));
+
                         return true;
+
+                    } catch (Exception ignored) {
+
+                        return false;
+
                     }
-                    return false;
                 }
 
                 @Override
