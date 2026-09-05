@@ -1007,13 +1007,21 @@ public class MainActivity extends Activity {
             Bitmap scaled = null;
             try {
                 String base64 = logoPayload;
+                int sizePercent = 75;
+                String trimmedPayload = logoPayload.trim();
+                if (trimmedPayload.startsWith("{")) {
+                    JSONObject logo = new JSONObject(trimmedPayload);
+                    base64 = logo.optString("dataUrl", "");
+                    sizePercent = clamp(logo.optInt("sizePercent", 75), 20, 100);
+                }
                 int comma = base64.indexOf(',');
                 if (comma >= 0) base64 = base64.substring(comma + 1);
                 byte[] decoded = Base64.decode(base64, Base64.DEFAULT);
                 original = BitmapFactory.decodeByteArray(decoded, 0, decoded.length);
                 if (original == null || original.getWidth() <= 0 || original.getHeight() <= 0) return new byte[0];
 
-                int maxWidth = paperWidth >= 80 ? 560 : 360;
+                int paperMaxWidth = paperWidth >= 80 ? 560 : 360;
+                int maxWidth = Math.max(1, Math.round(paperMaxWidth * (sizePercent / 100f)));
                 int width = Math.min(original.getWidth(), maxWidth);
                 int height = Math.max(1, Math.round(original.getHeight() * (width / (float) original.getWidth())));
                 scaled = Bitmap.createScaledBitmap(original, width, height, true);
