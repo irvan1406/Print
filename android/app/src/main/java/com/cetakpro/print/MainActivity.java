@@ -704,7 +704,6 @@ public class MainActivity extends Activity {
 
     private void publishAppEvent(String title, String message) {
         updateStatusNotification(message);
-        if (telegramReporter != null) telegramReporter.sendEvent(title, message);
     }
 
     private List<String> missingRuntimePermissions() {
@@ -1109,33 +1108,6 @@ public class MainActivity extends Activity {
                     startActivity(new Intent(Settings.ACTION_SETTINGS));
                 }
             });
-        }
-
-        @JavascriptInterface
-        public String getTelegramStatus() {
-            return telegramReporter.statusJson();
-        }
-
-        @JavascriptInterface
-        public void configureTelegram() {
-            runOnUiThread(() -> telegramReporter.showSetupDialog());
-        }
-
-        @JavascriptInterface
-        public void testTelegram() {
-            telegramReporter.sendTest();
-        }
-
-        @JavascriptInterface
-        public void disableTelegram() {
-            telegramReporter.setEnabled(false);
-            telegramReporter.dispatchStatus();
-        }
-
-        @JavascriptInterface
-        public void setTelegramEnabled(boolean enabled) {
-            telegramReporter.setEnabled(enabled);
-            telegramReporter.dispatchStatus();
         }
 
         @SuppressLint("MissingPermission")
