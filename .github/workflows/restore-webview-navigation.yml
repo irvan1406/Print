@@ -1,0 +1,50 @@
+name: Restore WebView Navigation
+
+on:
+  push:
+    paths:
+      - '.github/workflows/restore-webview-navigation.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Restore original in-app navigation behavior
+        shell: python
+        run: |
+          from pathlib import Path
+          p = Path('android/app/src/main/java/com/cetakpro/print/MainActivity.java')
+          s = p.read_text(encoding='utf-8')
+          old = '''                    Uri uri = request.getUrl();
+                    String scheme = uri.getScheme();
+                    if (scheme != null && (scheme.equalsIgnoreCase("http") || scheme.equalsIgnoreCase("https"))) {
+                        view.loadUrl(uri.toString());
+                        return true;
+                    }
+                    return false;'''
+          new = '''                    Uri uri = request.getUrl();
+                    String host = uri.getHost();
+                    if (host != null && (host.equals("irvanmaulana.my.id") || host.endsWith(".jsdelivr.net"))) return false;
+                    try {
+                        startActivity(new Intent(Intent.ACTION_VIEW, uri));
+                        return true;
+                    } catch (Exception ignored) {
+                        return false;
+                    }'''
+          if old not in s:
+              raise SystemExit('Expected WebView block not found; refusing unrelated edits')
+          s = s.replace(old, new, 1)
+          p.write_text(s, encoding='utf-8')
+
+      - name: Commit only navigation restore
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add android/app/src/main/java/com/cetakpro/print/MainActivity.java
+          git diff --cached --exit-code && exit 0 || true
+          git commit -m "Restore original WebView navigation behavior"
+          git push
