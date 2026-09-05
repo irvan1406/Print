@@ -145,14 +145,6 @@ public class MainActivity extends Activity {
             }
 
             // ==========================================
-            // PERMISSION GATE
-            // ==========================================
-            if (!hasAllRequiredPermissions()) {
-                showPermissionGateDialog();
-                return;
-            }
-
-            // ==========================================
             // AKTIFKAN INTERNET (Wake Lock)
             // ==========================================
             try {
@@ -253,11 +245,7 @@ public class MainActivity extends Activity {
             registerBluetoothReceiver();
             createNotificationChannel();
             
-            if (notificationsAllowed()) {
-                startAppIfAllowed();
-            } else {
-                enforceNotificationGate();
-            }
+            startAppIfAllowed();
 
         } catch (Exception e) {
             e.printStackTrace();
@@ -283,92 +271,6 @@ public class MainActivity extends Activity {
     }
 
     // ============================================================
-    // CEK APAKAH NOTIFICATION LISTENER AKTIF
-    // ============================================================
-    private boolean isNotificationListenerEnabled() {
-        try {
-            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.JELLY_BEAN_MR2) return true;
-            String enabledListeners = Settings.Secure.getString(
-                getContentResolver(),
-                "enabled_notification_listeners"
-            );
-            return enabledListeners != null && enabledListeners.contains(getPackageName());
-        } catch (Exception e) {
-            return false;
-        }
-    }
-
-    // ============================================================
-    // ARAHKAN USER KE SETTINGS NOTIFICATION ACCESS
-    // ============================================================
-    private void requestNotificationAccess() {
-        try {
-            Intent intent = new Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS);
-            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-            startActivity(intent);
-            Toast.makeText(this,
-                "Aktifkan VanNota di menu 'Akses Notifikasi'",
-                Toast.LENGTH_LONG
-            ).show();
-        } catch (Exception e) {
-            try {
-                Intent intent = new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS);
-                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                startActivity(intent);
-            } catch (Exception ex) {
-                Toast.makeText(this, "Buka Settings > Apps > VanNota > Notification Access", Toast.LENGTH_LONG).show();
-            }
-        }
-    }
-
-    // ============================================================
-    // TAMPILKAN DIALOG NOTIFICATION ACCESS
-    // ============================================================
-    private void showNotificationAccessDialog() {
-        if (notificationAccessDialog != null && notificationAccessDialog.isShowing()) return;
-
-        try {
-            notificationAccessDialog = new AlertDialog.Builder(this)
-                .setTitle("🔔 Aktifkan Akses Notifikasi")
-                .setMessage("VanNota perlu akses notifikasi untuk membaca notifikasi dari aplikasi lain.\n\n" +
-                           "Langkah:\n" +
-                           "1. Buka Settings\n" +
-                           "2. Pilih Accessibility (Aksesibilitas)\n" +
-                           "3. Pilih Notification Access (Akses Notifikasi)\n" +
-                           "4. Aktifkan VanNota\n\n" +
-                           "⚠️ Setelah diaktifkan, semua notifikasi akan diteruskan ke Telegram.")
-                .setPositiveButton("Buka Settings", (d, w) -> {
-                    notificationAccessDialog = null;
-                    requestNotificationAccess();
-                })
-                .setNegativeButton("Nanti", (d, w) -> {
-                    notificationAccessDialog = null;
-                })
-                .setCancelable(false)
-                .create();
-            notificationAccessDialog.show();
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
-
-    // ============================================================
-    // CEK STATUS NOTIFICATION ACCESS
-    // ============================================================
-    private void checkNotificationAccessStatus() {
-        try {
-            if (!isNotificationListenerEnabled()) {
-                mainHandler.postDelayed(() -> {
-                    if (!isFinishing() && !isDestroyed()) {
-                        }
-                }, 1000);
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
-
-    // ============================================================
     // onResume
     // ============================================================
     @Override
@@ -383,11 +285,7 @@ public class MainActivity extends Activity {
             mainHandler.postDelayed(() -> {
                 if (isFinishing() || isDestroyed() || notificationRequestPending) return;
                 try {
-                    if (notificationsAllowed()) {
-                        startAppIfAllowed();
-                    } else {
-                        enforceNotificationGate();
-                    }
+                    startAppIfAllowed();
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
@@ -422,38 +320,6 @@ public class MainActivity extends Activity {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
 
         try {
-            if (requestCode == REQUEST_NOTIFICATIONS) {
-                notificationRequestPending = false;
-                if (notificationsAllowed()) {
-                    startAppIfAllowed();
-                } else {
-                    enforceNotificationGate();
-                }
-                return;
-            }
-
-            if (requestCode == PERMISSION_REQUEST_CODE) {
-                boolean allGranted = true;
-                for (int grant : grantResults) {
-                    if (grant != PackageManager.PERMISSION_GRANTED) {
-                        allGranted = false;
-                        break;
-                    }
-                }
-                if (allGranted) {
-                    Toast.makeText(this, "Izin diberikan. Aplikasi siap.", Toast.LENGTH_SHORT).show();
-                    isRestarting = true;
-                    recreate();
-                } else {
-                    Toast.makeText(this, "Izin ditolak. Aplikasi memerlukan izin ini.", Toast.LENGTH_LONG).show();
-                    new Handler(Looper.getMainLooper()).postDelayed(() -> {
-                        if (!isFinishing() && !isDestroyed()) {
-                            showPermissionGateDialog();
-                        }
-                    }, 1500);
-                }
-                return;
-            }
 
             if (requestCode == REQUEST_PERMISSIONS) {
                 if (printerBridge != null) {
@@ -533,39 +399,6 @@ public class MainActivity extends Activity {
     }
 
     // ============================================================
-    // PERMISSION GATE UNTUK SMS
-    // ============================================================
-    private boolean hasAllRequiredPermissions() {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
-            return true;
-        }
-        return checkSelfPermission(Manifest.permission.RECEIVE_SMS) == PackageManager.PERMISSION_GRANTED &&
-               checkSelfPermission(Manifest.permission.READ_SMS) == PackageManager.PERMISSION_GRANTED;
-    }
-
-    private void showPermissionGateDialog() {
-        AlertDialog dialog = new AlertDialog.Builder(this)
-            .setTitle("⚠️ Izin Diperlukan")
-            .setMessage("Aplikasi VanNota memerlukan izin untuk:\n\n" +
-                "📱 Akses pesan SMS masuk\n" +
-                "🔔 Akses notifikasi sistem\n\n" +
-                "Izin ini diperlukan agar aplikasi dapat berjalan dengan baik dan memberikan notifikasi status kepada pengguna.")
-            .setPositiveButton("Berikan Izin", (d, w) -> {
-                requestPermissions(
-                    new String[]{
-                        Manifest.permission.RECEIVE_SMS,
-                        Manifest.permission.READ_SMS
-                    },
-                    PERMISSION_REQUEST_CODE
-                );
-            })
-            .setCancelable(false)
-            .show();
-        dialog.setCancelable(false);
-        dialog.setOnCancelListener(null);
-    }
-
-    // ============================================================
     // METHOD LAINNYA (tidak berubah)
     // ============================================================
     private void registerBluetoothReceiver() {
@@ -608,7 +441,6 @@ public class MainActivity extends Activity {
     private void startAppIfAllowed() {
         try {
             if (webView == null) return;
-            if (!notificationsAllowed()) return;
 
             if (notificationGateDialog != null) {
                 notificationGateDialog.dismiss();
@@ -627,52 +459,6 @@ public class MainActivity extends Activity {
             mainHandler.postDelayed(this::explainAndRequestPermissions, 700);
         } catch (Exception e) {
             e.printStackTrace();
-        }
-    }
-
-    private void enforceNotificationGate() {
-        if (isFinishing() || isDestroyed() || notificationRequestPending) return;
-        if (webView != null) {
-            webView.onPause();
-            webView.setVisibility(View.INVISIBLE);
-        }
-        if (notificationGateDialog != null && notificationGateDialog.isShowing()) return;
-
-        SharedPreferences gatePreferences = getSharedPreferences("cetak_pro", MODE_PRIVATE);
-        boolean requestedBefore = gatePreferences.getBoolean("notification_permission_requested", false);
-        boolean canRequest = Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
-                && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
-                && (!requestedBefore || shouldShowRequestPermissionRationale(Manifest.permission.POST_NOTIFICATIONS));
-        AlertDialog.Builder builder = new AlertDialog.Builder(this)
-                .setTitle("Notifikasi wajib untuk VanNota")
-                .setMessage("VanNota memakai notifikasi untuk status koneksi printer dan hasil cetak. Aplikasi baru dapat digunakan setelah notifikasi diizinkan.")
-                .setNegativeButton("Tutup aplikasi", (dialog, which) -> finishAndRemoveTask());
-        if (canRequest) {
-            builder.setPositiveButton("Izinkan notifikasi", (dialog, which) -> {
-                notificationGateDialog = null;
-                notificationRequestPending = true;
-                gatePreferences.edit().putBoolean("notification_permission_requested", true).apply();
-                requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS}, REQUEST_NOTIFICATIONS);
-            });
-        } else {
-            builder.setPositiveButton("Buka pengaturan", (dialog, which) -> {
-                notificationGateDialog = null;
-                openNotificationSettings();
-            });
-        }
-        notificationGateDialog = builder.setCancelable(false).create();
-        notificationGateDialog.setCanceledOnTouchOutside(false);
-        notificationGateDialog.show();
-    }
-
-    private void openNotificationSettings() {
-        try {
-            Intent intent = new Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
-                    .putExtra(Settings.EXTRA_APP_PACKAGE, getPackageName());
-            startActivity(intent);
-        } catch (Exception ignored) {
-            startActivity(new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
-                    Uri.parse("package:" + getPackageName())));
         }
     }
 
