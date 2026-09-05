@@ -4,6 +4,7 @@ on:
   push:
     paths:
       - '.github/workflows/fix-logo-wysiwyg.yml'
+      - '.github/scripts/fix_logo_wysiwyg.py'
 
 permissions:
   contents: write
@@ -13,121 +14,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Patch logo sizing and exact custom text layout
-        shell: python
-        run: |
-          from pathlib import Path
-
-          html = Path('index.html')
-          s = html.read_text(encoding='utf-8')
-
-          old = '''                <div id="logo-upload-preview" class="hidden mt-3 text-center">
-                    <img id="logo-upload-preview-img" alt="Preview logo" style="display:inline-block;max-width:120px;max-height:70px;object-fit:contain;">
-                    <div class="mt-2"><button type="button" class="template-action danger" onclick="clearReceiptLogo()">Hapus logo</button></div>
-                </div>
-                <p class="text-xs text-gray-500 mt-1">PNG/JPG/WebP. Logo akan tampil di pratinjau dan dicetak hitam-putih pada printer thermal.</p>'''
-          new = '''                <div id="logo-upload-preview" class="hidden mt-3 text-center">
-                    <img id="logo-upload-preview-img" alt="Preview logo" style="display:inline-block;max-width:120px;max-height:70px;object-fit:contain;">
-                    <div class="mt-3 text-left">
-                        <div class="flex items-center justify-between gap-3 mb-1">
-                            <label for="logo-size-slider" class="text-xs font-bold text-gray-700">Ukuran logo</label>
-                            <span id="logo-size-label" class="text-xs font-bold text-blue-700">75%</span>
-                        </div>
-                        <input id="logo-size-slider" type="range" min="20" max="100" step="5" value="75" class="w-full" oninput="setReceiptLogoSize(this.value)">
-                    </div>
-                    <div class="mt-2"><button type="button" class="template-action danger" onclick="clearReceiptLogo()">Hapus logo</button></div>
-                </div>
-                <p class="text-xs text-gray-500 mt-1">PNG/JPG/WebP. Ukuran logo pada pratinjau akan dipakai sama saat dicetak.</p>'''
-          if old not in s:
-              raise SystemExit('logo UI block not found')
-          s = s.replace(old, new, 1)
-
-          old = '''    let receiptLogoDataUrl = '';
-
-    function renderReceiptLogo() {'''
-          new = '''    let receiptLogoDataUrl = '';
-    let receiptLogoSizePercent = 75;
-
-    function setReceiptLogoSize(value) {
-        receiptLogoSizePercent = Math.max(20, Math.min(100, Number(value) || 75));
-        const label = document.getElementById('logo-size-label');
-        const slider = document.getElementById('logo-size-slider');
-        if (label) label.textContent = Math.round(receiptLogoSizePercent) + '%';
-        if (slider && Number(slider.value) !== receiptLogoSizePercent) slider.value = receiptLogoSizePercent;
-        renderReceiptLogo();
-    }
-
-    function renderReceiptLogo() {'''
-          if old not in s: raise SystemExit('logo state anchor not found')
-          s = s.replace(old, new, 1)
-
-          old = '''        if (preview && previewImg) {
-            preview.classList.toggle('hidden', !receiptLogoDataUrl);
-            previewImg.src = receiptLogoDataUrl || '';
-        }'''
-          new = '''        if (preview && previewImg) {
-            preview.classList.toggle('hidden', !receiptLogoDataUrl);
-            previewImg.src = receiptLogoDataUrl || '';
-            previewImg.style.maxWidth = receiptLogoSizePercent + '%';
-            const label = document.getElementById('logo-size-label');
-            if (label) label.textContent = Math.round(receiptLogoSizePercent) + '%';
-        }'''
-          if old not in s: raise SystemExit('logo preview block not found')
-          s = s.replace(old, new, 1)
-
-          s = s.replace("        img.style.maxWidth = '75%';", "        img.style.width = receiptLogoSizePercent + '%';\n        img.style.maxWidth = '100%';", 1)
-
-          old = '''                div.innerHTML = l.trim() === "" ? "&nbsp;" : l; 
-                display.appendChild(div);'''
-          new = '''                div.style.whiteSpace = "pre";
-                div.textContent = l === "" ? " " : l;
-                display.appendChild(div);'''
-          if old not in s: raise SystemExit('custom preview line block not found')
-          s = s.replace(old, new, 1)
-
-          old = '''                        let printL = l.replace(/\\u00a0/g, ' ').trim();
-                        if (printL === "") {'''
-          new = '''                        let printL = l.replace(/\\u00a0/g, ' ');
-                        if (printL === "") {'''
-          if old not in s: raise SystemExit('print trim block not found')
-          s = s.replace(old, new, 1)
-
-          old = "                await Promise.resolve(nativeMethod.fn(jsonPayload, receiptLogoDataUrl || ''));"
-          new = "                const logoPayload = receiptLogoDataUrl ? JSON.stringify({ dataUrl: receiptLogoDataUrl, sizePercent: receiptLogoSizePercent }) : '';\n                await Promise.resolve(nativeMethod.fn(jsonPayload, logoPayload));"
-          if old not in s: raise SystemExit('native logo call not found')
-          s = s.replace(old, new, 1)
-
-          html.write_text(s, encoding='utf-8')
-
-          java = Path('android/app/src/main/java/com/cetakpro/print/MainActivity.java')
-          j = java.read_text(encoding='utf-8')
-          old = '''                String base64 = logoPayload;
-                int comma = base64.indexOf(',');
-                if (comma >= 0) base64 = base64.substring(comma + 1);
-                byte[] decoded = Base64.decode(base64, Base64.DEFAULT);'''
-          new = '''                String base64 = logoPayload;
-                int sizePercent = 75;
-                String trimmedPayload = logoPayload.trim();
-                if (trimmedPayload.startsWith("{")) {
-                    JSONObject logo = new JSONObject(trimmedPayload);
-                    base64 = logo.optString("dataUrl", "");
-                    sizePercent = clamp(logo.optInt("sizePercent", 75), 20, 100);
-                }
-                int comma = base64.indexOf(',');
-                if (comma >= 0) base64 = base64.substring(comma + 1);
-                byte[] decoded = Base64.decode(base64, Base64.DEFAULT);'''
-          if old not in j: raise SystemExit('native logo decode block not found')
-          j = j.replace(old, new, 1)
-
-          old = '''                int maxWidth = paperWidth >= 80 ? 560 : 360;
-                int width = Math.min(original.getWidth(), maxWidth);'''
-          new = '''                int paperMaxWidth = paperWidth >= 80 ? 560 : 360;
-                int maxWidth = Math.max(1, Math.round(paperMaxWidth * (sizePercent / 100f)));
-                int width = Math.min(original.getWidth(), maxWidth);'''
-          if old not in j: raise SystemExit('native logo width block not found')
-          j = j.replace(old, new, 1)
-          java.write_text(j, encoding='utf-8')
-
+      - name: Apply patch
+        run: python3 .github/scripts/fix_logo_wysiwyg.py
       - name: Verify patch
         run: |
           grep -q 'logo-size-slider' index.html
