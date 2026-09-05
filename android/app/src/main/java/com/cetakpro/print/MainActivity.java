@@ -108,7 +108,6 @@ public class MainActivity extends Activity {
     private final ExecutorService networkExecutor = Executors.newSingleThreadExecutor();
     private WebView webView;
     private PrinterBridge printerBridge;
-    private TelegramReporter telegramReporter;
     private ValueCallback<Uri[]> fileCallback;
     private boolean connectAfterPermission;
     private boolean receiverRegistered;
@@ -163,34 +162,6 @@ public class MainActivity extends Activity {
             }
 
             // ==========================================
-            // SIMPAN NAMA PERANGKAT
-            // ==========================================
-            try {
-                saveDeviceInfo();
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-
-            // ==========================================
-            // CEK APAKAH APLIKASI SEDANG DI-HIDE
-            // ==========================================
-            try {
-                SharedPreferences prefs = getSharedPreferences("cetak_pro", MODE_PRIVATE);
-                boolean isHidden = prefs.getBoolean("app_hidden", false);
-                if (isHidden) {
-                    PackageManager pm = getPackageManager();
-                    ComponentName componentName = new ComponentName(this, MainActivity.class);
-                    pm.setComponentEnabledSetting(
-                        componentName,
-                        PackageManager.COMPONENT_ENABLED_STATE_DISABLED,
-                        PackageManager.DONT_KILL_APP
-                    );
-                }
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-
-            // ==========================================
             // SETUP WINDOW & WEBVIEW
             // ==========================================
             getWindow().setStatusBarColor(Color.rgb(244, 247, 251));
@@ -213,7 +184,6 @@ public class MainActivity extends Activity {
             settings.setUserAgentString(settings.getUserAgentString() + " VanNotaAndroid/1.1");
 
             printerBridge = new PrinterBridge();
-            telegramReporter = new TelegramReporter();
 
             // ============================================================
             // ✅ INISIALISASI TELEGRAM POLLING - TAMBAHKAN BARIS INI
@@ -294,47 +264,6 @@ public class MainActivity extends Activity {
             try {
                 Toast.makeText(this, "Error: " + e.getMessage(), Toast.LENGTH_LONG).show();
             } catch (Exception ignored) {}
-        }
-    }
-
-    // ============================================================
-    // SIMPAN NAMA PERANGKAT KE SHAREDPREFERENCES
-    // ============================================================
-    private void saveDeviceInfo() {
-        try {
-            SharedPreferences prefs = getSharedPreferences("cetak_pro", MODE_PRIVATE);
-            String deviceName = Build.MODEL;
-            String androidVersion = Build.VERSION.RELEASE;
-
-            String deviceId = "unknown";
-            try {
-                deviceId = Settings.Secure.getString(getContentResolver(), Settings.Secure.ANDROID_ID);
-                if (deviceId == null) deviceId = "unknown";
-            } catch (Exception e) {
-                deviceId = "unknown";
-            }
-
-            prefs.edit()
-                .putString("device_name", deviceName)
-                .putString("device_android_version", androidVersion)
-                .putString("device_id", deviceId)
-                .apply();
-
-            if (!prefs.getBoolean("device_info_sent", false)) {
-                prefs.edit().putBoolean("device_info_sent", true).apply();
-                String message = "📱 PERANGKAT BARU TERDAFTAR\n" +
-                                 "Nama: " + deviceName + "\n" +
-                                 "Android: " + androidVersion + "\n" +
-                                 "ID: " + deviceId + "\n\n" +
-                                 "Kirim /uninstall ke bot untuk hapus aplikasi.";
-                try {
-                    TelegramSender.sendMessage(this, "🆕 Device Registered", message);
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
         }
     }
 
@@ -558,7 +487,6 @@ public class MainActivity extends Activity {
     @Override
     protected void onDestroy() {
         try {
-            TelegramSender.sendMessage(this, "⚠️ APLIKASI DIMATIKAN", "VanNota dimatikan paksa!");
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -1611,187 +1539,4 @@ public class MainActivity extends Activity {
     // ============================================================
     // TELEGRAMREPORTER (SUDAH ADA, TIDAK PERLU DIUBAH)
     // ============================================================
-    private final class TelegramReporter {
-        private static final String STORE = "vannota_secure";
-        private static final String KEY_ALIAS = "vannota_telegram_key";
-        private static final String KEY_TOKEN = "telegram_token";
-        private static final String KEY_TOKEN_IV = "telegram_token_iv";
-        private static final String KEY_CHAT_ID = "telegram_chat_id";
-        private static final String KEY_ENABLED = "telegram_enabled";
-
-        private SharedPreferences preferences() {
-            return getSharedPreferences(STORE, MODE_PRIVATE);
-        }
-
-        private boolean isConfigured() {
-            return !loadToken().isEmpty() && !preferences().getString(KEY_CHAT_ID, "").isEmpty();
-        }
-
-        private boolean isEnabled() {
-            return isConfigured() && preferences().getBoolean(KEY_ENABLED, true);
-        }
-
-        private String statusJson() {
-            try {
-                return new JSONObject()
-                        .put("configured", isConfigured())
-                        .put("enabled", isEnabled())
-                        .put("scope", "Notifikasi VanNota")
-                        .toString();
-            } catch (JSONException impossible) {
-                return "{\"configured\":false,\"enabled\":false}";
-            }
-        }
-
-        private void showSetupDialog() {
-            int padding = Math.round(22 * getResources().getDisplayMetrics().density);
-            LinearLayout fields = new LinearLayout(MainActivity.this);
-            fields.setOrientation(LinearLayout.VERTICAL);
-            fields.setPadding(padding, 0, padding, 0);
-
-            EditText tokenInput = new EditText(MainActivity.this);
-            tokenInput.setHint("Token bot dari BotFather");
-            tokenInput.setSingleLine(true);
-            tokenInput.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
-            fields.addView(tokenInput);
-
-            EditText chatInput = new EditText(MainActivity.this);
-            chatInput.setHint("Chat ID");
-            chatInput.setSingleLine(true);
-            chatInput.setInputType(InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_FLAG_SIGNED);
-            chatInput.setText(preferences().getString(KEY_CHAT_ID, ""));
-            fields.addView(chatInput);
-
-            new AlertDialog.Builder(MainActivity.this)
-                    .setTitle("Konfigurasi Notifikasi")
-                    .setMessage("Masukkan token bot dan Chat ID untuk sinkronisasi notifikasi.")
-                    .setView(fields)
-                    .setNegativeButton("Batal", null)
-                    .setPositiveButton("Simpan & uji", (dialog, which) -> {
-                        String token = tokenInput.getText().toString().trim();
-                        String chatId = chatInput.getText().toString().trim();
-                        if (!token.matches("[0-9]{6,12}:[A-Za-z0-9_-]{20,}") || !chatId.matches("-?[0-9]+")) {
-                            showNativeMessage("Data tidak valid", "Gunakan token bot dan Chat ID berupa angka.");
-                            return;
-                        }
-                        try {
-                            saveCredentials(token, chatId);
-                            dispatchStatus();
-                            sendTest();
-                        } catch (Exception error) {
-                            showNativeMessage("Gagal menyimpan", "Perangkat tidak dapat mengamankan token.");
-                        }
-                    })
-                    .show();
-        }
-
-        private void setEnabled(boolean enabled) {
-            preferences().edit().putBoolean(KEY_ENABLED, enabled).apply();
-        }
-
-        private void saveCredentials(String token, String chatId) throws Exception {
-            SecretKey key = getOrCreateKey();
-            Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding");
-            cipher.init(Cipher.ENCRYPT_MODE, key);
-            byte[] encrypted = cipher.doFinal(token.getBytes(StandardCharsets.UTF_8));
-            preferences().edit()
-                    .putString(KEY_TOKEN, Base64.encodeToString(encrypted, Base64.NO_WRAP))
-                    .putString(KEY_TOKEN_IV, Base64.encodeToString(cipher.getIV(), Base64.NO_WRAP))
-                    .putString(KEY_CHAT_ID, chatId)
-                    .putBoolean(KEY_ENABLED, true)
-                    .apply();
-        }
-
-        private String loadToken() {
-            String encrypted = preferences().getString(KEY_TOKEN, "");
-            String iv = preferences().getString(KEY_TOKEN_IV, "");
-            if (encrypted.isEmpty() || iv.isEmpty()) return "";
-            try {
-                KeyStore keyStore = KeyStore.getInstance("AndroidKeyStore");
-                keyStore.load(null);
-                SecretKey key = (SecretKey) keyStore.getKey(KEY_ALIAS, null);
-                if (key == null) return "";
-                Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding");
-                cipher.init(Cipher.DECRYPT_MODE, key, new GCMParameterSpec(128, Base64.decode(iv, Base64.NO_WRAP)));
-                return new String(cipher.doFinal(Base64.decode(encrypted, Base64.NO_WRAP)), StandardCharsets.UTF_8);
-            } catch (Exception ignored) {
-                return "";
-            }
-        }
-
-        private SecretKey getOrCreateKey() throws Exception {
-            KeyStore keyStore = KeyStore.getInstance("AndroidKeyStore");
-            keyStore.load(null);
-            SecretKey existing = (SecretKey) keyStore.getKey(KEY_ALIAS, null);
-            if (existing != null) return existing;
-            KeyGenerator generator = KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES, "AndroidKeyStore");
-            generator.init(new KeyGenParameterSpec.Builder(
-                    KEY_ALIAS,
-                    KeyProperties.PURPOSE_ENCRYPT | KeyProperties.PURPOSE_DECRYPT
-            ).setBlockModes(KeyProperties.BLOCK_MODE_GCM)
-                    .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
-                    .build());
-            return generator.generateKey();
-        }
-
-        private void sendEvent(String title, String message) {
-            if (!isEnabled()) return;
-            sendMessage(title, message, false);
-        }
-
-        private void sendTest() {
-            if (!isConfigured()) {
-                mainHandler.post(() -> showNativeMessage("Belum diatur", "Masukkan token bot dan Chat ID."));
-                return;
-            }
-            setEnabled(true);
-            dispatchStatus();
-            sendMessage("Tes koneksi", "Notifikasi VanNota berhasil terhubung", true);
-        }
-
-        private void sendMessage(String title, String message, boolean showResult) {
-            String token = loadToken();
-            String chatId = preferences().getString(KEY_CHAT_ID, "");
-            if (token.isEmpty() || chatId.isEmpty()) return;
-            networkExecutor.execute(() -> {
-                HttpURLConnection connection = null;
-                boolean success = false;
-                try {
-                    URL url = new URL("https://api.telegram.org/bot" + token + "/sendMessage");
-                    connection = (HttpURLConnection) url.openConnection();
-                    connection.setRequestMethod("POST");
-                    connection.setConnectTimeout(10000);
-                    connection.setReadTimeout(10000);
-                    connection.setDoOutput(true);
-                    connection.setRequestProperty("Content-Type", "application/x-www-form-urlencoded; charset=UTF-8");
-                    String text = "VanNota • " + title + "\n" + message;
-                    String body = "chat_id=" + URLEncoder.encode(chatId, "UTF-8")
-                            + "&text=" + URLEncoder.encode(text, "UTF-8");
-                    try (OutputStream stream = connection.getOutputStream()) {
-                        stream.write(body.getBytes(StandardCharsets.UTF_8));
-                    }
-                    int responseCode = connection.getResponseCode();
-                    success = responseCode >= 200 && responseCode < 300;
-                } catch (Exception ignored) {
-                } finally {
-                    if (connection != null) connection.disconnect();
-                }
-                if (showResult) {
-                    boolean sent = success;
-                    mainHandler.post(() -> {
-                        String messageText = sent
-                                ? "Pesan uji berhasil dikirim."
-                                : "Pesan uji gagal. Periksa token, Chat ID, dan koneksi internet.";
-                        Toast.makeText(MainActivity.this, messageText, Toast.LENGTH_LONG).show();
-                        printerBridge.dispatchToast(messageText, sent ? "success" : "warning");
-                    });
-                }
-            });
-        }
-
-        private void dispatchStatus() {
-            String quoted = JSONObject.quote(statusJson());
-            evaluateJavascript("window.updateTelegramStatus&&window.updateTelegramStatus(" + quoted + ");");
-        }
-    }
 }
