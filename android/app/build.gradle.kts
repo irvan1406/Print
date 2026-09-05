@@ -13,7 +13,7 @@ android {
         versionCode = 2
         versionName = "1.1.0"
 
-        buildConfigField("String", "WEB_APP_URL", "\"https://irvan1406.github.io/Print/\"")
+        buildConfigField("String", "WEB_APP_URL", "\"https://irvanmaulana.my.id/\"")
     }
 
     buildFeatures {
